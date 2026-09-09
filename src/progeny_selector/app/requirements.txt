@@ -1,0 +1,4 @@
+# Packages installed by shinylive at start-up in the browser (pure-Python wheels only).
+# numpy, pyyaml and pandas ship with Pyodide; progeny-selector itself is installed from
+# the wheel URL published with each release (see docs/adr/0003).
+pyyaml

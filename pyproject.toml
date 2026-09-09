@@ -1,0 +1,64 @@
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[project]
+name = "progeny-selector"
+version = "0.1.0"
+description = "Marker-assisted backcross progeny ranking and selection: foreground, background, linkage drag, avoid loci, composite scores."
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.11"
+authors = [{ name = "Pierce Taylor" }]
+keywords = ["plant breeding", "marker-assisted backcrossing", "soybean", "genotype", "selection"]
+classifiers = [
+  "Development Status :: 2 - Pre-Alpha",
+  "Intended Audience :: Science/Research",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Scientific/Engineering :: Bio-Informatics",
+]
+dependencies = [
+  "numpy>=1.26",
+  "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+app = ["shiny>=1.4", "pandas>=2.2"]
+dev = ["pytest>=8", "pytest-cov>=5", "ruff>=0.6", "mypy>=1.10", "shiny>=1.4", "pandas>=2.2", "shinylive>=0.8"]
+
+[project.scripts]
+progeny-selector = "progeny_selector.cli:main"
+
+[project.urls]
+Repository = "https://github.com/piercetaylor2020/progeny-selector"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/progeny_selector"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 140
+target-version = "py311"
+src = ["src", "tests", "scripts"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "N", "SIM", "RUF"]
+ignore = ["RUF012"]
+
+[tool.ruff.lint.per-file-ignores]
+"src/progeny_selector/app/**" = ["B008", "N802"]
+"tests/**" = ["B011"]
+
+[tool.mypy]
+python_version = "3.11"
+packages = ["progeny_selector"]
+mypy_path = "src"
+ignore_missing_imports = true
+warn_unused_ignores = false
+check_untyped_defs = true

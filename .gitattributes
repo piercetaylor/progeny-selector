@@ -1,0 +1,3 @@
+# Normalise line endings: the repository is LF everywhere, so a regenerated
+# fixture on Windows matches the committed files.
+* text=auto eol=lf
