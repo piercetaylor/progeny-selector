@@ -41,7 +41,9 @@ Fixture expectations are computed by a second, independent implementation inside
 ## Environment gotchas
 
 - `core.autocrlf` is `true` on the maintainer's machine. `.gitattributes` pins the repo to LF; without it a regenerated fixture differs from the committed one and CI fails.
-- `python` is Python 2 here; use `python3`. The project requires Python 3.11 or newer.
+- `python` is Python 2 here; use `python3`. The project requires Python 3.11 or newer, and only 3.12 and 3.13 are installed on the maintainer's machine, so the 3.11 half of the CI matrix is verified only by CI.
+- Do not put a `python_version` pin back in `[tool.mypy]`. Pinning it below the interpreter makes mypy reject numpy's own stubs, which use PEP 695 `type` statements it parses only when the assumed version is 3.12 or newer. mypy therefore runs once, on the newest supported Python; ruff's `target-version = "py311"` is what keeps the source valid on 3.11.
+- The Pages deploy job is gated on a repository variable `ENABLE_PAGES`, because `actions/deploy-pages` returns 404 and fails rather than skipping when Pages is off. Set it to `true` once Pages is enabled with the GitHub Actions source.
 
 ## A lesson worth importing from the sibling
 
