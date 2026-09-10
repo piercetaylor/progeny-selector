@@ -24,7 +24,12 @@ jobs:
       - run: pip install -e ".[dev]"
       - run: ruff check .
       - run: ruff format --check .
+      # Typechecking is static, so it runs once rather than per interpreter.
+      # numpy ships PEP 695 stubs that mypy only parses when it assumes
+      # Python 3.12 or newer; ruff (target-version py311) keeps the source
+      # valid on 3.11 and pytest exercises both.
       - run: mypy
+        if: matrix.python-version == '3.12'
       - run: pytest --cov=progeny_selector --cov-report=term-missing
       - name: fixture is reproducible
         run: |
@@ -37,14 +42,17 @@ jobs:
           shinylive export src/progeny_selector/app site
         if: matrix.python-version == '3.12'
       - uses: actions/upload-pages-artifact@v3
-        if: matrix.python-version == '3.12' && github.ref == 'refs/heads/main' && github.event_name == 'push'
+        if: vars.ENABLE_PAGES == 'true' && matrix.python-version == '3.12' && github.ref == 'refs/heads/main' && github.event_name == 'push'
         with:
           path: site
 
   deploy-pages:
-    # Publishes the shinylive static export to GitHub Pages (Pages source must be "GitHub Actions").
+    # Publishes the shinylive static export to GitHub Pages (Pages source must be
+    # "GitHub Actions"). actions/deploy-pages returns 404 and fails, rather than
+    # skipping, when Pages is off, which would mark every push to main as failed.
+    # Set the repository variable ENABLE_PAGES to "true" once Pages is enabled.
     needs: check
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: vars.ENABLE_PAGES == 'true' && github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     permissions:
       pages: write

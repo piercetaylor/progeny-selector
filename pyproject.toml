@@ -56,7 +56,11 @@ ignore = ["RUF012"]
 "tests/**" = ["B011"]
 
 [tool.mypy]
-python_version = "3.11"
+# No python_version pin: mypy then assumes the interpreter it runs under.
+# Pinning it to 3.11 while running on 3.12 made mypy reject numpy's own
+# stubs, which use PEP 695 "type" statements that it only parses when the
+# assumed version is 3.12 or newer. CI runs mypy once, on the newest
+# supported Python; ruff's target-version keeps the source valid on 3.11.
 packages = ["progeny_selector"]
 mypy_path = "src"
 ignore_missing_imports = true
