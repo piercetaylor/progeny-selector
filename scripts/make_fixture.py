@@ -315,7 +315,7 @@ def write_outputs(
                 calls.append({0: "0/0", 1: "0/1", 2: "1/1", 4: "./."}[s])
             fh.write(f"{m['chrom']}\t{m['pos']}\t{m['id']}\t{ref}\t{alt}\t.\tPASS\t.\tGT\t" + "\t".join(calls) + "\n")
     with open(OUT / "samples.csv", "w", newline="") as fh:
-        w = csv.writer(fh)
+        w = csv.writer(fh, lineterminator="\n")
         w.writerow(["sample_id", "line_name", "role", "generation", "family_id", "notes"])
         w.writerow([RP_ID, "Williams 82 (synthetic)", "recurrent_parent", "", "", "synthetic recurrent parent"])
         w.writerow([DONOR_ID, "PI synthetic donor", "donor_parent", "", "", "synthetic donor"])
@@ -329,7 +329,7 @@ def write_outputs(
         for sid in ids:
             w.writerow([sid, sid.replace("BC2F1-", "L"), "progeny", generation[sid], family[sid], notes.get(sid, "")])
     with open(OUT / "markers.csv", "w", newline="") as fh:
-        w = csv.writer(fh)
+        w = csv.writer(fh, lineterminator="\n")
         w.writerow(["marker_id", "chrom", "pos_bp", "cm"])
         for m in markers:
             w.writerow([m["id"], m["chrom"], m["pos"], m["cm"]])
@@ -357,10 +357,11 @@ filters:
   unknown_target_is: fail
   unknown_avoid_is: pass
   exclude_qc_flagged: true
-"""
+""",
+        newline="\n",
     )
     with open(OUT / "expected_results.csv", "w", newline="") as fh:
-        w = csv.DictWriter(fh, fieldnames=list(rows[0].keys()))
+        w = csv.DictWriter(fh, fieldnames=list(rows[0].keys()), lineterminator="\n")
         w.writeheader()
         for r in rows:
             w.writerow({k: (f"{v:.10g}" if isinstance(v, float) else v) for k, v in r.items()})
