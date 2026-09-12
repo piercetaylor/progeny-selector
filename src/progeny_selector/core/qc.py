@@ -7,13 +7,16 @@ and duplicates (PLAN.md, algorithm 8). Flags are advisory strings; the
 ranking step decides whether flagged individuals are excluded.
 
 Interface:
-    sample_qc(states, gm, dataset, classification, filters) -> list[SampleQC]
+    sample_qc(gm, dataset, classification, filters) -> list[SampleQC]
     parent_qc(gm, dataset, classification, filters) -> list[str] warnings
     duplicate_pairs(gm, sample_ids, threshold=0.995) -> list[tuple[str, str, float]]
+    uninformative_summary(classification) -> list[tuple[str, int]]   (reason, count), count desc then reason
+    qc_table_rows(qc, dataset) -> list[dict]   one flat row per SampleQC for the Validate screen
 """
 
 from __future__ import annotations
 
+from collections import Counter
 from dataclasses import dataclass, field
 
 import numpy as np
@@ -21,6 +24,7 @@ import numpy as np
 from progeny_selector.constants import STATE_A, STATE_B, STATE_H, STATE_N, STATE_X
 from progeny_selector.core.classify import Classification
 from progeny_selector.core.generation import expected_fractions, parse_generation
+from progeny_selector.core.score import QC_EXCLUDING_FLAGS
 from progeny_selector.core.similarity import ibs_to_sample, pairwise_ibs
 from progeny_selector.model.criteria import Filters
 from progeny_selector.model.dataset import Dataset, GenotypeMatrix
@@ -136,3 +140,45 @@ def duplicate_pairs(
             if ibs[a, b] >= threshold:
                 pairs.append((sample_ids[a], sample_ids[b], float(ibs[a, b])))
     return pairs
+
+
+def uninformative_summary(classification: Classification) -> list[tuple[str, int]]:
+    """Count of uninformative markers per reason, most frequent first, ties by reason; informative markers excluded."""
+    counts = Counter(str(r) for r in classification.uninformative_reason.tolist() if r)
+    return sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))
+
+
+def qc_table_rows(qc: list[SampleQC], dataset: Dataset) -> list[dict]:
+    """Flat rows for the QC table, in ``qc`` order.
+
+    ``qc_excluded`` is true when a QC flag alone excludes the individual (any flag in
+    ``QC_EXCLUDING_FLAGS``); the missing-rate and locus hard filters are reported on the Rank
+    screen. NaN rates become None, as in ``AnalysisResult.rows``.
+    """
+    rows: list[dict] = []
+    for q in qc:
+        s = dataset.sample(q.sample_id)
+        rows.append(
+            {
+                "sample_id": q.sample_id,
+                "line_name": s.line_name,
+                "family_id": s.family_id,
+                "generation": s.generation,
+                "missing_rate": _num(q.missing_rate),
+                "het_rate": _num(q.het_rate),
+                "expected_het": q.expected_het,
+                "hom_donor_rate": _num(q.hom_donor_rate),
+                "nonparental_rate": _num(q.nonparental_rate),
+                "expected_rpp": q.expected_rpp,
+                "ibs_rp": _num(q.ibs_rp),
+                "ibs_donor": _num(q.ibs_donor),
+                "flags": "|".join(q.flags),
+                "qc_excluded": any(f in QC_EXCLUDING_FLAGS for f in q.flags),
+            }
+        )
+    return rows
+
+
+def _num(x: float) -> float | None:
+    """NaN -> None so rows serialise cleanly (core.pipeline has the same helper; importing it here would be circular)."""
+    return None if np.isnan(x) else float(x)
