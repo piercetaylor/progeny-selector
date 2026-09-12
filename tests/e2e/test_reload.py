@@ -28,7 +28,8 @@ def test_second_load_resets_state(page: Page, app: ShinyAppProc) -> None:
     table.select_rows([0, 2])
     table.expect_selected_num_rows(2)
     navbar.set("compare")
-    expect(page.locator("#compare-panel")).to_contain_text("BC2F1-F2-")
+    expect(page.locator("#compare-panels .card")).to_have_count(2)
+    expect(page.locator("#compare-panels")).to_contain_text("BC2F1-F2-")
 
     navbar.set("load")
     controller.InputActionButton(page, "load-run").click()
@@ -37,10 +38,10 @@ def test_second_load_resets_state(page: Page, app: ShinyAppProc) -> None:
     # Compare and Select first: the Rank grid is hidden and not re-rendered yet, so a stale
     # selection could only be cleared by the Load screen's reset.
     navbar.set("compare")
-    panel = page.locator("#compare-panel")
+    panel = page.locator("#compare-panels")
     expect(panel).to_have_text("Select rows on the Rank screen.")
     expect(panel).not_to_contain_text("BC2F1-")
-    expect(page.locator("#compare-panel.shiny-output-error")).to_have_count(0)
+    expect(page.locator("#compare-panels.shiny-output-error")).to_have_count(0)
 
     navbar.set("select")
     summary = page.locator("#select-summary")

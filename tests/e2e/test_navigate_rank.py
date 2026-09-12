@@ -86,12 +86,10 @@ def test_selection_follows_sorted_view(page: Page, app: ShinyAppProc) -> None:
     table.select_rows([0, 2])
     table.expect_selected_num_rows(2)
     navbar.set("compare")
-    panel = page.locator("#compare-panel")
-    expect(panel).to_contain_text(first)
-    expect(panel).to_contain_text(third)
-    lines = [line for line in panel.inner_text().splitlines() if line.strip()]
-    assert len(lines) == 2
-    assert sorted(line.split(":")[0] for line in lines) == sorted([first, third])
+    cards = page.locator("#compare-panels .card")
+    expect(cards).to_have_count(2)
+    expect(cards.nth(0).locator(".card-header")).to_contain_text(first)
+    expect(cards.nth(1).locator(".card-header")).to_contain_text(third)
 
 
 def test_crumb_links_step_back(page: Page, app: ShinyAppProc) -> None:

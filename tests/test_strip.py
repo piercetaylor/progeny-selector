@@ -9,10 +9,11 @@ from progeny_selector.app.present import strip_rects
 from progeny_selector.constants import STATE_A, STATE_B, STATE_H, STATE_N
 from progeny_selector.core.classify import classify
 from progeny_selector.core.foreground import resolve_locus
+from progeny_selector.core.pipeline import run_analysis
 from progeny_selector.core.strip import ChromStrip, chromosome_strips, locus_ticks
-from progeny_selector.model.criteria import AvoidSpec, TargetSpec
+from progeny_selector.model.criteria import AvoidSpec, Criteria, TargetSpec
 from progeny_selector.model.dataset import GenotypeMatrix, Marker
-from tests.conftest import make_matrix
+from tests.conftest import make_dataset, make_matrix
 
 GM01_LEN = 57_932_356
 
@@ -125,3 +126,35 @@ def test_locus_ticks_region_and_marker():
     marker_tick = geom.rows[0].ticks[1]
     assert marker_tick.w == pytest.approx(0.004 * bar)
     assert marker_tick.x + marker_tick.w / 2 == pytest.approx(34 + 2e6 / GM01_LEN * bar)
+
+
+def test_view_marker_order_matches_pipeline_states():
+    """Compare strips index result.classification.states with the view's own sorted_by_position() copy.
+
+    run_analysis sorts a copy of the matrix before classifying; the view sorts the loaded matrix the same
+    way. With markers out of order across chromosomes and three co-located calls, both orders must agree,
+    so the strip equals the one built from a matrix constructed already in position order.
+    """
+    states = ["B", "A", "H", "B", "H", "A"]
+    chroms = ["Gm11", "Gm2", "Gm11", "Gm2", "Gm11", "Gm11"]
+    positions = [5_000_000, 3_000_000, 1_000_000, 1_000_000, 5_000_000, 5_000_000]
+    base = make_matrix(states)
+    markers = [Marker(f"m{i}", c, p) for i, (c, p) in enumerate(zip(chroms, positions, strict=True))]
+    loaded = GenotypeMatrix(markers=markers, sample_ids=base.sample_ids, alleles=base.alleles, calls=base.calls)
+    dataset = make_dataset(loaded)
+    result = run_analysis(dataset, Criteria(targets=[TargetSpec("T1", marker_id="m3")], avoid=[AvoidSpec("AV1", marker_id="m0")]))
+
+    gm = dataset.genotypes.sorted_by_position()
+    j = gm.sample_index("P1")
+    got = chromosome_strips(result.classification.states[:, j], gm)
+
+    order = [3, 1, 2, 0, 4, 5]  # Gm2 by position, then Gm11 by position with ties in input order
+    ordered = GenotypeMatrix(
+        markers=[markers[i] for i in order],
+        sample_ids=base.sample_ids,
+        alleles=[base.alleles[i] for i in order],
+        calls=base.calls[order],
+    )
+    want = chromosome_strips(progeny_states(ordered), ordered)
+    assert got == want
+    assert [[seg.state for seg in s.segments] for s in got] == [[STATE_B, STATE_A], [STATE_H, STATE_B, STATE_H, STATE_A]]
