@@ -90,7 +90,7 @@ Goal: the per-commit gates never depend on shinylive or a browser; a browser tes
 
 `tests/e2e/test_load_screen.py`: `app = create_app_fixture(["../../src/progeny_selector/app/app.py"])`; `test_load_fixture(page, app)`: `page.goto(app.url)`; `controller.InputFile(page, "load-genotypes").set(FIXTURE / "genotypes.vcf")` and likewise `load-samples`, `load-markers`, `load-criteria` (module ids are `<module>-<id>`); `controller.InputActionButton(page, "load-run").click()`; a verbatim-text controller under a known name is not verified, so the test asserts `page.locator("#load-status")` `to_contain_text("500 markers, 40 progeny; 11 pass hard filters")` with a 60 s timeout. `InputFile.set(file_path, *, timeout=None, expect_complete_timeout=30000)` [web] https://shiny.posit.co/py/api/testing/playwright.controller.InputFile.html. The implementer checks the exact status text the M0 Load screen emits and uses it verbatim.
 
-Acceptance as tests: `pytest` (24 passing, e2e excluded, no browser needed); `pytest -m e2e` passes with Chromium installed; `ruff`, `mypy`, fixture gate pass; the CI `e2e` job is green on the first push.
+Acceptance as tests: `pytest` (26 passing after phase 0, e2e excluded, no browser needed); `pytest -m e2e` passes with Chromium installed; `ruff`, `mypy`, fixture gate pass; the CI `e2e` job is green on the first push.
 
 Not verifiable here: `create_app_fixture(env=)` semantics; the name of the verbatim-text controller; lzstring on the CI image.
 

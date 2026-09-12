@@ -2,7 +2,14 @@
 
 ## Setup
 
-Python 3.11 or later. `pip install -e ".[dev]"`, then `ruff check .`, `ruff format --check .`, `mypy` and `pytest` must pass before a pull request. Regenerate the fixture with `python scripts/make_fixture.py`; CI fails if the committed fixture differs from the generator's output.
+Python 3.11 or later. The package has four extras:
+
+- `app`: shiny and pandas, to run the UI.
+- `dev`: the `app` dependencies plus pytest, pytest-cov, ruff and mypy. `pip install -e ".[dev]"` is enough for the per-commit gates: `ruff check .`, `ruff format --check .`, `mypy` and `pytest` must pass before a pull request.
+- `e2e`: pytest-playwright, for the browser tests under `tests/e2e/`. Install with `pip install -e ".[dev,e2e]"`, run `playwright install chromium` once, then `pytest -m e2e`. Plain `pytest` excludes these tests.
+- `export`: shinylive and build, for the static Shinylive export. No test gate needs it.
+
+Regenerate the fixture with `python scripts/make_fixture.py`; CI fails if the committed fixture differs from the generator's output.
 
 ## Conventions
 
