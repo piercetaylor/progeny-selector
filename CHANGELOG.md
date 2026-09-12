@@ -13,6 +13,10 @@ All notable changes to this project are documented in this file. The format foll
 - Synthetic BC2F1 fixture (2 parents, 40 progeny in 2 families, 500 markers, planted target, avoid locus, contaminant, high-missing individual) with generator and expected results; unit and smoke tests.
 - PLAN.md, data-format and reference-repository documents, MADR decision records, CI workflow.
 
+### Fixed
+
+- Genotype files named `.vcf.bgz` now load, as documented; `.bcf`, which was never documented and was read as text, is rejected.
+
 ## [0.1.0] - unreleased
 
 Initial scaffold; no release has been tagged.

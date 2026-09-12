@@ -50,6 +50,22 @@ def test_vcf_plain_and_gzip(tmp_path: Path):
     assert np.array_equal(load_genotypes(gz).calls, gm.calls)
 
 
+def test_vcf_bgz_extension(tmp_path: Path):
+    p = tmp_path / "g.vcf"
+    p.write_text(VCF)
+    gm = load_genotypes(p)
+    bgz = tmp_path / "g.vcf.bgz"
+    with gzip.open(bgz, "wt") as fh:
+        fh.write(VCF)
+    assert np.array_equal(load_genotypes(bgz).calls, gm.calls)
+
+
+def test_bcf_extension_rejected(tmp_path: Path):
+    p = tmp_path / "g.bcf"
+    with pytest.raises(DataContractError, match="cannot infer genotype format"):
+        load_genotypes(p)
+
+
 def test_hapmap(tmp_path: Path):
     p = tmp_path / "g.hmp.txt"
     p.write_text(HAPMAP)

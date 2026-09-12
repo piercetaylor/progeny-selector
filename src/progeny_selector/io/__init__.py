@@ -19,8 +19,13 @@ from progeny_selector.model.dataset import DataContractError, Dataset, GenotypeM
 
 def load_genotypes(path: str | Path, coding: str = "auto") -> GenotypeMatrix:
     name = str(path).lower()
-    base = name[:-3] if name.endswith(".gz") else name
-    if base.endswith(".vcf") or base.endswith(".bcf"):
+    if name.endswith(".gz"):
+        base = name[:-3]
+    elif name.endswith(".bgz"):
+        base = name[:-4]
+    else:
+        base = name
+    if base.endswith(".vcf"):
         return read_vcf(path)
     if base.endswith((".hmp.txt", ".hmp", ".hapmap")):
         return read_hapmap(path)
