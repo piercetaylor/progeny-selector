@@ -12,6 +12,7 @@ All notable changes to this project are documented in this file. The format foll
 - results.csv, selected.csv and next-round manifest writers; `progeny-selector validate | rank | select` commands.
 - Synthetic BC2F1 fixture (2 parents, 40 progeny in 2 families, 500 markers, planted target, avoid locus, contaminant, high-missing individual) with generator and expected results; unit and smoke tests.
 - PLAN.md, data-format and reference-repository documents, MADR decision records, CI workflow.
+- Navigate screen: family and generation tree with breadcrumbs that filter the Rank grid. Rank grid shows pass, fail and unknown chips and recombinant flags per locus.
 
 ### Fixed
 

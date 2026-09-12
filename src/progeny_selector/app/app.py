@@ -2,9 +2,10 @@
 
 Responsibility: assemble screen modules into a navset with breadcrumb state
 (cross -> family -> generation -> individual) held in reactive values that
-every screen reads. Status: M0 scaffold; the Load screen runs the real
-pipeline on uploaded files and the Rank screen renders the result rows, the
-remaining screens are placeholders that state their interface.
+every screen reads. Status: M1 in progress; the Load screen runs the real
+pipeline on uploaded files, the Navigate tree and breadcrumbs filter the Rank
+grid, which shows per-locus status chips and recombinant flags; the remaining
+screens are placeholders that state their interface.
 
 Interface:
     app: shiny.App  (module attribute discovered by ``shiny run``)

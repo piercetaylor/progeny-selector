@@ -7,7 +7,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from progeny_selector.core.navigation import FamilyNode, GenerationNode, build_tree, crumb_labels, filter_rows
+from progeny_selector.core.navigation import UNASSIGNED, FamilyNode, GenerationNode, build_tree, crumb_labels, filter_rows
 from progeny_selector.core.pipeline import run_analysis
 from progeny_selector.io import load_dataset, read_criteria
 from progeny_selector.model.dataset import Dataset, Sample
@@ -59,9 +59,24 @@ def test_filter_rows(fixture_data):
     assert filter_rows(rows, None, None) == rows
 
 
+def test_filter_rows_unassigned():
+    rows = [
+        {"sample_id": "a", "family_id": "F1", "generation": "BC1F1"},
+        {"sample_id": "b", "family_id": None, "generation": "BC1F1"},
+        {"sample_id": "c", "family_id": "", "generation": None},
+        {"sample_id": "d", "family_id": "F2", "generation": ""},
+    ]
+    assert filter_rows(rows, UNASSIGNED, None) == [rows[1], rows[2]]
+    assert filter_rows(rows, None, None) == rows
+    assert filter_rows(rows, None, UNASSIGNED) == [rows[2], rows[3]]
+    assert filter_rows(rows, UNASSIGNED, UNASSIGNED) == [rows[2]]
+
+
 def test_crumb_labels(fixture_data):
     tree = build_tree(fixture_data[0])
     cross = "Williams 82 (synthetic) x PI synthetic donor"
     assert crumb_labels(tree, None, None) == [cross]
     assert crumb_labels(tree, "F1", None) == [cross, "F1"]
     assert crumb_labels(tree, "F1", "BC2F1") == [cross, "F1", "BC2F1"]
+    assert crumb_labels(tree, UNASSIGNED, None) == [cross, "(no family)"]
+    assert crumb_labels(tree, "F1", UNASSIGNED) == [cross, "F1", "(no generation)"]

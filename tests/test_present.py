@@ -29,6 +29,18 @@ def test_status_cell_styles():
     assert [s["style"]["background-color"] for s in styles] == [STATUS_COLORS["pass"], STATUS_COLORS["fail"]]
 
 
+def test_status_styles_without_avoid_columns():
+    columns = ["sample_id", "target_T1_status", "recomb_T1_left", "target_T2_status"]
+    rows = [
+        {"sample_id": "a", "target_T1_status": "pass", "recomb_T1_left": True, "target_T2_status": "unknown"},
+        {"sample_id": "b", "target_T1_status": "fail", "recomb_T1_left": False, "target_T2_status": "unknown"},
+    ]
+    assert status_columns(columns) == ["target_T1_status", "target_T2_status"]
+    styles = status_cell_styles(columns, rows)
+    assert [(s["cols"], s["rows"]) for s in styles] == [([1], [0]), ([1], [1]), ([3], [0, 1])]
+    assert all(columns[s["cols"][0]].startswith("target_") for s in styles)
+
+
 def test_qc_row_styles():
     rows = [
         {"flags": "possible_outcross", "qc_excluded": True},

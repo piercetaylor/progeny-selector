@@ -6,13 +6,15 @@ into AppState. Errors from the data contract are shown verbatim.
 
 Interface:
     view(id) -> Tag
-    server(id, state: AppState) -> None   (writes state.dataset, state.criteria, state.result)
+    server(id, state: AppState) -> None   (writes state.dataset, state.criteria, state.result;
+                                           resets state.breadcrumb and state.selected_ids on success)
 """
 
 from __future__ import annotations
 
 from shiny import module, reactive, render, ui
 
+from progeny_selector.core.navigation import build_tree
 from progeny_selector.core.pipeline import run_analysis
 from progeny_selector.io import load_dataset, read_criteria
 from progeny_selector.model.criteria import CriteriaError
@@ -58,6 +60,9 @@ def server_(input, output, session, state) -> None:
             state.dataset.set(dataset)
             state.criteria.set(criteria)
             state.result.set(result)
+            # A new dataset starts at the cross node with nothing selected.
+            state.breadcrumb.set({"cross": build_tree(dataset).cross, "family": None, "generation": None})
+            state.selected_ids.set([])
             n_pass = sum(1 for r in result.rows if r["passes_filters"])
             lines = [f"{dataset.genotypes.n_markers} markers, {len(dataset.progeny)} progeny; {n_pass} pass hard filters"]
             lines += [f"warning: {w}" for w in result.warnings]

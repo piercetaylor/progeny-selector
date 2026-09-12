@@ -1,9 +1,11 @@
 """Screen 4, Rank: ranked individuals table with status chips and filters.
 
 Responsibility: render ``result.rows`` filtered by the breadcrumb (family /
-generation) as a sortable, filterable DataGrid with multi-row selection;
-selected rows feed the Compare and Selection-list screens. Colours come from
-``constants.STATUS_COLORS`` / ``STATE_COLORS`` (Okabe-Ito).
+generation, through ``core.navigation.filter_rows``) as a sortable, filterable
+DataGrid with multi-row selection, per-locus status and recombinant columns,
+and status cells coloured by ``app.present.status_cell_styles`` (Okabe-Ito,
+with the status text kept in the cell). The rows selected in the grid's
+current view feed the Compare and Selection-list screens.
 
 Interface:
     view(id) -> Tag
@@ -12,7 +14,12 @@ Interface:
 
 from __future__ import annotations
 
+from typing import Any
+
 from shiny import module, reactive, render, ui
+
+from progeny_selector.app.present import status_cell_styles, status_columns
+from progeny_selector.core.navigation import filter_rows
 
 DISPLAY_COLUMNS = (
     "rank_overall",
@@ -36,6 +43,7 @@ DISPLAY_COLUMNS = (
 def ui_(id: str = "") -> ui.Tag:
     return ui.card(
         ui.card_header("Ranked individuals (multi-select rows, then open Compare)"),
+        ui.output_text("caption"),
         ui.input_switch("only_pass", "Show only individuals passing hard filters", value=True),
         ui.output_data_frame("table"),
     )
@@ -53,33 +61,41 @@ def server_(input, output, session, state) -> None:
         if result is None:
             return []
         crumb = state.breadcrumb()
-        out = []
-        for r in result.rows:
-            if crumb.get("family") and r.get("family_id") != crumb["family"]:
-                continue
-            if crumb.get("generation") and r.get("generation") != crumb["generation"]:
-                continue
-            if input.only_pass() and not r["passes_filters"]:
-                continue
-            out.append(r)
+        out = filter_rows(result.rows, crumb.get("family"), crumb.get("generation"))
+        if input.only_pass():
+            out = [r for r in out if r["passes_filters"]]
         return out
+
+    @render.text
+    def caption() -> str:
+        crumb = state.breadcrumb()
+        where = " > ".join(p for p in (crumb.get("cross"), crumb.get("family"), crumb.get("generation")) if p) or "no data loaded"
+        return f"{len(rows())} individuals shown ({where}); select rows, then open Compare"
 
     @render.data_frame
     def table():
         import pandas as pd  # UI-only dependency; the core never imports pandas
 
         data = rows()
-        cols = [c for c in DISPLAY_COLUMNS if data and c in data[0]]
-        extra = [c for c in (data[0] if data else {}) if c.startswith(("target_", "avoid_"))]
-        frame = pd.DataFrame(data, columns=cols + extra) if data else pd.DataFrame(columns=list(DISPLAY_COLUMNS))
-        return render.DataGrid(frame, selection_mode="rows", filters=True, height="70vh")
+        result = state.result()
+        # Columns come from the full result, so an empty view keeps the same columns as a non-empty one.
+        keys = list(result.rows[0]) if result is not None and result.rows else []
+        columns = list(DISPLAY_COLUMNS) + status_columns(keys) + [k for k in keys if k.startswith("recomb_")]
+        frame = pd.DataFrame(data, columns=columns)
+        # present.py returns plain dicts shaped as shiny's StyleInfoBody, which it cannot import (Shiny-free).
+        styles: Any = status_cell_styles(list(frame.columns), data)
+        return render.DataGrid(
+            frame,
+            selection_mode="rows",
+            filters=True,
+            height="70vh",
+            styles=styles,
+        )
 
     @reactive.effect
     def _publish_selection() -> None:
-        sel = table.cell_selection()
-        idx = sel.get("rows", ()) if sel else ()
-        data = rows()
-        state.selected_ids.set([data[i]["sample_id"] for i in idx if i < len(data)])
+        view = table.data_view(selected=True)
+        state.selected_ids.set(view["sample_id"].tolist() if "sample_id" in view.columns else [])
 
 
 def server(id: str, state) -> None:

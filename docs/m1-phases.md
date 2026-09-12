@@ -204,6 +204,9 @@ Acceptance as tests (`tests/e2e/test_qc_compare.py`):
 - After load, `PageNavbar.set("qc")`; `OutputDataFrame(page, "qc-table").expect_nrow(40)`; `expect_column_labels` contains `flags` and `qc_excluded`; the row for `BC2F1-F2-002` has `expect_cell("True", row=r, col=<qc_excluded>)` and its first cell's computed background is not white; the summary `dl` contains "475" and "parents identical (monomorphic): 20".
 - `PageNavbar.set("rank")`, `OutputDataFrame(page, "rank-table").select_rows([0, 1])`, `PageNavbar.set("compare")`: two `.card` elements inside `#compare-panels`; the first card contains `BC2F1-F1-001`, a badge with text `pass` and computed background `rgb(0, 158, 115)`, a table cell `Gm06 (carrier)`, and an `svg[role=img]` with 20 `text` chromosome labels and at least one `rect` filled `#0072B2`; the number of `rect` elements in the Gm06 row is at least 3 (A, donor segment, A).
 - Selecting seven rows gives six cards and the text "showing 6 of 7".
+- Found in phase 3: `OutputDataFrame.select_rows` with contiguous indices such as `[0, 1]` selected nothing in shiny 1.7.0, while `[0, 2]` worked. Use non-contiguous rows or confirm the controller's behaviour before relying on a contiguous range, and say which in the report.
+
+Known limits carried from phase 3, not scheduled in M1: the generation radio has no "(no generation)" choice, because `""` already means all generations, so individuals without a generation cannot be isolated within a family; the Rank caption omits an unassigned family instead of naming it; the guard that stops Navigate publishing stale inputs after a reload has no browser test.
 
 Not verifiable here: rendered legibility of an 8 px row on the maintainer's laptop screen; whether Bootstrap's card padding fits six columns at 1280 px, which the implementer checks with `page.set_viewport_size` and reports.
 

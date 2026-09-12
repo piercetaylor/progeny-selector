@@ -7,6 +7,7 @@ family and generation, and label the breadcrumb. Pure functions; no Shiny.
 Interface:
     GenerationNode, FamilyNode, NavTree (frozen dataclasses)
     build_tree(dataset: Dataset) -> NavTree
+    UNASSIGNED = ""   selector meaning "only rows with no value" (None or empty string)
     filter_rows(rows, family, generation) -> list[dict]   (None means no filter)
     crumb_labels(tree, family, generation) -> list[str]
 """
@@ -17,6 +18,9 @@ from collections import Counter
 from dataclasses import dataclass
 
 from progeny_selector.model.dataset import Dataset
+
+# Selector for the unassigned node: rows whose family_id (or generation) is None or "".
+UNASSIGNED = ""
 
 
 @dataclass(frozen=True)
@@ -57,18 +61,24 @@ def build_tree(dataset: Dataset) -> NavTree:
     return NavTree(cross=cross, n=len(progeny), families=tuple(families))
 
 
+def _matches(value: object, selector: str | None) -> bool:
+    if selector is None:
+        return True
+    if selector == UNASSIGNED:
+        return value is None or value == ""
+    return value == selector
+
+
 def filter_rows(rows: list[dict], family: str | None, generation: str | None) -> list[dict]:
-    """Rows whose family_id and generation match; a None selector does not filter. Order is preserved."""
-    return [
-        r for r in rows if (family is None or r.get("family_id") == family) and (generation is None or r.get("generation") == generation)
-    ]
+    """Rows whose family_id and generation match; None does not filter, UNASSIGNED keeps rows with no value. Order is preserved."""
+    return [r for r in rows if _matches(r.get("family_id"), family) and _matches(r.get("generation"), generation)]
 
 
 def crumb_labels(tree: NavTree, family: str | None, generation: str | None) -> list[str]:
-    """Breadcrumb labels: the cross, then the selected family and generation when set."""
+    """Breadcrumb labels: the cross, then the family and generation when set; UNASSIGNED reads "(no family)" / "(no generation)"."""
     labels = [tree.cross]
     if family is not None:
-        labels.append(family)
+        labels.append("(no family)" if family == UNASSIGNED else family)
     if generation is not None:
-        labels.append(generation)
+        labels.append("(no generation)" if generation == UNASSIGNED else generation)
     return labels
