@@ -33,7 +33,7 @@ dev = ["pytest>=8", "pytest-cov>=5", "ruff>=0.6", "mypy>=1.10", "shiny>=1.4", "p
 progeny-selector = "progeny_selector.cli:main"
 
 [project.urls]
-Repository = "https://github.com/piercetaylor2020/progeny-selector"
+Repository = "https://github.com/piercetaylor/progeny-selector"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/progeny_selector"]
