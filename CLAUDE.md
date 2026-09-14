@@ -17,7 +17,7 @@ Open a session **inside this repo**, never in the parent directory. The siblings
 ```
 ruff check . && ruff format --check .
 mypy
-pytest
+pytest -q
 ```
 
 Plus regenerating the fixture with `python3 scripts/make_fixture.py` and confirming `git diff --exit-code -- tests/fixtures` is clean: the generator is deterministic.
@@ -36,9 +36,16 @@ Per milestone, and in the CI `export` job: `python3 scripts/build_shinylive.py &
 
 ## How the work is done
 
-Milestone by milestone from `PLAN.md`. For each milestone: state the acceptance criteria you are targeting, implement, make the tests pass, commit.
+Milestone by milestone from `PLAN.md`. For each milestone: state the acceptance criteria you are targeting, implement, make the tests pass, commit. Start each session from the Handoff block at the end of `PLAN.md`.
 
-Self-contained modules are delegated to subagents with a written spec naming inputs, outputs, edge cases and the test that must pass. The main session holds the architecture, the data contracts and the review. Before every commit an adversarial reviewer attacks the genetics (parent-of-origin edge cases, missing data, heterozygotes, uninformative markers), the contract validation and the test coverage; it does not write code. Report what it found and what changed.
+- Plan: the `planner` agent (Fable) writes the milestone spec; the main session saves it to `docs/<milestone>-phases.md` and asks the maintainer the questions it flags before dispatch.
+- Build: the `implementer` agent (Sonnet; pass `model: opus` for `src/progeny_selector/core`, `src/progeny_selector/io`, `src/progeny_selector/model`, the Shinylive staging boundary and anything touching `docs/data-formats.md`) gets the phase's line range of the spec, never runs git, reports in 30 lines.
+- Review: the `reviewer` agent (Fable) runs only when `git diff --name-only` touches core, io, model or contract paths, on the diff alone. It attacks the genetics (parent-of-origin edge cases, missing data, heterozygotes, uninformative markers), the contract validation and the test coverage, and does not write code. Findings go back to the same implementer by SendMessage; no separate remediation agent. UI-only, docs-only and config-only phases get gates only. At the end of each milestone, one reviewer pass covers the whole milestone diff.
+- Commit: the main session re-runs the gates itself (a subagent's pasted result is not evidence), commits, pushes, then updates the PLAN.md Handoff block.
+- Context: advisor at most twice per phase and never above 100k context. After a push with context past 100k, update the Handoff block and `/clear`.
+- At most two concurrent implementers, on disjoint files.
+
+Self-contained modules are delegated with a written spec naming inputs, outputs, edge cases and the test that must pass. The main session holds the architecture, the data contracts and the review.
 
 Fixture expectations are computed by a second, independent implementation inside the generator, so a fixture test compares two implementations rather than a function against itself. Preserve that when adding a metric, and remember that independence of code is not independence of interpretation: hand-built cases carry the weight when both implementations could share a misreading of a rule.
 

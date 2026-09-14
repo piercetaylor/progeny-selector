@@ -19,6 +19,9 @@ site/
 .env
 .env.local
 
+# local Claude Code tooling (token-economy kit hooks), never committed
+.claude/
+
 # editors and OS
 .vscode/
 .idea/
