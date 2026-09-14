@@ -35,18 +35,6 @@ jobs:
         run: |
           python scripts/make_fixture.py
           git diff --exit-code -- tests/fixtures
-      # Kept here only because upload-pages-artifact below needs site/; phase 6
-      # moves the export and the Pages upload into their own job.
-      - name: shinylive export builds
-        run: |
-          pip install -e ".[dev,export]"
-          python -m build --wheel
-          shinylive export src/progeny_selector/app site
-        if: matrix.python-version == '3.12'
-      - uses: actions/upload-pages-artifact@v3
-        if: vars.ENABLE_PAGES == 'true' && matrix.python-version == '3.12' && github.ref == 'refs/heads/main' && github.event_name == 'push'
-        with:
-          path: site
 
   e2e:
     needs: check
@@ -62,12 +50,43 @@ jobs:
       - run: playwright install --with-deps chromium
       - run: pytest -m e2e
 
+  export:
+    needs: check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: python -m pip install --upgrade pip
+      - run: pip install -e ".[dev,export,e2e]"
+      - name: find the shinylive asset cache path
+        id: assets
+        run: |
+          dir=$(shinylive assets info | sed -n 2p | xargs)
+          echo "dir=$dir" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@v4
+        with:
+          path: ${{ steps.assets.outputs.dir }}
+          key: shinylive-${{ hashFiles('pyproject.toml') }}
+      - run: python scripts/build_shinylive.py
+      - run: playwright install --with-deps chromium
+      - name: export smoke test
+        run: pytest -m e2e tests/e2e/test_shinylive_export.py
+        env:
+          PS_SITE_DIR: site
+      - uses: actions/upload-pages-artifact@v3
+        if: vars.ENABLE_PAGES == 'true' && github.ref == 'refs/heads/main' && github.event_name == 'push'
+        with:
+          path: site
+
   deploy-pages:
     # Publishes the shinylive static export to GitHub Pages (Pages source must be
     # "GitHub Actions"). actions/deploy-pages returns 404 and fails, rather than
     # skipping, when Pages is off, which would mark every push to main as failed.
     # Set the repository variable ENABLE_PAGES to "true" once Pages is enabled.
-    needs: check
+    needs: export
     if: vars.ENABLE_PAGES == 'true' && github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     permissions:

@@ -6,7 +6,7 @@ progeny-selector ranks and selects progeny in marker-assisted backcross (MABC) p
 
 ## What exists now
 
-Parsers for all input formats and the criteria file; classification, foreground, avoid, background, drag, similarity, QC, scoring, ranking, selection and projection; results/selection/manifest writers; a CLI (`validate`, `rank`, `select`); a Shiny shell whose Load and Rank screens run the real pipeline while the other screens are placeholders with fixed interfaces; a synthetic BC2F1 fixture with independently computed expected results and 24 passing tests. See PLAN.md, "Milestones".
+Parsers for all input formats and the criteria file; classification, foreground, avoid, background, drag, similarity, QC, scoring, ranking, selection and projection; results/selection/manifest writers; a CLI (`validate`, `rank`, `select`); a Shiny app with all seven screens running the real pipeline — Load, Validate/QC, Navigate (tree and breadcrumbs), Rank (status chips, filters, multi-select), Compare (side-by-side cards and chromosome strips), Selection list and Export; a Shinylive static export that stages the package into the bundle and is smoke-tested in a real browser; a synthetic BC2F1 fixture with independently computed expected results and a passing unit and browser test suite. See PLAN.md, "Milestones" and "Verification status".
 
 ## Quickstart
 
@@ -30,7 +30,7 @@ progeny-selector select --results results.csv --top 3 --out selected.csv \
 shiny run src/progeny_selector/app/app.py
 ```
 
-`shinylive export src/progeny_selector/app site` produces the static site (see docs/adr/0003).
+`python3 scripts/build_shinylive.py` produces the static site in `site/` (see docs/adr/0003, docs/adr/0009).
 
 ## Input files
 

@@ -77,7 +77,7 @@ Edge cases: a marker with a heterozygous or missing parent is uninformative rath
 
 ## UI walkthrough
 
-Screen 1 Load: file inputs for genotypes, samples.csv, markers.csv (optional) and criteria.yaml, a Load and analyse button, and a status panel quoting contract errors verbatim or the counts and warnings on success (implemented). Screen 2 Validate and QC: informative-marker count, parent warnings, per-individual QC table with flags and expected values (placeholder rendering the real QC objects). Screen 3 Navigate: tree cross → family → generation with breadcrumbs; the selection filters every later screen (select inputs stand in for the tree control in M0). Screen 4 Rank: DataGrid of individuals with rank, family, pass/fail, exclusion reason, composite score, RPP total/carrier/non-carrier, drag, missing rate, QC flags and one status column per target and avoid locus; header filters, sortable columns, multi-row selection, a switch to hide excluded individuals (implemented on the real rows). Screen 5 Compare: one column per selected individual with status chips, per-chromosome RPP, drag bounds and recombinant flags, and a compact 20-row chromosome strip in Okabe-Ito colours (placeholder). Screen 6 Selection list: the selected individuals with notes, "add top N per family", and the projected next-generation composition for backcross or self (implemented on the real rows). Screen 7 Export: results.csv, selected.csv and next_samples.csv downloads (implemented against the writers). Keyboard: Shiny's navbar and inputs are focusable in order; DataGrid supports arrow-key navigation and space/enter selection; status chips carry text labels so colour is never the only cue. Palette: Okabe-Ito, A blue #0072B2, H bluish green #009E73, B vermilion #D55E00, X reddish purple #CC79A7, N grey #999999, U yellow #F0E442; pass/fail/unknown bluish green/vermilion/grey [web] https://raw.githubusercontent.com/wch/r-source/trunk/src/library/grDevices/R/colorstuff.R.
+Screen 1 Load: file inputs for genotypes, samples.csv, markers.csv (optional) and criteria.yaml, a Load and analyse button, and a status panel quoting contract errors verbatim or the counts and warnings on success (implemented). Screen 2 Validate and QC: informative-marker count, parent warnings, per-individual QC table with flags and expected values, QC-excluded and flagged rows tinted (implemented on the real QC objects). Screen 3 Navigate: an accordion of families, each holding a radio group of its generations, with breadcrumbs whose ancestor crumbs step back up; the selection filters every later screen (implemented; resolution 4, docs/m1-phases.md). Screen 4 Rank: DataGrid of individuals with rank, family, pass/fail, exclusion reason, composite score, RPP total/carrier/non-carrier, drag, missing rate, QC flags and one status column per target and avoid locus; header filters, sortable columns, multi-row selection, a switch to hide excluded individuals (implemented on the real rows). Screen 5 Compare: one column per selected individual with status chips, per-chromosome RPP, drag bounds and recombinant flags, and a compact 20-row chromosome strip in Okabe-Ito colours, capped at the first six selected individuals (implemented). Screen 6 Selection list: the selected individuals with notes, "add top N per family", and the projected next-generation composition for backcross or self (implemented on the real rows). Screen 7 Export: results.csv, selected.csv and next_samples.csv downloads (implemented against the writers). Keyboard: Shiny's navbar and inputs are focusable in order; DataGrid supports arrow-key navigation and space/enter selection; status chips carry text labels so colour is never the only cue. Palette: Okabe-Ito, A blue #0072B2, H bluish green #009E73, B vermilion #D55E00, X reddish purple #CC79A7, N grey #999999, U yellow #F0E442; pass/fail/unknown bluish green/vermilion/grey [web] https://raw.githubusercontent.com/wch/r-source/trunk/src/library/grDevices/R/colorstuff.R.
 
 ## Technology decisions
 
@@ -114,7 +114,7 @@ progeny-selector/
 
 ## Testing and CI
 
-Unit tests cover classification on all six states and every uninformative reason, generation parsing and expectations, chromosome normalisation, foreground rules (marker, region all/any, flanking, unknown), avoid with and without allow_het, count and weighted RPP with hand-computed weights, drag bounds and recombinant flags in bp and cM including chromosome ends, IBS, composite renormalisation and tie-breaks, every parser (VCF plain and gzip, HapMap, wide nucleotide and coded CSV, manifest rules, marker map, criteria validation). The smoke test loads the fixture (2 parents, 40 BC2F1 progeny in 2 families, 500 markers, 475 informative, planted target, avoid locus, self contaminant, high-missing individual) and compares statuses, exclusion reasons, RPP (total, carrier, non-carrier), drag bounds, recombinant flags, composite scores, advisory flags and ranks against expected_results.csv produced by the generator's independent implementation, then exercises top-N selection, projection, the results writer and the CLI end to end. CI runs ruff check, ruff format --check, mypy, pytest with coverage, regenerates the fixture and fails on any diff, builds the wheel and runs shinylive export on Python 3.12, and deploys the export to GitHub Pages on pushes to main. Later milestones add Playwright tests of the screens and a shared contract test suite with isoline-browser.
+Unit tests cover classification on all six states and every uninformative reason, generation parsing and expectations, chromosome normalisation, foreground rules (marker, region all/any, flanking, unknown), avoid with and without allow_het, count and weighted RPP with hand-computed weights, drag bounds and recombinant flags in bp and cM including chromosome ends, IBS, composite renormalisation and tie-breaks, every parser (VCF plain and gzip, HapMap, wide nucleotide and coded CSV, manifest rules, marker map, criteria validation). The smoke test loads the fixture (2 parents, 40 BC2F1 progeny in 2 families, 500 markers, 475 informative, planted target, avoid locus, self contaminant, high-missing individual) and compares statuses, exclusion reasons, RPP (total, carrier, non-carrier), drag bounds, recombinant flags, composite scores, advisory flags and ranks against expected_results.csv produced by the generator's independent implementation, then exercises top-N selection, projection, the results writer and the CLI end to end. CI runs ruff check, ruff format --check, mypy, pytest with coverage, and regenerates the fixture and fails on any diff, in the `check` job on Python 3.11 and 3.12; the `e2e` job installs Chromium and runs the Playwright screen tests under `pytest -m e2e`; the `export` job runs `scripts/build_shinylive.py` and the export smoke test, then uploads the Pages artifact; `deploy-pages` deploys it to GitHub Pages on pushes to main when `ENABLE_PAGES` is set. Playwright tests of the screens arrived in M1 (docs/adr/0008); a shared contract test suite with isoline-browser is a later milestone.
 
 ## Deployment and cost
 
@@ -171,3 +171,47 @@ $ PYTHONPATH=src python3 -m shiny run src/progeny_selector/app/app.py --port 812
 ```
 
 Not verified: `shinylive export` (pip install shinylive failed in this container while building the lzstring wheel; the CI step is written but has not run); the Shiny screens beyond serving the shell (no browser automation here); the GitHub Actions workflow itself (no repository yet); behaviour on real SoySNP50K-scale data (fixture is 500 markers). File count and size are recorded in the final report.
+
+### M1 verification, 2026-09-14, from the maintainer's laptop
+
+Windows, Python 3.12.4, ruff 0.16.7, pytest 9.1.1, mypy 2.3.1, shiny 1.7.0, shinylive 0.8.11 (shinylive web assets 0.10.14), pytest-playwright 0.9.0, playwright 1.62.0, Chromium 151.0.7922.34. Commands run from the repository root with `.venv\Scripts\python.exe` (editable install, `pip install -e ".[dev,export,e2e]"`).
+
+```
+> ruff check . ; ruff format --check .
+All checks passed!
+84 files already formatted
+
+> mypy
+Success: no issues found in 42 source files
+
+> pytest
+95 passed, 17 deselected in 5.50s
+
+> pytest -m e2e
+16 passed, 1 skipped, 95 deselected in 46.99s
+(the 1 skip is tests/e2e/test_shinylive_export.py without PS_SITE_DIR; Chromium 151.0.7922.34)
+
+> python scripts/build_shinylive.py
+exported .../site (44.4 MB) in 0.9s
+(warm shinylive asset cache; the first run on this laptop, which also downloaded
+the ~400 MB shinylive web-assets archive into that cache, took 47.8 s)
+
+> $env:PS_SITE_DIR="site"; pytest -m e2e tests/e2e/test_shinylive_export.py -s
+time to #load-run: 8.7s
+time to #load-status: 0.3s
+1 passed in 15.10s
+
+> python scripts/make_fixture.py ; git diff --exit-code -- tests/fixtures
+wrote fixture to .../tests/fixtures/synthetic_bc2f1: 500 markers, 40 progeny, 11 pass; informative 475
+(no diff)
+```
+
+Packaging path in use: resolution 5's primary path (docs/m1-phases.md; docs/adr/0009). `scripts/build_shinylive.py` stages a copy of `src/progeny_selector` next to a stub `app.py` and exports that; the browser test recorded every request the exported page made while loading Pyodide, uploading the fixture and running the pipeline, and all of them started with the page's own origin (`http://127.0.0.1:8008/`) — no request to PyPI, npm or any CDN. The pipeline output (`500 markers, 40 progeny; 11 pass hard filters`) requires numpy, which only runs if the staged `progeny_selector` package imported inside Pyodide. The wheel-URL fallback was not needed and is not in use.
+
+`python -m shinylive` does not work on this install (shinylive 0.8.11 ships no `__main__.py`; `python -m shinylive` raises "No module named shinylive.__main__"). `scripts/build_shinylive.py` detects that and falls back to the `shinylive` console script installed next to the interpreter, which is the documented form.
+
+The exported app renders inside a same-origin `iframe` (path `/app_<random id>/`), discovered while writing the smoke test; it was not anticipated by resolution 6's description of the Playwright controllers, which assume the app is the top-level document. `tests/e2e/test_shinylive_export.py` scopes every locator through `page.frame_locator("iframe")` rather than reusing `shiny.playwright.controller`, and waits for each file upload's progress bar to reach `width: 100%` in its `style` attribute (not just to attach) before clicking Run, because Pyodide's upload round trip is slow enough to race a plain click otherwise.
+
+GitHub Pages: not yet enabled (`ENABLE_PAGES` unset); no Pages URL to record yet.
+
+Real-data protocol (Q7): not yet run. A SoyBase NIL dataset is in preparation.

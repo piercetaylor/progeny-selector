@@ -1,4 +1,5 @@
-# Packages installed by shinylive at start-up in the browser (pure-Python wheels only).
-# numpy, pyyaml and pandas ship with Pyodide; progeny-selector itself is installed from
-# the wheel URL published with each release (see docs/adr/0003).
+# Not used by `scripts/build_shinylive.py`, which writes its own requirements.txt
+# (pyyaml, pandas, numpy) into the staging directory it exports (docs/adr/0009).
+# This file is unused by `shiny run` too; it exists only for an export run directly
+# against this directory, which does not bundle the progeny_selector package.
 pyyaml

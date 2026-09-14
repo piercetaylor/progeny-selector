@@ -20,3 +20,7 @@ Options 1 and 2 from the same code. The CI workflow builds the wheel, runs `shin
 ### Consequences
 
 Good: zero cost; a URL the breeder can open anywhere; data stays in the tab; no server to patch. Bad: the first load downloads about 13 MB plus NumPy and pandas [web] https://shiny.posit.co/py/docs/shinylive.html; Pyodide is slower than native Python; GitHub Pages is public, so the code is public (the data never is). Neutral: pure-Python constraint on dependencies (no cyvcf2, no scikit-allel) is already satisfied by the core.
+
+## Amendment 2026-09-14
+
+The sentence above, "the app's requirements.txt names the package wheel so Pyodide installs it in the browser", did not happen: `shinylive export src/progeny_selector/app site` scans only `app/app.py`'s imports and `app/requirements.txt`, so it never saw `progeny_selector` or numpy, and the CI step that ran it checked only the command's exit code. `scripts/build_shinylive.py` (docs/adr/0009) stages a copy of the package next to a stub `app.py` before exporting, which is what `shinylive export` now bundles; the wheel-URL line is the recorded fallback (resolution 5, `docs/m1-phases.md`) if the staged copy is ever found not to import under Pyodide. On this machine it imports without the fallback: see the M1 verification block in PLAN.md.

@@ -10,7 +10,7 @@ Open a session **inside this repo**, never in the parent directory. The siblings
 
 ## State
 
-M0 is complete. **M1 is next**: the Navigate tree driving the Rank filter, the Validate screen, status chips and per-locus columns in the Rank grid, the Compare screen, criteria editable and downloadable in the UI, and a Shinylive export verified in CI.
+**M1 is complete, M2 next.** M1 shipped the Navigate tree driving the Rank filter, the Validate screen, status chips and per-locus columns in the Rank grid, the Compare screen, criteria editable and downloadable in the UI, and a Shinylive export that stages the package and is smoke-tested in CI. See PLAN.md, "Verification status", for the M1 verification block.
 
 ## Gates: all must pass before every commit
 
@@ -23,6 +23,8 @@ pytest
 Plus regenerating the fixture with `python3 scripts/make_fixture.py` and confirming `git diff --exit-code -- tests/fixtures` is clean: the generator is deterministic.
 
 Per milestone, and in the CI `e2e` job: `pytest -m e2e`, which drives the screens in a real browser and needs `playwright install chromium` first. Browser waits default to 30 s; set `PS_E2E_TIMEOUT_MS` (milliseconds) to change them on a slower or loaded machine. Plain `pytest` excludes these tests through `addopts` and never needs a browser.
+
+Per milestone, and in the CI `export` job: `python3 scripts/build_shinylive.py && PS_SITE_DIR=site pytest -m e2e tests/e2e/test_shinylive_export.py`, which stages the package, runs `shinylive export`, and drives the exported static site in a real browser to prove the pipeline runs under Pyodide and that no request leaves the page's origin.
 
 ## Rules that are not negotiable
 
