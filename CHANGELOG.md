@@ -16,6 +16,7 @@ All notable changes to this project are documented in this file. The format foll
 - Validate screen: QC table with flagged rows highlighted and the reasons markers were uninformative. Compare screen: side-by-side statuses, per-chromosome RPP, drag bounds and Okabe-Ito chromosome strips.
 - Criteria can be edited on the Load screen, re-applied without reloading genotypes, and downloaded as criteria.yaml. Downloads no longer write temporary files.
 - The Shinylive static export includes the package and is smoke-tested in CI with the fixture; it deploys to GitHub Pages when ENABLE_PAGES is set.
+- `scripts/soysnp50k_nils.py` converts one backcross-derived NIL family from the SoyBase SoySNP50K VCF and PATRIOT's pedigree file into a genotype file and samples.csv for this tool. It streams the 144 MB VCF, strips SoyBase's chromosome prefix, and drops scaffold and malformed records.
 
 ### Fixed
 
