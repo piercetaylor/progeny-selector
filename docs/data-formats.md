@@ -78,7 +78,7 @@ Map values override genotype-file positions when they differ (reported as warnin
 
 ## criteria.yaml (selection criteria)
 
-Top-level keys: `name`, `targets`, `avoid`, `flank_window`, `flank_unit`, `background`, `weights`, `filters`. Unknown keys anywhere are an error.
+Top-level keys: `name`, `targets`, `avoid`, `flank_window`, `flank_unit`, `background`, `weights`, `filters`. Unknown keys anywhere are an error. The UI's Download criteria.yaml writes this schema with every key explicit (defaults included) and regions as `chrom`/`start_bp`/`end_bp`; the file reloads unchanged.
 
 ### Locus definition (targets and avoid)
 

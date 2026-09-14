@@ -1,8 +1,9 @@
 """Screen 7, Export: results CSV, selected IDs, next-round sample manifest.
 
 Responsibility: hand the three files produced by ``progeny_selector.io.export``
-to the browser as downloads. Under shinylive the files are generated in the
-tab; under ``shiny run`` on the server side. Placeholder in M0.
+to the browser as downloads. Each handler yields the file's text, so nothing is
+written to a temporary directory; under shinylive the files are generated in
+the tab, under ``shiny run`` on the server side.
 
 Interface:
     view(id) -> Tag
@@ -11,12 +12,9 @@ Interface:
 
 from __future__ import annotations
 
-import tempfile
-from pathlib import Path
-
 from shiny import module, render, ui
 
-from progeny_selector.io.export import write_next_round_manifest, write_results_csv, write_selection_csv
+from progeny_selector.io.export import MANIFEST_COLUMNS, next_round_manifest_text, results_csv_text, selection_csv_text
 
 
 @module.ui
@@ -36,31 +34,27 @@ def view(id: str) -> ui.Tag:
 
 @module.server
 def server_(input, output, session, state) -> None:
-    def _tmp(name: str) -> Path:
-        return Path(tempfile.mkdtemp()) / name
-
-    @render.download(filename="results.csv")
+    # Each handler yields the file's text, byte-identical to the CLI writers; nothing touches the filesystem.
+    @render.download_button(filename="results.csv")
     def results():
-        path = _tmp("results.csv")
-        write_results_csv(state.result().rows if state.result() else [], path)
-        return str(path)
+        result = state.result()
+        yield results_csv_text(result.rows if result else [])
 
-    @render.download(filename="selected.csv")
+    @render.download_button(filename="selected.csv")
     def selected():
-        path = _tmp("selected.csv")
         result = state.result()
         rows = [result.row(s) for s in state.selected_ids()] if result else []
-        write_selection_csv(rows, path, state.notes())
-        return str(path)
+        yield selection_csv_text(rows, state.notes())
 
-    @render.download(filename="next_samples.csv")
+    @render.download_button(filename="next_samples.csv")
     def manifest():
-        path = _tmp("next_samples.csv")
         result, dataset = state.result(), state.dataset()
         rows = [result.row(s) for s in state.selected_ids()] if result else []
         if dataset:
-            write_next_round_manifest(rows, path, input.next_gen(), dataset.recurrent_parent, dataset.donor_parent)
-        return str(path)
+            yield next_round_manifest_text(rows, input.next_gen(), dataset.recurrent_parent, dataset.donor_parent)
+        else:
+            # No parents yet: the header row alone, with the writers' CRLF line ending.
+            yield ",".join(MANIFEST_COLUMNS) + "\r\n"
 
 
 def server(id: str, state) -> None:
