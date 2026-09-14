@@ -212,7 +212,7 @@ Packaging path in use: resolution 5's primary path (docs/m1-phases.md; docs/adr/
 
 The exported app renders inside a same-origin `iframe` (path `/app_<random id>/`), discovered while writing the smoke test; it was not anticipated by resolution 6's description of the Playwright controllers, which assume the app is the top-level document. `tests/e2e/test_shinylive_export.py` scopes every locator through `page.frame_locator("iframe")` rather than reusing `shiny.playwright.controller`, and waits for each file upload's progress bar to reach `width: 100%` in its `style` attribute (not just to attach) before clicking Run, because Pyodide's upload round trip is slow enough to race a plain click otherwise.
 
-GitHub Pages: not yet enabled (`ENABLE_PAGES` unset); no Pages URL to record yet.
+GitHub Pages: enabled 2026-09-14 with the GitHub Actions source and `ENABLE_PAGES=true`. First deploy on 278536a (run 34888105283): check on 3.11 and 3.12, e2e, export and deploy-pages all passed. URL: https://piercetaylor.github.io/progeny-selector/ (returned HTTP 200).
 
 Real-data protocol (Q7): not yet run. A SoyBase NIL dataset is in preparation.
 
@@ -222,12 +222,17 @@ GitHub Actions on d1adc20 (run 34884283693, 2026-09-14): check on 3.11 and 3.12,
 
 - Milestone / phase: M1 complete, all seven phases (0–6) committed; last commit d1adc20, pushed yes, CI green.
 - Next, in the maintainer's order of choice:
-  1. End-of-milestone reviewer pass over the whole M1 diff (`git diff 1ef748e..HEAD`), per the token-economy kit rule. Not yet run; the per-phase reviews covered phases 2–5.
+  1. Done 2026-09-14: end-of-milestone reviewer pass over `git diff 1ef748e..65121bf` (src, tests, scripts, .github, pyproject.toml). 11 findings, none high, listed under "Deferred reviewer findings"; none fixed yet. Some line numbers the reviewer gave are positions in the diff file, not the source, so locate by function name.
   2. Real-data acceptance (Q7, `docs/m1-phases.md` question 7): SoyBase Clark isolines (recurrent parent PI548533) on SoySNP50K. Before any download: map each "Clark (n) x donor" cross in PATRIOT's `GS Pedigrees.csv` to an accession PI in GRIN, confirm each is in the SoySNP50K VCF, and settle the Harosoy PI548573 vs PI548531 question. Data goes to the gitignored `data/` folder only. Expect BCnF1 QC flags on every NIL, because they are inbred.
   3. M2 planning with the planner agent (PLAN.md "Milestones", M2 paragraph).
 - Model for next phase: planner (fable) for M2; sonnet for dataset conversion scripts; opus only if a parser or the shared contract changes.
 - Review required: yes for the end-of-milestone pass; afterwards only when a diff touches core, io or contract paths.
 - Open maintainer questions: none for M1. Known limits deferred from M1 (`docs/m1-phases.md`, phase 4 section): no "(no generation)" radio choice; Rank caption omits an unassigned family; the Navigate stale-input guard has no browser test.
-- Deferred reviewer findings: `io/criteria.py` `yaml.safe_load` resolves anchors and aliases, so a hostile pasted document could exhaust memory (local effect only); `app/screens/load.py` Apply catches only CriteriaError and DataContractError.
+- Deferred reviewer findings: `io/criteria.py` `yaml.safe_load` resolves anchors and aliases, so a hostile pasted document could exhaust memory (local effect only); `app/screens/load.py` Apply catches only CriteriaError and DataContractError. From the M1 milestone review (2026-09-14), for the first M2 phase prompt:
+  - medium: `core/qc.py` `qc_table_rows` marks `qc_excluded` from flags alone, while `core/score.py` excludes only when `filters.exclude_qc_flagged` is true, so Validate and Rank disagree under `exclude_qc_flagged: false`. Needs a design choice: pass `filters` in, or derive from `exclusion_reason`. `tests/test_qc_table.py` only runs the fixture criteria.
+  - medium (test gap): Compare drag values are asserted only for BC2F1-F1-001, which is manifest index 0 and rank 1, so indexing by row position would pass. Assert BC2F1-F2-015 (manifest index 34, rank 11, `drag_total_max_cm = 109.534`).
+  - low: `io/criteria.py` `_normalise_locus` does not coerce `marker_id`/`left_marker`/`right_marker` to str (YAML int IDs report "not in genotype file"), and silently truncates float `start_bp`; `_check_number` accepts `.nan`/`.inf` (NaN composite scores).
+  - low: Load `accept=` omits `.bgz`, `.tsv`, `.hapmap`; `criteria_to_dict` omits None keys although `docs/data-formats.md` says every key is explicit; Export results CSV with no result has no header row, while the manifest CSV has one.
+  - low: CI shinylive asset cache key ignores the unpinned shinylive version; the `export` extra still lists `build`; the export smoke test records `page.on("request")`, which may miss service-worker fetches (confirm, or record on the context); the Navigate "(no family)" path has no UI test.
 - Coordination: isoline-browser M3 schedules sibling commits S1 and S2 in this repo (`../isoline-browser/docs/m3-phases.md`, lines 217–221). S1 waits for isoline's contract phase; S2 waits on its question 2.
 - Gate baseline: 95 unit tests; 16 browser tests plus 1 export smoke test (skipped without PS_SITE_DIR); site 44.4 MB, Pyodide ready in 8.7 s locally. Browser waits default to 30 s (PS_E2E_TIMEOUT_MS).
