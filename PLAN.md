@@ -215,3 +215,19 @@ The exported app renders inside a same-origin `iframe` (path `/app_<random id>/`
 GitHub Pages: not yet enabled (`ENABLE_PAGES` unset); no Pages URL to record yet.
 
 Real-data protocol (Q7): not yet run. A SoyBase NIL dataset is in preparation.
+
+GitHub Actions on d1adc20 (run 34884283693, 2026-09-14): check on 3.11 and 3.12, e2e, and export including the smoke test all passed; deploy-pages skipped because ENABLE_PAGES is unset.
+
+## Handoff (updated after every phase)
+
+- Milestone / phase: M1 complete, all seven phases (0–6) committed; last commit d1adc20, pushed yes, CI green.
+- Next, in the maintainer's order of choice:
+  1. End-of-milestone reviewer pass over the whole M1 diff (`git diff 1ef748e..HEAD`), per the token-economy kit rule. Not yet run; the per-phase reviews covered phases 2–5.
+  2. Real-data acceptance (Q7, `docs/m1-phases.md` question 7): SoyBase Clark isolines (recurrent parent PI548533) on SoySNP50K. Before any download: map each "Clark (n) x donor" cross in PATRIOT's `GS Pedigrees.csv` to an accession PI in GRIN, confirm each is in the SoySNP50K VCF, and settle the Harosoy PI548573 vs PI548531 question. Data goes to the gitignored `data/` folder only. Expect BCnF1 QC flags on every NIL, because they are inbred.
+  3. M2 planning with the planner agent (PLAN.md "Milestones", M2 paragraph).
+- Model for next phase: planner (fable) for M2; sonnet for dataset conversion scripts; opus only if a parser or the shared contract changes.
+- Review required: yes for the end-of-milestone pass; afterwards only when a diff touches core, io or contract paths.
+- Open maintainer questions: none for M1. Known limits deferred from M1 (`docs/m1-phases.md`, phase 4 section): no "(no generation)" radio choice; Rank caption omits an unassigned family; the Navigate stale-input guard has no browser test.
+- Deferred reviewer findings: `io/criteria.py` `yaml.safe_load` resolves anchors and aliases, so a hostile pasted document could exhaust memory (local effect only); `app/screens/load.py` Apply catches only CriteriaError and DataContractError.
+- Coordination: isoline-browser M3 schedules sibling commits S1 and S2 in this repo (`../isoline-browser/docs/m3-phases.md`, lines 217–221). S1 waits for isoline's contract phase; S2 waits on its question 2.
+- Gate baseline: 95 unit tests; 16 browser tests plus 1 export smoke test (skipped without PS_SITE_DIR); site 44.4 MB, Pyodide ready in 8.7 s locally. Browser waits default to 30 s (PS_E2E_TIMEOUT_MS).
