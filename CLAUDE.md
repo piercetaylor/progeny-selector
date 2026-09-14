@@ -22,7 +22,7 @@ pytest
 
 Plus regenerating the fixture with `python3 scripts/make_fixture.py` and confirming `git diff --exit-code -- tests/fixtures` is clean: the generator is deterministic.
 
-Per milestone, and in the CI `e2e` job: `pytest -m e2e`, which drives the screens in a real browser and needs `playwright install chromium` first. Plain `pytest` excludes these tests through `addopts` and never needs a browser.
+Per milestone, and in the CI `e2e` job: `pytest -m e2e`, which drives the screens in a real browser and needs `playwright install chromium` first. Browser waits default to 30 s; set `PS_E2E_TIMEOUT_MS` (milliseconds) to change them on a slower or loaded machine. Plain `pytest` excludes these tests through `addopts` and never needs a browser.
 
 ## Rules that are not negotiable
 

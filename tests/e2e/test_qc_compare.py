@@ -49,7 +49,7 @@ def test_qc_table_and_summary(page: Page, app: ShinyAppProc) -> None:
     _open(page, app)
     controller.PageNavbar(page, "screen").set("qc")
     table = controller.OutputDataFrame(page, "qc-table")
-    table.expect_nrow(40, timeout=30_000)
+    table.expect_nrow(40)
     labels = [label.strip() for label in table.loc_column_label.all_inner_texts()]
     assert "flags" in labels and "qc_excluded" in labels
     assert labels == QC_COLUMNS
