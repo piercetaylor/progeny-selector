@@ -19,7 +19,10 @@ def fixture_criteria(fixture_dir: Path) -> Criteria:
 
 def hand_built() -> Criteria:
     return Criteria(
-        targets=[TargetSpec("T1", chrom="Gm06", start_bp=12_000_000, end_bp=14_000_000, required_state="het", flank_left=2.5)],
+        targets=[
+            TargetSpec("T1", chrom="Gm06", start_bp=12_000_000, end_bp=14_000_000, required_state="het", flank_left=2.5),
+            TargetSpec("RUN", chrom="Gm08", start_bp=1_000_000, end_bp=3_000_000, rule="run", min_run=4, anchor_bp=1_500_000),
+        ],
         avoid=[AvoidSpec("AV1", left_marker="m1", right_marker="m2", allow_het=True, notes="flanking avoid")],
         background=BackgroundOptions(max_marker_coverage=8),
     )

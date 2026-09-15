@@ -20,7 +20,9 @@ Exactly one of three forms per locus:
 | region | `chrom`, `start_bp`, `end_bp` (or shorthand `region: "Gm06:24,000,000-27,000,000"`) |
 | flanking | `left_marker`, `right_marker` (both must satisfy the state) |
 
-Common keys: `locus_id` (or `id`; unique across targets and avoid), `rule` (`all` default, or `any`: over called informative markers in the locus), `min_markers` (default 1; fewer called markers gives status `unknown`), `notes`.
+Common keys: `locus_id` (or `id`; unique across targets and avoid), `rule` (`all` default, or `any`: over called informative markers in the locus; or `run` on region targets, below), `min_markers` (default 1; fewer called markers gives status `unknown`), `notes`.
+
+Targets on a region locus also accept `rule: run` (docs/adr/0011), with `min_run` (integer >= 1, default 3), `anchor_bp` (integer within the region, default `(start_bp + end_bp) // 2`) and `tolerate_isolated` (`true` default); these three keys are an error on avoid loci and under any other rule, and Download criteria.yaml writes all three for every run target. Over the called informative markers in position order, the locus passes when the counted markers nearest the anchor on each side, and every counted marker tied exactly on the anchor, lie in one contiguous run of markers meeting `required_state` and that run holds at least `min_run` of them; with `tolerate_isolated`, a single non-matching call between two matching calls joins the run without adding to its length. A counted marker exactly on the anchor serves as the neighbour on both sides; otherwise a sample with no counted marker on one side of the anchor fails. `min_markers` keeps its meaning under `run`.
 
 ### targets
 

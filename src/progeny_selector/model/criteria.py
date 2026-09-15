@@ -12,9 +12,11 @@ Interface:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from typing import ClassVar
 
 REQUIRED_STATES: tuple[str, ...] = ("hom_donor", "het", "either")
 LOCUS_RULES: tuple[str, ...] = ("all", "any")
+TARGET_RULES: tuple[str, ...] = ("all", "any", "run")
 BACKGROUND_MODELS: tuple[str, ...] = ("count", "weighted")
 MAP_UNITS: tuple[str, ...] = ("auto", "bp", "cm")
 UNKNOWN_POLICIES: tuple[str, ...] = ("fail", "pass")
@@ -47,6 +49,8 @@ class LocusSpec:
     min_markers: int = 1
     notes: str | None = None
 
+    allowed_rules: ClassVar[tuple[str, ...]] = LOCUS_RULES
+
     def kind(self) -> str:
         if self.marker_id:
             return "marker"
@@ -58,8 +62,8 @@ class LocusSpec:
 
     def validate(self) -> None:
         self.kind()
-        if self.rule not in LOCUS_RULES:
-            raise CriteriaError(f"locus {self.locus_id!r}: rule must be one of {LOCUS_RULES}")
+        if self.rule not in self.allowed_rules:
+            raise CriteriaError(f"locus {self.locus_id!r}: rule must be one of {self.allowed_rules}")
         if self.min_markers < 1:
             raise CriteriaError(f"locus {self.locus_id!r}: min_markers must be >= 1")
         if self.kind() == "region" and self.start_bp > self.end_bp:  # type: ignore[operator]
@@ -71,16 +75,41 @@ class TargetSpec(LocusSpec):
     required_state: str = "either"
     flank_left: float | None = None  # window size in flank_unit; None -> Criteria.flank_window
     flank_right: float | None = None
+    min_run: int = 3  # rule run: minimum contiguous predicate calls through the anchor
+    anchor_bp: int | None = None  # rule run: None -> (start_bp + end_bp) // 2
+    tolerate_isolated: bool = True  # rule run: bridge a single non-predicate call flanked by predicate calls
+
+    allowed_rules: ClassVar[tuple[str, ...]] = TARGET_RULES
+
+    def resolved_anchor_bp(self) -> int:
+        """The run anchor: ``anchor_bp`` when set, otherwise the region midpoint rounded down."""
+        if self.anchor_bp is not None:
+            return int(self.anchor_bp)
+        return (int(self.start_bp) + int(self.end_bp)) // 2  # type: ignore[arg-type]
 
     def validate(self) -> None:
         super().validate()
         if self.required_state not in REQUIRED_STATES:
             raise CriteriaError(f"target {self.locus_id!r}: required_state must be one of {REQUIRED_STATES}")
+        if self.min_run < 1:
+            raise CriteriaError(f"target {self.locus_id!r}: min_run must be >= 1")
+        if self.rule == "run":
+            if self.kind() != "region":
+                raise CriteriaError(f"target {self.locus_id!r}: rule run needs a region locus")
+            if self.anchor_bp is not None and not self.start_bp <= self.anchor_bp <= self.end_bp:  # type: ignore[operator]
+                raise CriteriaError(f"target {self.locus_id!r}: anchor_bp {self.anchor_bp} is outside [{self.start_bp}, {self.end_bp}]")
+        elif self.min_run != 3 or self.anchor_bp is not None or self.tolerate_isolated is not True:
+            raise CriteriaError(f"target {self.locus_id!r}: min_run, anchor_bp and tolerate_isolated apply only with rule run")
 
 
 @dataclass
 class AvoidSpec(LocusSpec):
     allow_het: bool = False
+
+    def validate(self) -> None:
+        if self.rule == "run":
+            raise CriteriaError(f"avoid locus {self.locus_id!r}: rule run is for targets only")
+        super().validate()
 
 
 @dataclass

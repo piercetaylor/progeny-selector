@@ -18,6 +18,7 @@ All notable changes to this project are documented in this file. The format foll
 - The Shinylive static export includes the package and is smoke-tested in CI with the fixture; it deploys to GitHub Pages when ENABLE_PAGES is set.
 - `scripts/soysnp50k_nils.py` converts one backcross-derived NIL family from the SoyBase SoySNP50K VCF and PATRIOT's pedigree file into a genotype file and samples.csv for this tool. It streams the 144 MB VCF, strips SoyBase's chromosome prefix, and drops scaffold and malformed records.
 - The shared input contract, version 1.1.0, mirrored byte for byte from isoline-browser under `contract/` and checked by `tests/test_contract_cases.py`, which loads every case through `load_dataset` and verifies the manifest hashes (docs/adr/0010).
+- Foreground `rule: run` for region targets, with `min_run`, `anchor_bp` and `tolerate_isolated`: a target passes only on a contiguous run of donor calls through the anchor, so scattered array calls no longer pass a wide window (docs/adr/0011).
 - `scripts/check_contract.py`, a per-commit gate that recomputes `contract/MANIFEST.sha256` and, given `../isoline-browser`, byte-compares the mirror with the canonical copy.
 
 ### Changed

@@ -81,8 +81,20 @@ def run_analysis(dataset: Dataset, criteria: Criteria) -> AnalysisResult:
 
     # Foreground
     resolved_t = {t.locus_id: resolve_locus(t, gm) for t in criteria.targets}
+    positions_bp = gm.positions("bp")
     target_status = {
-        t.locus_id: foreground_status(states, resolved_t[t.locus_id], t.required_state, t.rule, t.min_markers) for t in criteria.targets
+        t.locus_id: foreground_status(
+            states,
+            resolved_t[t.locus_id],
+            t.required_state,
+            t.rule,
+            t.min_markers,
+            positions=positions_bp,
+            min_run=t.min_run,
+            anchor_bp=t.anchor_bp,
+            tolerate_isolated=t.tolerate_isolated,
+        )
+        for t in criteria.targets
     }
     carrier = {r.chrom for r in resolved_t.values()}
 

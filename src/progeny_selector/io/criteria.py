@@ -110,6 +110,26 @@ def _check_types(doc: dict) -> None:
                     _check_number(where, key, locus[key], optional=True)
             if "allow_het" in locus:
                 _check_bool(where, "allow_het", locus["allow_het"])
+            if section == "targets":
+                _check_run_keys(where, locus)
+
+
+_RUN_KEYS: tuple[str, ...] = ("min_run", "anchor_bp", "tolerate_isolated")
+
+
+def _check_run_keys(where: str, locus: dict) -> None:
+    """Type-check the rule-run keys of a target and reject them unless the rule is run, so a typo in rule never hides them.
+
+    On avoid loci these keys are left to the unknown-key check in ``_build``.
+    """
+    for key in ("min_run", "anchor_bp"):
+        if key in locus:
+            _check_int(where, key, locus[key])
+    if "tolerate_isolated" in locus:
+        _check_bool(where, "tolerate_isolated", locus["tolerate_isolated"])
+    present = [key for key in _RUN_KEYS if key in locus]
+    if present and locus.get("rule", "all") != "run":
+        raise CriteriaError(f"{where[:-1]}: {', '.join(present)} apply only with rule: run, got rule {locus.get('rule', 'all')!r}")
 
 
 def _build(cls, doc: dict, where: str):
@@ -192,6 +212,10 @@ def _locus_to_dict(spec: LocusSpec) -> dict:
         out[key] = getattr(spec, key)
     out["rule"] = spec.rule
     out["min_markers"] = spec.min_markers
+    if isinstance(spec, TargetSpec) and spec.rule == "run":
+        out["min_run"] = spec.min_run
+        out["anchor_bp"] = spec.resolved_anchor_bp()
+        out["tolerate_isolated"] = spec.tolerate_isolated
     if spec.notes is not None:
         out["notes"] = spec.notes
     if isinstance(spec, TargetSpec):
