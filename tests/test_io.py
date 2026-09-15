@@ -282,3 +282,83 @@ def test_hapmap_header_requires_rs_hash(tmp_path: Path):
     p.write_text(f"{HAPMAP_HEADER.replace('rs#', 'rsid', 1)}\tS1\tS2\nm1\tA/T\t6\t1000\t{HAPMAP_FIXED}\tAA\tTT\n")
     with pytest.raises(DataContractError, match="HapMap header must start with rs#"):
         load_genotypes(p)
+
+
+def test_parse_position_grammar():
+    """Contract 1.2.0: whole-valued text is the integer; everything else is a ValueError naming the cell."""
+    from progeny_selector.io.position import parse_position
+
+    ok = [
+        ("1000", 1000),
+        (" 1000 ", 1000),
+        ("+1000", 1000),
+        ("1000.", 1000),
+        ("1000.0", 1000),
+        ("1e3", 1000),
+        ("1.0E3", 1000),
+        ("1.9E+07", 19000000),
+        ("1.5e3", 1500),
+        ("0", 0),
+        ("-0", 0),
+        ("-0.0", 0),
+        ("\u00a01000", 1000),
+        ("\ufeff1000", 1000),
+    ]
+    for text, value in ok:
+        assert parse_position(text) == value, text
+    for bad in ["", " ", "100.7", ".5", "1e-3", "-5", "nan", "inf", "Infinity", "1e400", "0x10", "1_000", "1,000", "abc", "\u0661\u0660"]:
+        with pytest.raises(ValueError, match="invalid position"):
+            parse_position(bad)
+    for text, value in [("1000", 1000), ("01000", 1000)]:
+        assert parse_position(text, grammar="digits") == value, text
+    for bad in ["+1000", "1000.0", "1e3", "", "-5", "1" * 5000]:
+        with pytest.raises(ValueError, match="invalid position"):
+            parse_position(bad, grammar="digits")
+    for bad in ["\x851000", "\x1f1000"]:
+        with pytest.raises(ValueError, match="invalid position"):
+            parse_position(bad)
+
+
+def test_positions_whole_floats_accepted_fractions_rejected(tmp_path: Path):
+    wide = tmp_path / "g.csv"
+    wide.write_text("marker_id,chrom,pos_bp,S1,S2\nm1,Gm06,1000.0,A,T\nm2,Gm06,2e3,A,T\nm3,Gm06,3.0E3,A,T\nm4,Gm06,+4000,A,T\n")
+    assert [m.pos_bp for m in read_wide_csv(wide).markers] == [1000, 2000, 3000, 4000]
+    wide.write_text("marker_id,chrom,pos_bp,S1,S2\nm1,Gm06,1000,A,T\nm2,Gm06,100.7,A,T\n")
+    with pytest.raises(DataContractError, match=r"line 3: invalid position '100\.7'"):
+        read_wide_csv(wide)
+    hm = tmp_path / "g.hmp.txt"
+    hm.write_text(f"{HAPMAP_HEADER}\tS1\tS2\nm1\tA/T\t6\t1e3\t{HAPMAP_FIXED}\tAA\tTT\nm2\tA/T\t6\t2000.0\t{HAPMAP_FIXED}\tAA\tTT\n")
+    assert [m.pos_bp for m in load_genotypes(hm).markers] == [1000, 2000]
+    vcf = tmp_path / "g.vcf"
+    vcf.write_text(VCF.replace("\t1000\t", "\t1e3\t", 1))
+    with pytest.raises(DataContractError, match=r"line 3: invalid position '1e3'"):
+        load_genotypes(vcf)
+    vcf.write_text(VCF.replace("chr6\t1000\tm1\t", "chr6\t01000\t.\t", 1))
+    gm = load_genotypes(vcf)
+    assert gm.markers[0].marker_id == "chr6_1000" and gm.markers[0].pos_bp == 1000
+    m = tmp_path / "m.csv"
+    m.write_text("marker_id,chrom,pos_bp,cm\nm1,6,1000.0,0.5\nm2,6,2e3,1.25\n")
+    mm = read_markers(m)
+    assert mm["m1"].pos_bp == 1000 and mm["m2"].pos_bp == 2000 and mm["m2"].cm == 1.25
+    m.write_text("marker_id,chrom,pos_bp,cm\nm1,6,1000,0.5\nm2,6,2000.25,\n")
+    with pytest.raises(DataContractError, match=r"line 3: invalid position '2000\.25'"):
+        read_markers(m)
+
+
+def test_wide_csv_skips_all_empty_rows_and_names_physical_lines(tmp_path: Path):
+    p = tmp_path / "g.csv"
+    p.write_text("marker_id,chrom,pos_bp,S1,S2\nm1,Gm06,100,A,T\n,,,,\n , , , , \nm2,Gm06,200,A,T\n")
+    assert [m.marker_id for m in read_wide_csv(p).markers] == ["m1", "m2"]
+    p.write_text("marker_id,chrom,pos_bp,S1,S2\nm1,Gm06,100,A,T\n,Gm06,200,A,T\n")
+    with pytest.raises(DataContractError, match="line 3: empty marker_id"):
+        read_wide_csv(p)
+    p.write_text("marker_id,chrom,pos_bp,S1,S2\nm1,Gm06,100,A,T\n\nm2,Gm06,,A,T\n")
+    with pytest.raises(DataContractError, match=r"line 4: invalid position ''"):
+        read_wide_csv(p)
+
+
+def test_markers_csv_empty_marker_id_names_line(tmp_path: Path):
+    m = tmp_path / "m.csv"
+    m.write_text("marker_id,chrom,pos_bp,cm\n,6,1000,0.5\n")
+    with pytest.raises(DataContractError, match="line 2: empty marker_id"):
+        read_markers(m)

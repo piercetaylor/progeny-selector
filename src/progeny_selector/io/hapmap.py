@@ -5,6 +5,7 @@ assembly#, center, protLSID, assayLSID, panelLSID, QCcode) followed by one
 column per sample; calls go through calls.parse_nucleotide_call with the HapMap
 missing list "", N, NN, NA, -, --, ., ./., .|., X, XX (contract/data-contract.md
 1.1.0, "HapMap"); IUPAC codes expand; any other cell is an error naming the line.
+`pos` goes through position.py (contract 1.2.0).
 Column facts [web]
 https://statgen-esalq.github.io/Hapmap-and-VCF-formats-and-its-integration-with-onemap/.
 
@@ -22,6 +23,7 @@ from progeny_selector.constants import HAPMAP_MISSING
 from progeny_selector.core.chrom import normalize_chrom
 from progeny_selector.io.calls import encode_marker, parse_nucleotide_call
 from progeny_selector.io.delimited import open_text
+from progeny_selector.io.position import parse_position
 from progeny_selector.model.dataset import DataContractError, GenotypeMatrix, Marker
 
 N_FIXED = 11
@@ -49,9 +51,9 @@ def read_hapmap(path: str | Path) -> GenotypeMatrix:
                 raise DataContractError(f"line {line_no}: {exc}") from exc
             allele_list, pairs = encode_marker(calls)
             try:
-                pos_bp = int(fields[3])
+                pos_bp = parse_position(fields[3])
             except ValueError as exc:
-                raise DataContractError(f"line {line_no}: invalid position {fields[3]!r}") from exc
+                raise DataContractError(f"line {line_no}: {exc}") from exc
             markers.append(Marker(marker_id=fields[0], chrom=normalize_chrom(fields[2]), pos_bp=pos_bp))
             alleles.append(allele_list)
             rows.append(pairs)

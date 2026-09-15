@@ -2,8 +2,10 @@
 
 Responsibility: parse nucleotide calls ("A", "AT", "A/T", IUPAC codes expanded; any
 other cell such as "?", a stray "B" or "H", "X", "0", "+" or "A?" is an error) or A/B/H
-coding with auto-detection over every row; the first three columns are marker_id, chrom,
-pos_bp in that order (contract 1.1.0); comma or tab delimited (sniffed from the header),
+coding with auto-detection over every row; a row whose every cell is empty or whitespace
+is skipped, an empty marker_id or an invalid pos_bp (position.py, contract 1.2.0) is an
+error naming the physical line; the first three columns are marker_id, chrom, pos_bp in
+that order (contract 1.1.0); comma or tab delimited (sniffed from the header),
 RFC 4180 quoting, CRLF and a leading BOM accepted; when coded, the parents may be absent
 from the file and are synthesised as all-A (recurrent) and all-B (donor) by build_dataset,
 which records them in Dataset.synthetic_sample_ids.
@@ -24,6 +26,7 @@ import numpy as np
 from progeny_selector.core.chrom import normalize_chrom
 from progeny_selector.io.calls import detect_coding, encode_marker, parse_coded_call, parse_nucleotide_call
 from progeny_selector.io.delimited import read_text, sniff_delimiter
+from progeny_selector.io.position import parse_position
 from progeny_selector.model.dataset import DataContractError, GenotypeMatrix, Marker
 
 FIXED = ("marker_id", "chrom", "pos_bp")
@@ -39,19 +42,22 @@ def read_wide_csv(path: str | Path, coding: str = "auto") -> GenotypeMatrix:
     sample_ids = header[3:]
     if not sample_ids:
         raise DataContractError("wide CSV has no sample columns")
-    records = [row for row in reader if any(cell.strip() for cell in row)]
+    records = [(reader.line_num, row) for row in reader if any(cell.strip() for cell in row)]
     if not records:
         raise DataContractError("wide CSV has no marker rows")
     if coding == "auto":
-        coding = detect_coding(cell for row in records for cell in row[3:])
+        coding = detect_coding(cell for _, row in records for cell in row[3:])
     markers: list[Marker] = []
     alleles: list[list[str]] = []
     rows: list[np.ndarray] = []
-    for line_no, row in enumerate(records, start=2):
+    for line_no, row in records:
         if len(row) != len(header):
             raise DataContractError(f"line {line_no}: expected {len(header)} columns, found {len(row)}")
+        marker_id = row[0].strip()
+        if not marker_id:
+            raise DataContractError(f"line {line_no}: empty marker_id")
         try:
-            markers.append(Marker(marker_id=row[0].strip(), chrom=normalize_chrom(row[1]), pos_bp=int(float(row[2]))))
+            markers.append(Marker(marker_id=marker_id, chrom=normalize_chrom(row[1]), pos_bp=parse_position(row[2])))
             if coding == "abh":
                 pairs = np.array([parse_coded_call(c) for c in row[3:]], dtype=np.int8)
                 alleles.append(["A", "B"])

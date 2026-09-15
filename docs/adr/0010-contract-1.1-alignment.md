@@ -4,7 +4,7 @@ Status: accepted. Date: 2026-09-14.
 
 ## Context and Problem Statement
 
-`docs/data-formats.md` was said to be shared verbatim with isoline-browser, but the two had drifted and nothing ran one repository's inputs through the other's parser. isoline-browser's ADR 0013 moved the shared input specification into a `contract/` directory with hand-authored cases, canonical there and mirrored here. Its ADR 0014 records the maintainer's decisions of 2026-09-14 on every input the two loaders read differently, including one nucleotide cell vocabulary for HapMap and wide CSV that is safe for any diploid crop, with crop-specific token profiles deferred to contract 1.2.0. What does this repository change to read every case identically?
+`docs/data-formats.md` was said to be shared verbatim with isoline-browser, but the two had drifted and nothing ran one repository's inputs through the other's parser. isoline-browser's ADR 0013 moved the shared input specification into a `contract/` directory with hand-authored cases, canonical there and mirrored here. Its ADR 0014 records the maintainer's decisions of 2026-09-14 on every input the two loaders read differently, including one nucleotide cell vocabulary for HapMap and wide CSV that is safe for any diploid crop, with crop-specific token profiles deferred to contract 1.3.0. What does this repository change to read every case identically?
 
 ## Decision Outcome
 
@@ -14,8 +14,12 @@ Loader changes, each from isoline-browser docs/adr/0014: samples.csv, markers.cs
 
 ### Consequences
 
-Good: every contract case loads here with the same markers, samples and calls as in isoline-browser, and a future divergence is a failing test in the repository that diverged; the one vocabulary module makes the next token decision a one-line edit mirrored in both repositories. Bad: files that relied on `?` as missing, on the `ch6` spelling, on a single unknown letter reading as missing, or on genotype-file column order now load differently or fail with a message naming the line and cell. Open, listed in isoline-browser docs/adr/0014 and PLAN.md: a pair of one nucleotide and one of N, `-`, `.` (`AN`, `A-`), read as missing here and there; named token profiles and a crop selector in contract 1.2.0.
+Good: every contract case loads here with the same markers, samples and calls as in isoline-browser, and a future divergence is a failing test in the repository that diverged; the one vocabulary module makes the next token decision a one-line edit mirrored in both repositories. Bad: files that relied on `?` as missing, on the `ch6` spelling, on a single unknown letter reading as missing, or on genotype-file column order now load differently or fail with a message naming the line and cell. Open, listed in isoline-browser docs/adr/0014 and PLAN.md: a pair of one nucleotide and one of N, `-`, `.` (`AN`, `A-`), read as missing here and there; named token profiles and a crop selector in contract 1.3.0.
 
 ## More Information
 
 isoline-browser docs/adr/0013 and 0014 and docs/input-coding.md; contract/README.md; docs/adr/0002.
+
+## Amendments, 2026-09-14
+
+**Contract 1.2.0 (isoline-browser docs/adr/0014, amended 2026-09-14), a minor version.** Positions: every reader (VCF `POS`, HapMap `pos`, wide-CSV and markers.csv `pos_bp`) goes through `io/position.py`, the mirror of isoline-browser's `src/io/position.ts`. VCF `POS` must be decimal digits, as the VCF specification declares it Integer, and a VCF record with ID `.` or empty is named `<CHROM>_<POS>` from the parsed POS (`01000` gives `_1000`). In HapMap `pos`, wide-CSV and markers.csv `pos_bp`, a whole-valued number written as a float or in exponent notation (`1000.0`, `1e3`, `1.9E+07`) is that integer. In every column a non-zero fraction, an empty cell, a negative number, nan, inf, hexadecimal or a separator is a `DataContractError` naming the line and the value; 0 is accepted. Before: wide CSV and markers.csv truncated `100.7` to 100 with `int(float())`, HapMap rejected any non-digit text, and VCF let a bare `ValueError` escape. Rows: a wide-CSV row whose every cell is empty or whitespace was already skipped and is now the contract's rule; an empty `marker_id` is an error; wide-CSV and markers.csv errors name the physical line (`csv.reader.line_num`) rather than the count of surviving rows. Deferred with the sibling: `#` comment lines and whitespace-only lines, which this repository treats as data and skips respectively. Error kind `genotypes.invalid_position` added to `tests/test_contract_cases.py`.

@@ -2,7 +2,7 @@
 
 Responsibility: read the sample manifest (sample_id, line_name, role,
 generation, family_id, notes) and the optional marker map (marker_id, chrom,
-pos_bp, cm), validate them against contract/data-contract.md, and join the map onto
+pos_bp via position.py, cm), validate them against contract/data-contract.md, and join the map onto
 a GenotypeMatrix. Validation errors raise DataContractError; recoverable
 issues are returned as warning strings.
 
@@ -22,6 +22,7 @@ from pathlib import Path
 from progeny_selector.constants import SAMPLE_ROLES
 from progeny_selector.core.chrom import normalize_chrom
 from progeny_selector.io.delimited import read_text, sniff_delimiter
+from progeny_selector.io.position import parse_position
 from progeny_selector.io.wide_csv import add_synthetic_parents
 from progeny_selector.model.dataset import DataContractError, Dataset, GenotypeMatrix, Marker, Sample
 
@@ -29,7 +30,7 @@ SAMPLE_REQUIRED = ("sample_id", "role")
 MARKER_REQUIRED = ("marker_id", "chrom", "pos_bp")
 
 
-def _read_rows(path: str | Path, required: tuple[str, ...]) -> list[dict[str, str]]:
+def _read_rows(path: str | Path, required: tuple[str, ...]) -> list[tuple[int, dict[str, str]]]:
     text = read_text(path)
     reader = csv.DictReader(io.StringIO(text, newline=""), delimiter=sniff_delimiter(text))
     if reader.fieldnames is None:
@@ -38,11 +39,11 @@ def _read_rows(path: str | Path, required: tuple[str, ...]) -> list[dict[str, st
     missing = [c for c in required if c not in names]
     if missing:
         raise DataContractError(f"{path}: missing required columns {missing}")
-    rows = []
+    rows: list[tuple[int, dict[str, str]]] = []
     for row in reader:
         clean = {k.strip().lower(): (v or "").strip() for k, v in row.items() if k is not None}
         if any(clean.values()):
-            rows.append(clean)
+            rows.append((reader.line_num, clean))
     return rows
 
 
@@ -50,7 +51,7 @@ def read_samples(path: str | Path) -> list[Sample]:
     rows = _read_rows(path, SAMPLE_REQUIRED)
     samples: list[Sample] = []
     seen: set[str] = set()
-    for row in rows:
+    for _line_no, row in rows:
         sid = row["sample_id"]
         if not sid:
             raise DataContractError(f"{path}: empty sample_id")
@@ -84,13 +85,19 @@ def read_samples(path: str | Path) -> list[Sample]:
 def read_markers(path: str | Path) -> dict[str, Marker]:
     rows = _read_rows(path, MARKER_REQUIRED)
     out: dict[str, Marker] = {}
-    for row in rows:
+    for line_no, row in rows:
         mid = row["marker_id"]
+        if not mid:
+            raise DataContractError(f"{path}: line {line_no}: empty marker_id")
         if mid in out:
-            raise DataContractError(f"{path}: duplicate marker_id {mid!r}")
+            raise DataContractError(f"{path}: line {line_no}: duplicate marker_id {mid!r}")
         cm_text = row.get("cm", "")
         cm = float(cm_text) if cm_text not in ("", "NA", "na", ".") else None
-        out[mid] = Marker(marker_id=mid, chrom=normalize_chrom(row["chrom"]), pos_bp=int(float(row["pos_bp"])), cm=cm)
+        try:
+            pos_bp = parse_position(row["pos_bp"])
+        except ValueError as exc:
+            raise DataContractError(f"{path}: line {line_no}: {exc}") from exc
+        out[mid] = Marker(marker_id=mid, chrom=normalize_chrom(row["chrom"]), pos_bp=pos_bp, cm=cm)
     if not out:
         raise DataContractError(f"{path}: no marker rows")
     return out

@@ -5,6 +5,7 @@ every record into allele indices (REF = 0, ALT_k = k, '.' = -1); keep REF/ALT
 strings as the per-marker allele table; normalise chromosome names. Only GT is
 read; phasing is ignored; haploid GT is duplicated.
 Records with ID "." or empty get "<CHROM>_<POS>" from CHROM as written in the file, before normalisation (contract 1.1.0).
+POS goes through position.py with the "digits" grammar, and an ID-less record is named from the parsed POS (contract 1.2.0).
 Format facts: VCF 4.2 specification [web]
 https://samtools.github.io/hts-specs/VCFv4.2.pdf.
 
@@ -20,6 +21,7 @@ import numpy as np
 
 from progeny_selector.core.chrom import normalize_chrom
 from progeny_selector.io.delimited import open_text
+from progeny_selector.io.position import parse_position
 from progeny_selector.model.dataset import DataContractError, GenotypeMatrix, Marker
 
 
@@ -67,13 +69,17 @@ def read_vcf(path: str | Path) -> GenotypeMatrix:
                 tokens = [f.split(":")[gt_index] for f in fields[9:]]
             else:
                 tokens = fields[9:]
-            marker_id = mid if mid not in (".", "") else f"{chrom}_{pos}"
+            try:
+                pos_bp = parse_position(pos, grammar="digits")
+            except ValueError as exc:
+                raise DataContractError(f"line {line_no}: {exc}") from exc
+            marker_id = mid if mid not in (".", "") else f"{chrom}_{pos_bp}"
             alt_alleles = [] if alt in (".", "") else alt.split(",")
             allele_list = [ref, *alt_alleles]
             pairs = np.array([_parse_gt(t) for t in tokens], dtype=np.int8)
             if pairs.max() >= len(allele_list):
                 raise DataContractError(f"line {line_no}: GT allele index exceeds ALT count")
-            markers.append(Marker(marker_id=marker_id, chrom=normalize_chrom(chrom), pos_bp=int(pos)))
+            markers.append(Marker(marker_id=marker_id, chrom=normalize_chrom(chrom), pos_bp=pos_bp))
             alleles.append(allele_list)
             rows.append(pairs)
     if not markers:

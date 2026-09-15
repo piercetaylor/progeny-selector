@@ -37,6 +37,7 @@ ERROR_KIND_PATTERNS: dict[str, str] = {
         r"HapMap header must start with rs#|wide CSV must start with columns"
     ),
     "genotypes.unknown_cell": r"unrecognised (coded|nucleotide) call",
+    "genotypes.invalid_position": r"invalid position",
 }
 
 CASE_NAMES = sorted(p.name for p in CASES.iterdir() if p.is_dir())
