@@ -1,0 +1,4 @@
+marker_id,chrom,pos_bp,cm
+k1,Gm03,1000,0.5
+k2,Gm03,3500,2.25
+k3,Gm03,3000,1.75

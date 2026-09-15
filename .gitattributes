@@ -1,3 +1,11 @@
 # Normalise line endings: the repository is LF everywhere, so a regenerated
 # fixture on Windows matches the committed files.
 * text=auto eol=lf
+
+# The data contract (contract/) is mirrored byte for byte from isoline-browser and hashed
+# in MANIFEST.sha256; its text is LF on every checkout, its case files are the generator's
+# bytes verbatim (some are CRLF by design), and its gzip and bgzip cases are never normalised.
+contract/** text eol=lf
+contract/cases/** -text
+*.gz binary
+*.bgz binary

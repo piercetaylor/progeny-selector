@@ -1,0 +1,9 @@
+marker_id,chrom,pos_bp,RP,DONOR,L1
+n_s10,scaffold_10,100,A,G,A
+n_lg,LG7,300,A,G,A/G
+n_s2,scaffold_2,100,C,T,T
+n_chromo,Chromosome_07,100,C,T,C
+n_ch,ch7,100,A,G,G
+n_space,gm 7,400,G,T,G
+n_dash,Gm-7,200,A,C,C
+n_s2b,scaffold_2,50,A,G,A

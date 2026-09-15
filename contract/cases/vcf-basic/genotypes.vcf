@@ -1,0 +1,7 @@
+##fileformat=VCFv4.2
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	RP	DONOR	L1	L2
+Gm07	1000	v_phase	A	G	.	PASS	.	GT	0/0	1/1	0|1	1|0
+Gm07	2000	.	C	T	.	PASS	.	GT	0	1	./.	.
+Gm07	3000	v_multi	G	A,T	.	PASS	.	GT	0/0	2/2	0/2	1/2
+Gm07	4000	v_gtlast	T	C	.	PASS	.	DP:GT	11:0/0	9:1/1	8:0/1	7:.|.

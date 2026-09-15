@@ -1,0 +1,4 @@
+sample_id,line_name,role
+RP,,recurrent_parent
+DONOR,,recurrent_parent
+L1,,candidate

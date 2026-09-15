@@ -115,4 +115,8 @@ STATUS_COLORS: dict[str, str] = {
 }
 
 SAMPLE_ROLES: tuple[str, ...] = ("recurrent_parent", "donor_parent", "candidate", "progeny")
-MISSING_TOKENS: frozenset[str] = frozenset({"", "N", "NA", "NN", "-", "--", ".", "./.", ".|.", "?"})
+# Wide-CSV missing tokens per mode (contract/data-contract.md 1.1.0, "Wide CSV"). `?` is not missing.
+WIDE_NUCLEOTIDE_MISSING: frozenset[str] = frozenset({"", "N", "NN", "NA", "-", "--", ".", "./.", ".|."})
+WIDE_CODED_MISSING: frozenset[str] = frozenset({"", "N", "NA"})
+# HapMap missing tokens (contract 1.1.0, "HapMap"): the wide-CSV nucleotide list plus TASSEL's X/XX.
+HAPMAP_MISSING: frozenset[str] = WIDE_NUCLEOTIDE_MISSING | {"X", "XX"}

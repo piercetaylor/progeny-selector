@@ -35,3 +35,4 @@ data/
 results*.csv
 selected*.csv
 !tests/fixtures/**
+!contract/**

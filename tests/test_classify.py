@@ -54,8 +54,14 @@ def test_generation_parsing_and_expectations():
 
 
 def test_chromosome_normalisation():
-    for name in ("Gm06", "gm6", "chr6", "Chr06", "6", "06", "chromosome6"):
+    for name in ("Gm06", "gm6", "chr6", "Chr06", "6", "06", "chromosome6", "Chromosome_06", "LG6", "Gm-6", "gm 6"):
         assert normalize_chrom(name) == "Gm06"
     assert normalize_chrom("scaffold_12") == "scaffold_12"
+    assert normalize_chrom("ch6") == "ch6"
     assert chrom_sort_key("Gm20") < chrom_sort_key("scaffold_12")
     assert chrom_sort_key("Gm02") < chrom_sort_key("Gm10")
+
+
+def test_chromosome_natural_order():
+    names = ["scaffold_10", "Gm10", "scaffold_2", "Gm02", "Gm01", "ch7"]
+    assert sorted(names, key=chrom_sort_key) == ["Gm01", "Gm02", "Gm10", "ch7", "scaffold_2", "scaffold_10"]

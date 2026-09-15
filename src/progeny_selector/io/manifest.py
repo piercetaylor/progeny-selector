@@ -2,7 +2,7 @@
 
 Responsibility: read the sample manifest (sample_id, line_name, role,
 generation, family_id, notes) and the optional marker map (marker_id, chrom,
-pos_bp, cm), validate them against docs/data-formats.md, and join the map onto
+pos_bp, cm), validate them against contract/data-contract.md, and join the map onto
 a GenotypeMatrix. Validation errors raise DataContractError; recoverable
 issues are returned as warning strings.
 
@@ -16,31 +16,33 @@ Interface:
 from __future__ import annotations
 
 import csv
+import io
 from pathlib import Path
 
 from progeny_selector.constants import SAMPLE_ROLES
 from progeny_selector.core.chrom import normalize_chrom
+from progeny_selector.io.delimited import read_text, sniff_delimiter
 from progeny_selector.io.wide_csv import add_synthetic_parents
 from progeny_selector.model.dataset import DataContractError, Dataset, GenotypeMatrix, Marker, Sample
 
-SAMPLE_REQUIRED = ("sample_id", "line_name", "role")
+SAMPLE_REQUIRED = ("sample_id", "role")
 MARKER_REQUIRED = ("marker_id", "chrom", "pos_bp")
 
 
 def _read_rows(path: str | Path, required: tuple[str, ...]) -> list[dict[str, str]]:
-    with open(path, encoding="utf-8", newline="") as fh:
-        reader = csv.DictReader(fh)
-        if reader.fieldnames is None:
-            raise DataContractError(f"{path}: empty file")
-        names = [n.strip().lower() for n in reader.fieldnames]
-        missing = [c for c in required if c not in names]
-        if missing:
-            raise DataContractError(f"{path}: missing required columns {missing}")
-        rows = []
-        for row in reader:
-            clean = {k.strip().lower(): (v or "").strip() for k, v in row.items() if k is not None}
-            if any(clean.values()):
-                rows.append(clean)
+    text = read_text(path)
+    reader = csv.DictReader(io.StringIO(text, newline=""), delimiter=sniff_delimiter(text))
+    if reader.fieldnames is None:
+        raise DataContractError(f"{path}: empty file")
+    names = [n.strip().lower() for n in reader.fieldnames]
+    missing = [c for c in required if c not in names]
+    if missing:
+        raise DataContractError(f"{path}: missing required columns {missing}")
+    rows = []
+    for row in reader:
+        clean = {k.strip().lower(): (v or "").strip() for k, v in row.items() if k is not None}
+        if any(clean.values()):
+            rows.append(clean)
     return rows
 
 
@@ -115,20 +117,26 @@ def apply_marker_map(gm: GenotypeMatrix, marker_map: dict[str, Marker]) -> tuple
 
 
 def build_dataset(gm: GenotypeMatrix, samples: list[Sample]) -> Dataset:
-    """Join manifest and genotypes; synthesise parents for coded input; report manifest/genotype mismatches."""
+    """Join manifest and genotypes: synthesise parents for coded input and record them, drop genotype
+    columns absent from the manifest, order the columns as the manifest, report mismatches."""
     warnings: list[str] = []
     rp = next(s for s in samples if s.role == "recurrent_parent")
     dp = next(s for s in samples if s.role == "donor_parent")
+    synthetic: tuple[str, ...] = ()
     if gm.coded:
-        before = gm.n_samples
+        before = set(gm.sample_ids)
         gm = add_synthetic_parents(gm, rp.sample_id, dp.sample_id)
-        if gm.n_samples != before:
+        synthetic = tuple(s for s in (rp.sample_id, dp.sample_id) if s not in before)
+        if synthetic:
             warnings.append("A/B/H-coded input: parent columns synthesised (recurrent = A, donor = B)")
-    manifest_ids = {s.sample_id for s in samples}
-    absent = [s.sample_id for s in samples if s.sample_id not in gm.sample_ids]
+    manifest_ids = [s.sample_id for s in samples]
+    absent = [s for s in manifest_ids if s not in gm.sample_ids]
     if absent:
         raise DataContractError(f"samples in manifest but not in genotype file: {absent[:10]}{'...' if len(absent) > 10 else ''}")
-    extra = [s for s in gm.sample_ids if s not in manifest_ids]
+    extra = [s for s in gm.sample_ids if s not in set(manifest_ids)]
     if extra:
-        warnings.append(f"{len(extra)} genotype columns are not in samples.csv and are ignored")
-    return Dataset(genotypes=gm, samples=samples, warnings=warnings)
+        warnings.append(
+            f"{len(extra)} genotype column(s) not in samples.csv dropped: {', '.join(extra[:5])}{', ...' if len(extra) > 5 else ''}"
+        )
+    gm = gm.select_samples(manifest_ids)
+    return Dataset(genotypes=gm, samples=samples, warnings=warnings, synthetic_sample_ids=synthetic)

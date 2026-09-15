@@ -1,13 +1,14 @@
 """Chromosome name normalisation and ordering.
 
-Responsibility: map the chromosome spellings accepted by the data contract
-("Gm06", "gm6", "chr6", "Chr06", "6", "06") onto the canonical soybean form "Gm06",
-and provide a stable sort key. Names that do not match the soybean pattern are
-kept unchanged so the tool still runs on non-soybean data.
+Responsibility: map the chromosome spellings accepted by the contract (prefix Gm, Chr,
+Chromosome or LG, optional _, space or - separator, 1..20 with leading zeros;
+contract/data-contract.md 1.1.0) onto the canonical "Gm06", keep other names unchanged,
+and provide a sort key that puts Gm01..Gm20 first and everything else after them in
+natural (numeric-aware) order, the same order as isoline-browser's compareChromosomes.
 
 Interface:
     normalize_chrom(name: str) -> str
-    chrom_sort_key(name: str) -> tuple[int, str]
+    chrom_sort_key(name: str) -> tuple[int, tuple[tuple[int, str], ...]]
     chrom_length_bp(name: str, fallback: int | None) -> int | None
 """
 
@@ -17,7 +18,8 @@ import re
 
 from progeny_selector.constants import SOYBEAN_CHROM_LENGTHS_BP_WM82A4, SOYBEAN_CHROMOSOMES
 
-_SOY_PATTERN = re.compile(r"^(?:gm|chr|chromosome|ch)?_?0*([1-9]|1[0-9]|20)$", re.IGNORECASE)
+_SOY_PATTERN = re.compile(r"^(?:gm|chr|chromosome|lg)?[_\s-]?0*([1-9]|1[0-9]|20)$", re.IGNORECASE)
+_DIGIT_RUN = re.compile(r"([0-9]+)")
 
 
 def normalize_chrom(name: str) -> str:
@@ -29,12 +31,18 @@ def normalize_chrom(name: str) -> str:
     return raw
 
 
-def chrom_sort_key(name: str) -> tuple[int, str]:
-    """Sort soybean chromosomes numerically first, then any other names alphabetically."""
+def _natural_key(name: str) -> tuple[tuple[int, str], ...]:
+    """Split on digit runs: even parts are text, odd parts are numbers, so aligned parts share a type."""
+    parts = _DIGIT_RUN.split(name)
+    return tuple((int(p), "") if i % 2 else (0, p) for i, p in enumerate(parts))
+
+
+def chrom_sort_key(name: str) -> tuple[int, tuple[tuple[int, str], ...]]:
+    """Gm01..Gm20 numerically first, then any other name in natural order (scaffold_2 before scaffold_10)."""
     canonical = normalize_chrom(name)
     if canonical in SOYBEAN_CHROMOSOMES:
-        return (SOYBEAN_CHROMOSOMES.index(canonical), "")
-    return (len(SOYBEAN_CHROMOSOMES), canonical)
+        return (SOYBEAN_CHROMOSOMES.index(canonical), ())
+    return (len(SOYBEAN_CHROMOSOMES), _natural_key(canonical))
 
 
 def chrom_length_bp(name: str, fallback: int | None = None) -> int | None:

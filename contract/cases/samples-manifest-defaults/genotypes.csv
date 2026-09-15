@@ -1,0 +1,3 @@
+marker_id,chrom,pos_bp,EXTRA,L2,RP,L1,DONOR
+d1,Gm01,100,A,A,A,A/G,G
+d2,Gm01,200,T,C/T,C,CC,T

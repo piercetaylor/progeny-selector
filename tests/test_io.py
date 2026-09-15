@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import gzip
+import re
 from pathlib import Path
 
 import numpy as np
@@ -41,7 +42,7 @@ def test_vcf_plain_and_gzip(tmp_path: Path):
     p.write_text(VCF)
     gm = load_genotypes(p)
     assert [m.chrom for m in gm.markers] == ["Gm06"] * 3
-    assert gm.markers[1].marker_id == "Gm06_2000"
+    assert gm.markers[1].marker_id == "6_2000"
     assert gm.alleles[1] == ["C", "G", "T"]
     assert tuple(gm.calls[0, 2]) == (0, 1) and tuple(gm.calls[1, 2]) == (2, 2) and tuple(gm.calls[2, 2]) == (-1, -1)
     gz = tmp_path / "g.vcf.gz"
@@ -87,6 +88,7 @@ def test_wide_csv_nucleotide_and_coded(tmp_path: Path):
     s.write_text("sample_id,line_name,role\nRP,RP,recurrent_parent\nDONOR,D,donor_parent\nP1,P1,progeny\nP2,P2,progeny\n")
     ds = load_dataset(q, s)
     assert ds.genotypes.n_samples == 4 and any("synthesised" in w for w in ds.warnings)
+    assert ds.synthetic_sample_ids == ("RP", "DONOR") and ds.genotypes.sample_ids == ["RP", "DONOR", "P1", "P2"]
 
 
 def test_manifest_rules(tmp_path: Path):
@@ -129,3 +131,154 @@ def test_criteria_parsing_and_validation(tmp_path: Path):
     y.write_text("targets:\n  - locus_id: T1\n    left_marker: m1\n    right_marker: m3\nflank_unit: bp\nflank_window: 1500\n")
     c2 = read_criteria(y)
     assert c2.targets[0].kind() == "flanking" and c2.flank_unit == "bp"
+
+
+HAPMAP_HEADER = "rs#\talleles\tchrom\tpos\tstrand\tassembly#\tcenter\tprotLSID\tassayLSID\tpanelLSID\tQCcode"
+HAPMAP_FIXED = "+\tNA\tNA\tNA\tNA\tNA\tNA"
+
+
+def test_manifest_tab_no_line_name(tmp_path: Path):
+    s = tmp_path / "s.tsv"
+    s.write_bytes("\ufeffsample_id\trole\r\nRP\trecurrent_parent\r\nDONOR\tdonor_parent\r\nP1\tprogeny\r\n".encode())
+    rows = read_samples(s)
+    assert [x.sample_id for x in rows] == ["RP", "DONOR", "P1"] and rows[2].line_name == "P1"
+
+
+def test_wide_csv_tab_quoted_bom_crlf(tmp_path: Path):
+    p = tmp_path / "g.tsv"
+    p.write_bytes(
+        '\ufeffmarker_id\tchrom\tpos_bp\tRP\tDONOR\t"P1"\r\nm1\tGm06\t1000\tA\tT\t"A/T"\r\nm2\tGm06\t2000\tC\tG\t.|.\r\n'.encode()
+    )
+    gm = read_wide_csv(p)
+    assert gm.sample_ids == ["RP", "DONOR", "P1"]
+    assert tuple(gm.calls[0, 2]) == (0, 1) and tuple(gm.calls[1, 2]) == (-1, -1)
+
+
+def test_extra_columns_dropped_manifest_order(tmp_path: Path):
+    p = tmp_path / "g.csv"
+    p.write_text("marker_id,chrom,pos_bp,EXTRA,P1,RP,DONOR\nm1,Gm06,1000,A,A/T,A,T\n")
+    s = tmp_path / "s.csv"
+    s.write_text("sample_id,role\nDONOR,donor_parent\nP1,progeny\nRP,recurrent_parent\n")
+    ds = load_dataset(p, s)
+    assert ds.genotypes.sample_ids == ["DONOR", "P1", "RP"]
+    assert tuple(ds.genotypes.calls[0, 1]) == (0, 1)
+    assert any(w.startswith("1 genotype column(s) not in samples.csv dropped: EXTRA") for w in ds.warnings)
+
+
+def test_coded_synthetic_parents_tracked(tmp_path: Path):
+    p = tmp_path / "c.csv"
+    p.write_text("marker_id,chrom,pos_bp,P2,P1\nm1,Gm06,1000,B,H\n")
+    s = tmp_path / "s.csv"
+    s.write_text("sample_id,role\nRP,recurrent_parent\nP1,progeny\nDONOR,donor_parent\nP2,progeny\n")
+    ds = load_dataset(p, s)
+    assert ds.synthetic_sample_ids == ("RP", "DONOR")
+    assert ds.genotypes.sample_ids == ["RP", "P1", "DONOR", "P2"]
+
+
+def test_wide_missing_tokens_per_mode(tmp_path: Path):
+    p = tmp_path / "g.csv"
+    p.write_text("marker_id,chrom,pos_bp,S1,S2,S3\nm1,Gm06,100,.|.,NN,--\nm2,Gm06,200,.,,A\n")
+    gm = read_wide_csv(p)
+    assert (gm.calls[0] == -1).all() and tuple(gm.calls[1, 2]) == (0, 0)
+    for bad in ("--", ".", "./.", ".|.", "NN"):
+        p.write_text(f"marker_id,chrom,pos_bp,S1,S2\nm1,Gm06,100,A,B\nm2,Gm06,200,H,{bad}\n")
+        with pytest.raises(DataContractError, match=rf"line 3: unrecognised coded call '{re.escape(bad)}'"):
+            read_wide_csv(p)
+
+
+def test_nucleotide_iupac_expands(tmp_path: Path):
+    p = tmp_path / "g.csv"
+    p.write_text("marker_id,chrom,pos_bp,S1,S2\nm1,Gm06,100,T,R\nm2,Gm06,200,y,S\n")
+    gm = read_wide_csv(p)
+    assert gm.alleles[0] == ["A", "G", "T"] and tuple(gm.calls[0, 1]) == (0, 1)
+    assert gm.alleles[1] == ["C", "G", "T"] and tuple(gm.calls[1, 0]) == (0, 2) and tuple(gm.calls[1, 1]) == (0, 1)
+
+
+def test_nucleotide_rejects_stray_cells(tmp_path: Path):
+    p = tmp_path / "g.csv"
+    for bad in ("?", "B", "H", "X", "XX", "0", "+", "A?", "N?", "RR"):  # T in S1 forces nucleotide detection
+        p.write_text(f"marker_id,chrom,pos_bp,S1,S2\nm1,Gm06,100,T,{bad}\n")
+        with pytest.raises(DataContractError, match=rf"line 2: unrecognised nucleotide call '{re.escape(bad)}'"):
+            read_wide_csv(p)
+
+
+def test_half_missing_pairs_unchanged(tmp_path: Path):
+    """Undecided in contract 1.1.0 (PLAN.md): a pair with N, - or . reads as missing, as before."""
+    p = tmp_path / "g.csv"
+    p.write_text("marker_id,chrom,pos_bp,S1,S2,S3,S4\nm1,Gm06,100,T,AN,A-,./A\n")
+    gm = read_wide_csv(p)
+    assert (gm.calls[0, 1:] == -1).all() and gm.alleles[0] == ["T"]
+
+
+def test_hapmap_missing_tokens(tmp_path: Path):
+    p = tmp_path / "g.hmp.txt"
+    p.write_text(
+        f"{HAPMAP_HEADER}\tS1\tS2\tS3\tS4\n"
+        f"m1\tA/T\t6\t1000\t{HAPMAP_FIXED}\tNA\t./.\t.\tAT\n"
+        f"m2\tA/T\t6\t2000\t{HAPMAP_FIXED}\tN\tNN\t-\t--\n"
+        f"m3\tA/T\t6\t3000\t{HAPMAP_FIXED}\t\tA\tT\tW\n"
+        f"m4\tA/T\t6\t4000\t{HAPMAP_FIXED}\t.|.\tX\tXX\tA\n"
+    )
+    gm = load_genotypes(p)
+    assert (gm.calls[0, :3] == -1).all() and tuple(gm.calls[0, 3]) == (0, 1)
+    assert (gm.calls[1] == -1).all()
+    assert tuple(gm.calls[2, 0]) == (-1, -1) and tuple(gm.calls[2, 1]) == (0, 0) and tuple(gm.calls[2, 3]) == (0, 1)
+    assert (gm.calls[3, :3] == -1).all() and tuple(gm.calls[3, 3]) == (0, 0)
+
+
+def test_hapmap_rejects_stray_cells(tmp_path: Path):
+    p = tmp_path / "g.hmp.txt"
+    for bad in ("?", "+", "0", "B", "H", "A?"):
+        p.write_text(f"{HAPMAP_HEADER}\tS1\tS2\nm1\tA/T\t6\t1000\t{HAPMAP_FIXED}\tAA\t{bad}\n")
+        with pytest.raises(DataContractError, match=rf"line 2: unrecognised nucleotide call '{re.escape(bad)}'"):
+            load_genotypes(p)
+
+
+def test_coding_detection_scans_every_row(tmp_path: Path):
+    header = "marker_id,chrom,pos_bp,S1\n"
+    body = "".join(f"m{i},Gm01,{i + 1},A\n" for i in range(250))
+    p = tmp_path / "late.csv"
+    p.write_text(header + body + "late,Gm01,999,B\n")
+    assert read_wide_csv(p).coded
+    p.write_text(header + "h,Gm01,1,H\n" + body + "late,Gm01,999,T\n")
+    with pytest.raises(DataContractError, match="unrecognised nucleotide call 'H'"):
+        read_wide_csv(p)  # detected as nucleotide because of the late T; a single H is then an error
+
+
+def test_vcf_crlf_bom(tmp_path: Path):
+    p = tmp_path / "g.vcf"
+    p.write_bytes(("\ufeff" + VCF.replace("\n", "\r\n")).encode())
+    gm = load_genotypes(p)
+    assert gm.sample_ids == ["RP", "DONOR", "P1"] and tuple(gm.calls[2, 2]) == (-1, -1)
+
+
+def test_separator_shapes_match_contract(tmp_path: Path):
+    wide = tmp_path / "g.csv"
+    hmp = tmp_path / "g.hmp.txt"
+    for bad in ("A/", "/A", "AT/", "A//T", "A|/T", "NA/"):
+        wide.write_text(f"marker_id,chrom,pos_bp,S1,S2\nm1,Gm06,100,T,{bad}\n")
+        with pytest.raises(DataContractError, match=rf"line 2: unrecognised nucleotide call '{re.escape(bad)}'"):
+            read_wide_csv(wide)
+        hmp.write_text(f"{HAPMAP_HEADER}\tS1\tS2\nm1\tA/T\t6\t1000\t{HAPMAP_FIXED}\tAA\t{bad}\n")
+        with pytest.raises(DataContractError, match=rf"line 2: unrecognised nucleotide call '{re.escape(bad)}'"):
+            load_genotypes(hmp)
+    wide.write_text("marker_id,chrom,pos_bp,S1,S2,S3\nm1,Gm06,100,A/T,A|T,N/A\n")
+    gm = read_wide_csv(wide)
+    assert tuple(gm.calls[0, 0]) == (0, 1) and tuple(gm.calls[0, 1]) == (0, 1) and tuple(gm.calls[0, 2]) == (-1, -1)
+    hmp.write_text(f"{HAPMAP_HEADER}\tS1\tS2\tS3\nm1\tA/T\t6\t1000\t{HAPMAP_FIXED}\tA/T\tA|T\tN/A\n")
+    gm = load_genotypes(hmp)
+    assert tuple(gm.calls[0, 0]) == (0, 1) and tuple(gm.calls[0, 1]) == (0, 1) and tuple(gm.calls[0, 2]) == (-1, -1)
+
+
+def test_hapmap_invalid_position(tmp_path: Path):
+    p = tmp_path / "g.hmp.txt"
+    p.write_text(f"{HAPMAP_HEADER}\tS1\tS2\nm1\tA/T\t6\t1000.5\t{HAPMAP_FIXED}\tAA\tTT\n")
+    with pytest.raises(DataContractError, match=r"line 2: invalid position '1000\.5'"):
+        load_genotypes(p)
+
+
+def test_hapmap_header_requires_rs_hash(tmp_path: Path):
+    p = tmp_path / "g.hmp.txt"
+    p.write_text(f"{HAPMAP_HEADER.replace('rs#', 'rsid', 1)}\tS1\tS2\nm1\tA/T\t6\t1000\t{HAPMAP_FIXED}\tAA\tTT\n")
+    with pytest.raises(DataContractError, match="HapMap header must start with rs#"):
+        load_genotypes(p)

@@ -3,8 +3,9 @@
 Responsibility: parse the ``#CHROM`` header for sample ids and the GT field of
 every record into allele indices (REF = 0, ALT_k = k, '.' = -1); keep REF/ALT
 strings as the per-marker allele table; normalise chromosome names. Only GT is
-read; phasing is ignored; haploid GT is duplicated. Records without an ID get
-``<chrom>_<pos>``. Format facts: VCF 4.2 specification [web]
+read; phasing is ignored; haploid GT is duplicated.
+Records with ID "." or empty get "<CHROM>_<POS>" from CHROM as written in the file, before normalisation (contract 1.1.0).
+Format facts: VCF 4.2 specification [web]
 https://samtools.github.io/hts-specs/VCFv4.2.pdf.
 
 Interface:
@@ -13,19 +14,13 @@ Interface:
 
 from __future__ import annotations
 
-import gzip
 from pathlib import Path
 
 import numpy as np
 
 from progeny_selector.core.chrom import normalize_chrom
+from progeny_selector.io.delimited import open_text
 from progeny_selector.model.dataset import DataContractError, GenotypeMatrix, Marker
-
-
-def _open_text(path: Path):
-    if str(path).endswith((".gz", ".bgz")):
-        return gzip.open(path, "rt", encoding="utf-8")
-    return open(path, encoding="utf-8")
 
 
 def _parse_gt(token: str) -> tuple[int, int]:
@@ -46,21 +41,21 @@ def read_vcf(path: str | Path) -> GenotypeMatrix:
     markers: list[Marker] = []
     alleles: list[list[str]] = []
     rows: list[np.ndarray] = []
-    with _open_text(path) as fh:
+    with open_text(path) as fh:
         for line_no, line in enumerate(fh, start=1):
             if not line.strip():
                 continue
             if line.startswith("##"):
                 continue
             if line.startswith("#CHROM"):
-                fields = line.rstrip("\n").split("\t")
+                fields = line.rstrip("\r\n").split("\t")
                 if len(fields) < 10 or fields[8] != "FORMAT":
                     raise DataContractError("VCF header must have FORMAT and at least one sample column")
                 sample_ids = fields[9:]
                 continue
             if not sample_ids:
                 raise DataContractError("VCF data line before #CHROM header")
-            fields = line.rstrip("\n").split("\t")
+            fields = line.rstrip("\r\n").split("\t")
             if len(fields) != 9 + len(sample_ids):
                 raise DataContractError(f"line {line_no}: expected {9 + len(sample_ids)} columns, found {len(fields)}")
             chrom, pos, mid, ref, alt, _qual, _filt, _info, fmt = fields[:9]
@@ -72,7 +67,7 @@ def read_vcf(path: str | Path) -> GenotypeMatrix:
                 tokens = [f.split(":")[gt_index] for f in fields[9:]]
             else:
                 tokens = fields[9:]
-            marker_id = mid if mid not in (".", "") else f"{normalize_chrom(chrom)}_{pos}"
+            marker_id = mid if mid not in (".", "") else f"{chrom}_{pos}"
             alt_alleles = [] if alt in (".", "") else alt.split(",")
             allele_list = [ref, *alt_alleles]
             pairs = np.array([_parse_gt(t) for t in tokens], dtype=np.int8)

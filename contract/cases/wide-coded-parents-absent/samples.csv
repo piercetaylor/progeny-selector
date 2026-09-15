@@ -1,0 +1,6 @@
+sample_id,line_name,role,generation,family_id,notes
+RP_ABSENT,Recurrent,recurrent_parent,,,
+DONOR_ABSENT,Donor,donor_parent,,,
+BC_02,BC 02,progeny,BC2F1,F1,
+BC_01,BC 01,progeny,BC2F1,F1,
+BC_03,BC 03,candidate,BC2F1,F1,

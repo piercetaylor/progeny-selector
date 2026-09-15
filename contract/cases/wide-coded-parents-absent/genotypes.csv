@@ -1,0 +1,5 @@
+marker_id,chrom,pos_bp,BC_01,BC_02,BC_03
+c1,Gm13,1000,A,B,H
+c2,Gm13,2000,H,,A
+c3,Gm13,3000,N,A,B
+c4,Gm13,4000,B,NA,A

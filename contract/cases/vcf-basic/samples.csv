@@ -1,0 +1,5 @@
+sample_id,line_name,role,generation,family_id,notes
+RP,Recurrent,recurrent_parent,,,
+DONOR,Donor,donor_parent,,,
+L1,Line 1,candidate,BC5F3,FAM1,
+L2,Line 2,progeny,BC5F3,FAM1,

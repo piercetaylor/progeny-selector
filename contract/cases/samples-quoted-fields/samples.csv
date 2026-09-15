@@ -1,0 +1,4 @@
+sample_id,line_name,role,notes
+RP,"Williams, 82",recurrent_parent,"say ""hi"""
+DONOR,Donor,donor_parent,
+"L1","Line, one",candidate,"a, b"

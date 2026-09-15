@@ -59,7 +59,9 @@ def _pick_unit(dataset: Dataset, requested: str) -> str:
 def run_analysis(dataset: Dataset, criteria: Criteria) -> AnalysisResult:
     criteria.validate()
     gm = dataset.genotypes.sorted_by_position()
-    dataset = Dataset(genotypes=gm, samples=dataset.samples, warnings=list(dataset.warnings))
+    dataset = Dataset(
+        genotypes=gm, samples=dataset.samples, warnings=list(dataset.warnings), synthetic_sample_ids=dataset.synthetic_sample_ids
+    )
     warnings = list(dataset.warnings)
     rp_id, donor_id = dataset.recurrent_parent.sample_id, dataset.donor_parent.sample_id
     cls = classify(gm, rp_id, donor_id)

@@ -1,0 +1,5 @@
+﻿sample_id	role	family_id
+RP	recurrent_parent	
+DONOR	donor_parent	
+L1	candidate	FAM1
+L2	progeny	FAM1

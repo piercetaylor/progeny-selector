@@ -10,7 +10,9 @@ Interface:
     GenotypeMatrix.marker_index(marker_id) -> int
     GenotypeMatrix.sorted_by_position() -> GenotypeMatrix
     GenotypeMatrix.positions(unit) -> np.ndarray
+    GenotypeMatrix.select_samples(sample_ids) -> GenotypeMatrix
     Dataset.recurrent_parent / donor_parent / progeny -> Sample(s)
+    Dataset.synthetic_sample_ids
 """
 
 from __future__ import annotations
@@ -23,7 +25,7 @@ from progeny_selector.core.chrom import chrom_sort_key
 
 
 class DataContractError(ValueError):
-    """Raised when an input file violates docs/data-formats.md."""
+    """Raised when an input file violates contract/data-contract.md or docs/data-formats.md."""
 
 
 @dataclass(frozen=True)
@@ -130,14 +132,32 @@ class GenotypeMatrix:
             coded=self.coded,
         )
 
+    def select_samples(self, sample_ids: list[str]) -> GenotypeMatrix:
+        """Columns for ``sample_ids`` in that order; every id must be present."""
+        idx = [self.sample_index(s) for s in sample_ids]
+        if idx == list(range(self.n_samples)):
+            return self
+        return GenotypeMatrix(
+            markers=self.markers,
+            sample_ids=list(sample_ids),
+            alleles=self.alleles,
+            calls=self.calls[:, idx],
+            coded=self.coded,
+        )
+
 
 @dataclass
 class Dataset:
-    """A genotype matrix joined with its sample manifest."""
+    """A genotype matrix joined with its sample manifest.
+
+    synthetic_sample_ids: parents of a coded file that had no genotype column and were synthesised by
+    build_dataset; they are not part of the loaded sample list the contract describes.
+    """
 
     genotypes: GenotypeMatrix
     samples: list[Sample]
     warnings: list[str] = field(default_factory=list)
+    synthetic_sample_ids: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         roles = [s.role for s in self.samples]

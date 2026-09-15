@@ -1,0 +1,5 @@
+SAMPLE_ID,Line_Name,Role
+DONOR,,donor_parent
+L1,,progeny
+RP,,recurrent_parent
+L2,Line two,candidate

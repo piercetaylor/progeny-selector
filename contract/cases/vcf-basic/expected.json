@@ -1,0 +1,104 @@
+{
+  "contractVersion": "1.1.0",
+  "coded": false,
+  "chromosomeOrder": [
+    "Gm07"
+  ],
+  "markers": [
+    {
+      "id": "v_phase",
+      "chrom": "Gm07",
+      "posBp": 1000,
+      "cm": null
+    },
+    {
+      "id": "Gm07_2000",
+      "chrom": "Gm07",
+      "posBp": 2000,
+      "cm": null
+    },
+    {
+      "id": "v_multi",
+      "chrom": "Gm07",
+      "posBp": 3000,
+      "cm": null
+    },
+    {
+      "id": "v_gtlast",
+      "chrom": "Gm07",
+      "posBp": 4000,
+      "cm": null
+    }
+  ],
+  "sampleIds": [
+    "RP",
+    "DONOR",
+    "L1",
+    "L2"
+  ],
+  "calls": {
+    "RP": [
+      [
+        "A",
+        "A"
+      ],
+      [
+        "C",
+        "C"
+      ],
+      [
+        "G",
+        "G"
+      ],
+      [
+        "T",
+        "T"
+      ]
+    ],
+    "DONOR": [
+      [
+        "G",
+        "G"
+      ],
+      [
+        "T",
+        "T"
+      ],
+      [
+        "T",
+        "T"
+      ],
+      [
+        "C",
+        "C"
+      ]
+    ],
+    "L1": [
+      [
+        "A",
+        "G"
+      ],
+      null,
+      [
+        "G",
+        "T"
+      ],
+      [
+        "C",
+        "T"
+      ]
+    ],
+    "L2": [
+      [
+        "A",
+        "G"
+      ],
+      null,
+      [
+        "A",
+        "T"
+      ],
+      null
+    ]
+  }
+}

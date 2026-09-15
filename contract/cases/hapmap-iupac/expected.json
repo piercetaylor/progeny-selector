@@ -1,0 +1,166 @@
+{
+  "contractVersion": "1.1.0",
+  "coded": false,
+  "chromosomeOrder": [
+    "Gm13"
+  ],
+  "markers": [
+    {
+      "id": "h1",
+      "chrom": "Gm13",
+      "posBp": 100,
+      "cm": null
+    },
+    {
+      "id": "h2",
+      "chrom": "Gm13",
+      "posBp": 200,
+      "cm": null
+    },
+    {
+      "id": "h3",
+      "chrom": "Gm13",
+      "posBp": 300,
+      "cm": null
+    },
+    {
+      "id": "h4",
+      "chrom": "Gm13",
+      "posBp": 400,
+      "cm": null
+    },
+    {
+      "id": "h5",
+      "chrom": "Gm13",
+      "posBp": 500,
+      "cm": null
+    },
+    {
+      "id": "h6",
+      "chrom": "Gm13",
+      "posBp": 600,
+      "cm": null
+    }
+  ],
+  "sampleIds": [
+    "RP",
+    "DONOR",
+    "L1",
+    "L2",
+    "L3"
+  ],
+  "calls": {
+    "RP": [
+      [
+        "A",
+        "A"
+      ],
+      [
+        "C",
+        "C"
+      ],
+      [
+        "C",
+        "G"
+      ],
+      [
+        "A",
+        "T"
+      ],
+      [
+        "G",
+        "T"
+      ],
+      [
+        "A",
+        "C"
+      ]
+    ],
+    "DONOR": [
+      [
+        "G",
+        "G"
+      ],
+      [
+        "T",
+        "T"
+      ],
+      [
+        "G",
+        "G"
+      ],
+      [
+        "A",
+        "A"
+      ],
+      [
+        "G",
+        "G"
+      ],
+      [
+        "C",
+        "C"
+      ]
+    ],
+    "L1": [
+      [
+        "A",
+        "G"
+      ],
+      [
+        "C",
+        "T"
+      ],
+      null,
+      [
+        "T",
+        "T"
+      ],
+      [
+        "T",
+        "T"
+      ],
+      [
+        "A",
+        "C"
+      ]
+    ],
+    "L2": [
+      [
+        "A",
+        "G"
+      ],
+      [
+        "C",
+        "T"
+      ],
+      null,
+      [
+        "A",
+        "T"
+      ],
+      [
+        "G",
+        "T"
+      ],
+      [
+        "A",
+        "C"
+      ]
+    ],
+    "L3": [
+      null,
+      null,
+      null,
+      [
+        "A",
+        "A"
+      ],
+      [
+        "G",
+        "T"
+      ],
+      null
+    ]
+  }
+}

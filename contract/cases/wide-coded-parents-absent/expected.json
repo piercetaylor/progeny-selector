@@ -1,0 +1,85 @@
+{
+  "contractVersion": "1.1.0",
+  "coded": true,
+  "chromosomeOrder": [
+    "Gm13"
+  ],
+  "markers": [
+    {
+      "id": "c1",
+      "chrom": "Gm13",
+      "posBp": 1000,
+      "cm": null
+    },
+    {
+      "id": "c2",
+      "chrom": "Gm13",
+      "posBp": 2000,
+      "cm": null
+    },
+    {
+      "id": "c3",
+      "chrom": "Gm13",
+      "posBp": 3000,
+      "cm": null
+    },
+    {
+      "id": "c4",
+      "chrom": "Gm13",
+      "posBp": 4000,
+      "cm": null
+    }
+  ],
+  "sampleIds": [
+    "BC_02",
+    "BC_01",
+    "BC_03"
+  ],
+  "calls": {
+    "BC_02": [
+      [
+        "B",
+        "B"
+      ],
+      null,
+      [
+        "A",
+        "A"
+      ],
+      null
+    ],
+    "BC_01": [
+      [
+        "A",
+        "A"
+      ],
+      [
+        "A",
+        "B"
+      ],
+      null,
+      [
+        "B",
+        "B"
+      ]
+    ],
+    "BC_03": [
+      [
+        "A",
+        "B"
+      ],
+      [
+        "A",
+        "A"
+      ],
+      [
+        "B",
+        "B"
+      ],
+      [
+        "A",
+        "A"
+      ]
+    ]
+  }
+}

@@ -1,0 +1,5 @@
+﻿marker_id	chrom	pos_bp	RP	DONOR	L1	L2
+t1	Gm09	1000	A	G	.|.	AG
+t2	Gm09	2000	C	T	NN	.
+t3	Gm09	3000	G	T	--	G/T
+t4	Gm09	4000	T	C		T

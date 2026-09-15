@@ -1,0 +1,76 @@
+{
+  "contractVersion": "1.1.0",
+  "coded": false,
+  "chromosomeOrder": [
+    "Gm13"
+  ],
+  "markers": [
+    {
+      "id": "chr13_19000000",
+      "chrom": "Gm13",
+      "posBp": 19000000,
+      "cm": null
+    },
+    {
+      "id": "13_21000000",
+      "chrom": "Gm13",
+      "posBp": 21000000,
+      "cm": null
+    },
+    {
+      "id": "v3",
+      "chrom": "Gm13",
+      "posBp": 23000000,
+      "cm": null
+    }
+  ],
+  "sampleIds": [
+    "RP",
+    "DONOR",
+    "L1"
+  ],
+  "calls": {
+    "RP": [
+      [
+        "C",
+        "C"
+      ],
+      [
+        "G",
+        "G"
+      ],
+      [
+        "A",
+        "A"
+      ]
+    ],
+    "DONOR": [
+      [
+        "T",
+        "T"
+      ],
+      [
+        "A",
+        "A"
+      ],
+      [
+        "G",
+        "G"
+      ]
+    ],
+    "L1": [
+      [
+        "T",
+        "T"
+      ],
+      [
+        "A",
+        "G"
+      ],
+      [
+        "A",
+        "A"
+      ]
+    ]
+  }
+}

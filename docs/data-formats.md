@@ -1,80 +1,10 @@
 # Data formats
 
-This document is the contract for every file progeny-selector reads or writes. The input contract (genotype file, samples.csv, markers.csv) is shared verbatim with the sibling isoline-browser project so files move between the tools unchanged; criteria.yaml and the outputs are specific to this tool. Validation happens once, in `progeny_selector.io`; violations raise `DataContractError` or `CriteriaError` naming the file, line and column. A change to this document is a breaking change (CONTRIBUTING.md).
+This document is the contract for every file progeny-selector reads or writes. The input contract is `contract/data-contract.md`; criteria.yaml and the outputs are specific to this tool. Validation happens once, in `progeny_selector.io`; violations raise `DataContractError` or `CriteriaError` naming the file, line and column. A change to this document is a breaking change (CONTRIBUTING.md).
 
-## Chromosome names
+## Input contract
 
-`Gm01`..`Gm20`, `Gm1`..`Gm20`, `chr01`/`Chr1`/`chr1`, `chromosome6`, and bare `1`..`20` or `01`..`20` are normalised to `Gm01`..`Gm20`. Other names are kept unchanged and sorted after Gm20. Positions are 1-based bp on whichever Williams 82 assembly the files use; SoyBase lists Wm82.a1.v1.1, Wm82.a2.v1 and Wm82.a4.v1 with Gm01–Gm20 naming [web] https://www.soybase.org/resources/genome_info/. The Wm82.a4.v1 chromosome lengths in `constants.py` are used as chromosome ends for drag bounds and marker weights when positions are in bp.
-
-## Genotype file
-
-Format is chosen by extension: `.vcf` / `.vcf.gz` / `.vcf.bgz` (VCF), `.hmp.txt` / `.hmp` / `.hapmap` (HapMap), `.csv` / `.tsv` / `.txt` (wide CSV). Gzip and bgzip are read through Python's gzip module (bgzip is concatenated gzip members).
-
-### VCF 4.2 or later
-
-Columns `#CHROM POS ID REF ALT QUAL FILTER INFO FORMAT` then one column per sample [web] https://samtools.github.io/hts-specs/VCFv4.2.pdf. Only CHROM, POS, ID, REF, ALT, FORMAT and GT are read; INFO, QUAL and FILTER are ignored (filter upstream with bcftools). GT indices refer to the REF,ALT list; `.` is missing; `/` and `|` are equivalent; haploid GT is read as homozygous; multiallelic ALT is supported. Records with ID `.` get `<chrom>_<pos>`.
-
-### HapMap (TASSEL style)
-
-Eleven fixed columns `rs# alleles chrom pos strand assembly# center protLSID assayLSID panelLSID QCcode`, then one column per taxon [web] https://statgen-esalq.github.io/Hapmap-and-VCF-formats-and-its-integration-with-onemap/. Cells: two nucleotides (`AA`, `AT`), a slash pair (`A/T`) or one IUPAC letter (A, C, G, T; R, Y, S, W, K, M). `N`, `NN`, `-`, `--`, empty are missing. Tab-delimited.
-
-### Wide CSV
-
-| column | type | rule |
-|---|---|---|
-| marker_id | text | unique |
-| chrom | text | any accepted chromosome spelling |
-| pos_bp | integer | 1-based position |
-| `<sample_id>` ... | text | one column per sample; the header is the sample_id used in samples.csv |
-
-| coding | homozygous | heterozygous | missing |
-|---|---|---|---|
-| nucleotide | `A`, `AA` | `A/T`, `A\|T`, `AT`, IUPAC `W` | empty, `N`, `NA`, `-`, `.`, `./.` |
-| abh | `A` (recurrent-parent allele), `B` (donor allele) | `H` | empty, `N`, `NA` |
-
-`--coding auto` (default) selects `abh` when every non-missing cell in the first 200 rows is A, B or H and at least one B or H occurs; otherwise `nucleotide`. In `abh` coding allele 0 is A and allele 1 is B at every marker; if the parents named in samples.csv are absent from the file they are synthesised (recurrent = all A, donor = all B) with a warning.
-
-Example (nucleotide):
-
-```
-marker_id,chrom,pos_bp,RP_Williams82,DONOR_PI,BC2F1-F1-001
-syn_Gm06_12,Gm06,23435098,C,T,C
-syn_Gm06_13,6,25472933,G,A,G/A
-syn_Gm06_14,chr6,27510769,A,T,AT
-```
-
-## samples.csv (sample manifest)
-
-| column | required | values |
-|---|---|---|
-| sample_id | yes | must match a genotype column (except parents of an abh-coded file); unique |
-| line_name | no | display name; defaults to sample_id |
-| role | yes | `recurrent_parent`, `donor_parent`, `candidate`, `progeny` |
-| generation | no | `BC2F1`, `BC3F2`, `F2`, `BC1`, `BC2S1`; unparseable strings are kept and flagged `generation_unparsed` |
-| family_id | no | grouping label used for per-family ranks and top-N selection |
-| notes | no | free text |
-
-Exactly one `recurrent_parent` and exactly one `donor_parent`; at least one `candidate` or `progeny` (both roles are ranked). Column names are case-insensitive. Genotype columns absent from the manifest are ignored with a warning; manifest samples absent from the genotype file are an error. Pyramiding with two donors is a later extension that adds `donor_parent_2` and per-target donor assignment; it does not change the meaning of existing columns.
-
-Example:
-
-```
-sample_id,line_name,role,generation,family_id,notes
-RP_Williams82,Williams 82 (synthetic),recurrent_parent,,,
-DONOR_PI_synthetic,PI synthetic donor,donor_parent,,,
-BC2F1-F1-001,LF1-001,progeny,BC2F1,F1,planted best
-```
-
-## markers.csv (marker map, optional)
-
-| column | required | values |
-|---|---|---|
-| marker_id | yes | matches the genotype file |
-| chrom | yes | any accepted spelling |
-| pos_bp | yes | integer |
-| cm | no | genetic position; enables cM windows, cM-weighted RPP and cM drag |
-
-Map values override genotype-file positions when they differ (reported as warnings); markers absent from the map keep their genotype-file position and have no cM, which disables cM mode for the whole dataset (all markers need cM).
+The input contract is `contract/data-contract.md`, version 1.1.0, mirrored byte for byte from isoline-browser, where the canonical copy lives. It defines chromosome names (soybean-only in this version), the genotype file (VCF, HapMap, wide CSV; diploid calls only), the cell vocabulary per format (IUPAC codes expand to the heterozygote; `?`, stray `B`/`H`, `0`, `+`, `A?` are errors; `X`/`XX` are missing in HapMap only), samples.csv, markers.csv and the class codes; `contract/README.md` gives the version rules, `tests/test_contract_cases.py` runs every case under `contract/cases/` through `load_dataset`, and `scripts/check_contract.py` recomputes `MANIFEST.sha256` and, given `../isoline-browser`, byte-compares the mirror with the canonical copy. isoline-browser's docs/input-coding.md tabulates the accepted, missing and rejected codes per format and applies here unchanged. What this tool adds on top of the contract: the genotype format is chosen by file extension alone (`.vcf`, `.hmp.txt`, `.hmp`, `.hapmap`, `.csv`, `.tsv`, `.txt`, each optionally `.gz` or `.bgz`), which is the contract's minimum; for an A/B/H-coded file whose parents have no column the loader creates them internally (recurrent = all A, donor = all B, with a warning) and lists them in `Dataset.synthetic_sample_ids`; a pair of one nucleotide and one of N, `-`, `.` (`AN`, `A-`) is read as missing, which the contract has not yet decided; the Wm82.a4.v1 chromosome lengths in `constants.py` are the chromosome ends for drag bounds and marker weights when positions are in bp; `generation` values such as `BC2F1`, `BC3F2`, `F2`, `BC1`, `BC2S1` are parsed for expected values and unparseable strings are kept and flagged `generation_unparsed`; `family_id` groups progeny for per-family ranks and top-N selection; and markers absent from markers.csv have no cM, which disables cM mode for the whole dataset (all markers need cM).
 
 ## criteria.yaml (selection criteria)
 

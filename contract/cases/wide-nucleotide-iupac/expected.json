@@ -1,0 +1,154 @@
+{
+  "contractVersion": "1.1.0",
+  "coded": false,
+  "chromosomeOrder": [
+    "Gm15"
+  ],
+  "markers": [
+    {
+      "id": "i1",
+      "chrom": "Gm15",
+      "posBp": 100,
+      "cm": null
+    },
+    {
+      "id": "i2",
+      "chrom": "Gm15",
+      "posBp": 200,
+      "cm": null
+    },
+    {
+      "id": "i3",
+      "chrom": "Gm15",
+      "posBp": 300,
+      "cm": null
+    },
+    {
+      "id": "i4",
+      "chrom": "Gm15",
+      "posBp": 400,
+      "cm": null
+    },
+    {
+      "id": "i5",
+      "chrom": "Gm15",
+      "posBp": 500,
+      "cm": null
+    },
+    {
+      "id": "i6",
+      "chrom": "Gm15",
+      "posBp": 600,
+      "cm": null
+    }
+  ],
+  "sampleIds": [
+    "RP",
+    "DONOR",
+    "L1",
+    "L2"
+  ],
+  "calls": {
+    "RP": [
+      [
+        "A",
+        "A"
+      ],
+      [
+        "C",
+        "C"
+      ],
+      [
+        "C",
+        "C"
+      ],
+      [
+        "A",
+        "A"
+      ],
+      [
+        "G",
+        "G"
+      ],
+      [
+        "A",
+        "A"
+      ]
+    ],
+    "DONOR": [
+      [
+        "G",
+        "G"
+      ],
+      [
+        "T",
+        "T"
+      ],
+      [
+        "G",
+        "G"
+      ],
+      [
+        "T",
+        "T"
+      ],
+      [
+        "T",
+        "T"
+      ],
+      [
+        "C",
+        "C"
+      ]
+    ],
+    "L1": [
+      [
+        "A",
+        "G"
+      ],
+      [
+        "C",
+        "T"
+      ],
+      [
+        "C",
+        "G"
+      ],
+      [
+        "A",
+        "T"
+      ],
+      [
+        "G",
+        "T"
+      ],
+      [
+        "A",
+        "C"
+      ]
+    ],
+    "L2": [
+      [
+        "A",
+        "G"
+      ],
+      [
+        "C",
+        "C"
+      ],
+      [
+        "C",
+        "G"
+      ],
+      [
+        "T",
+        "T"
+      ],
+      [
+        "G",
+        "T"
+      ],
+      null
+    ]
+  }
+}

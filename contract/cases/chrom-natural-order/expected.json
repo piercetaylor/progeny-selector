@@ -1,0 +1,169 @@
+{
+  "contractVersion": "1.1.0",
+  "coded": false,
+  "chromosomeOrder": [
+    "Gm07",
+    "ch7",
+    "scaffold_2",
+    "scaffold_10"
+  ],
+  "markers": [
+    {
+      "id": "n_chromo",
+      "chrom": "Gm07",
+      "posBp": 100,
+      "cm": null
+    },
+    {
+      "id": "n_dash",
+      "chrom": "Gm07",
+      "posBp": 200,
+      "cm": null
+    },
+    {
+      "id": "n_lg",
+      "chrom": "Gm07",
+      "posBp": 300,
+      "cm": null
+    },
+    {
+      "id": "n_space",
+      "chrom": "Gm07",
+      "posBp": 400,
+      "cm": null
+    },
+    {
+      "id": "n_ch",
+      "chrom": "ch7",
+      "posBp": 100,
+      "cm": null
+    },
+    {
+      "id": "n_s2b",
+      "chrom": "scaffold_2",
+      "posBp": 50,
+      "cm": null
+    },
+    {
+      "id": "n_s2",
+      "chrom": "scaffold_2",
+      "posBp": 100,
+      "cm": null
+    },
+    {
+      "id": "n_s10",
+      "chrom": "scaffold_10",
+      "posBp": 100,
+      "cm": null
+    }
+  ],
+  "sampleIds": [
+    "RP",
+    "DONOR",
+    "L1"
+  ],
+  "calls": {
+    "RP": [
+      [
+        "C",
+        "C"
+      ],
+      [
+        "A",
+        "A"
+      ],
+      [
+        "A",
+        "A"
+      ],
+      [
+        "G",
+        "G"
+      ],
+      [
+        "A",
+        "A"
+      ],
+      [
+        "A",
+        "A"
+      ],
+      [
+        "C",
+        "C"
+      ],
+      [
+        "A",
+        "A"
+      ]
+    ],
+    "DONOR": [
+      [
+        "T",
+        "T"
+      ],
+      [
+        "C",
+        "C"
+      ],
+      [
+        "G",
+        "G"
+      ],
+      [
+        "T",
+        "T"
+      ],
+      [
+        "G",
+        "G"
+      ],
+      [
+        "G",
+        "G"
+      ],
+      [
+        "T",
+        "T"
+      ],
+      [
+        "G",
+        "G"
+      ]
+    ],
+    "L1": [
+      [
+        "C",
+        "C"
+      ],
+      [
+        "C",
+        "C"
+      ],
+      [
+        "A",
+        "G"
+      ],
+      [
+        "G",
+        "G"
+      ],
+      [
+        "G",
+        "G"
+      ],
+      [
+        "A",
+        "A"
+      ],
+      [
+        "T",
+        "T"
+      ],
+      [
+        "A",
+        "A"
+      ]
+    ]
+  }
+}
