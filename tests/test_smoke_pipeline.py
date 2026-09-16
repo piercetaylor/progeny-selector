@@ -83,6 +83,7 @@ def test_qc_advisory_flags(result, expected_rows):
     for row in result.rows:
         exp = expected_rows[row["sample_id"]]
         assert ("het_rate_deviates" in row["qc_flags"]) == (exp["het_rate_deviates"] == "True"), row["sample_id"]
+        assert ("family_donor_outlier" in row["qc_flags"]) == (exp["family_donor_outlier"] == "True"), row["sample_id"]
 
 
 def test_selection_and_projection(result):

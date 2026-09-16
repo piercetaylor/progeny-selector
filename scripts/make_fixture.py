@@ -17,7 +17,7 @@ Deterministic (seed 20260904). Design:
     (B calls present); F1-003 has 30 % missing calls; 1 % random missing elsewhere.
   - expected_results.csv holds the count-model metrics computed here with the
     formulas in PLAN.md, independently of the package (only the chromosome-length
-    table is imported).
+    table is imported), including the advisory family_donor_outlier flag (docs/adr/0012).
 
 Usage: python scripts/make_fixture.py
 """
@@ -268,10 +268,28 @@ def expected_metrics(markers: list[dict], ids: list[str], states: dict[str, list
                 "missing_rate": missing_rate,
                 "het_rate": het_rate,
                 "het_rate_deviates": qc_het,
+                "family_donor_outlier": False,  # set below, once every family member's fraction is known
+                "donor_fraction": 1 - rpp_total,  # count model: the non-recurrent share of called informative markers
                 "passes_filters": not reasons,
                 "exclusion_reason": ";".join(reasons),
             }
         )
+    # family_donor_outlier (advisory, docs/adr/0012): donor fraction above family median + 2.5 * max(1.4826 * MAD, 0.01);
+    # plants over the 0.2 missing-rate limit (high_missing) neither count nor get the flag
+    by_family: dict[str, list[dict]] = {}
+    for r in rows:
+        if r["missing_rate"] <= 0.2:
+            by_family.setdefault(r["family_id"], []).append(r)
+    for members in by_family.values():
+        if len(members) < 6:
+            continue
+        fractions = [r["donor_fraction"] for r in members]
+        centre = middle_value(fractions)
+        spread = max(1.4826 * middle_value([abs(f - centre) for f in fractions]), 0.01)
+        for r in members:
+            r["family_donor_outlier"] = r["donor_fraction"] > centre + 2.5 * spread
+    for r in rows:
+        del r["donor_fraction"]
     passing = [r for r in rows if r["passes_filters"]]
     passing.sort(key=lambda r: (-r["composite_score"], -r["rpp_total"], r["drag_total_est_cm"], r["missing_rate"], r["sample_id"]))
     fam_counter: dict[str, int] = {}
@@ -288,7 +306,16 @@ def expected_metrics(markers: list[dict], ids: list[str], states: dict[str, list
     assert "avoid:" in design["BC2F1-F2-001"]["exclusion_reason"], "planted avoid failure"
     assert "qc:possible_self_or_outcross" in design["BC2F1-F2-002"]["exclusion_reason"], "planted self contaminant"
     assert "missing_rate" in design["BC2F1-F1-003"]["exclusion_reason"], "planted high-missing individual"
+    outliers = {r["sample_id"] for r in rows if r["family_donor_outlier"]}
+    assert outliers == {"BC2F1-F2-002"}, f"family donor outliers {sorted(outliers)}"
     return rows
+
+
+def middle_value(values: list[float]) -> float:
+    """Median: the middle value, or the mean of the two middle values for an even count."""
+    s = sorted(values)
+    k = len(s)
+    return s[k // 2] if k % 2 == 1 else (s[k // 2 - 1] + s[k // 2]) / 2
 
 
 def write_outputs(

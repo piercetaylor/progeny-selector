@@ -3,7 +3,8 @@
 Responsibility: per-individual missing, heterozygosity, homozygous-donor and
 non-parental rates; comparison with the generation expectation; parent
 heterozygosity; heuristic flags for possible selfs, outcrosses, sample swaps
-and duplicates (PLAN.md, algorithm 8). Flags are advisory strings; the
+and duplicates (PLAN.md, algorithm 8); a within-family donor-fraction outlier
+flag (docs/adr/0012). Flags are advisory strings; the
 ranking step decides whether flagged individuals are excluded.
 
 Interface:
@@ -16,6 +17,8 @@ Interface:
 
 from __future__ import annotations
 
+import math
+import statistics
 from collections import Counter
 from dataclasses import dataclass, field
 
@@ -28,6 +31,11 @@ from progeny_selector.core.score import QC_EXCLUDING_FLAGS
 from progeny_selector.core.similarity import ibs_to_sample, pairwise_ibs
 from progeny_selector.model.criteria import Filters
 from progeny_selector.model.dataset import Dataset, GenotypeMatrix
+
+# family_donor_outlier (docs/adr/0012): robust one-sided within-family rule on the count-model donor fraction.
+FAMILY_OUTLIER_MIN_N = 6
+FAMILY_OUTLIER_MIN_SCALE = 0.01
+FAMILY_OUTLIER_Z = 2.5
 
 
 @dataclass
@@ -99,7 +107,42 @@ def sample_qc(
             if ibs_dp[j] > 0.995 and het_rate < 0.005:
                 qc.flags.append("possible_donor_sample")
         out.append(qc)
+    outliers = _family_donor_outliers(out, dataset)
+    for qc in out:
+        if qc.sample_id in outliers:
+            qc.flags.append("family_donor_outlier")
     return out
+
+
+def _family_donor_outliers(qc: list[SampleQC], dataset: Dataset) -> set[str]:
+    """Sample ids whose count-model donor fraction is a robust one-sided outlier within their family (docs/adr/0012).
+
+    donor_fraction = hom_donor_rate + het_rate / 2, whose denominator is the A + H + B calls at
+    informative markers; X (non-parental) calls are excluded, and possible_outcross covers those
+    individuals. Groups are ``family_id`` as stored, with None and the empty string one group, and
+    any progeny or candidate role. An individual with a NaN fraction or already flagged high_missing
+    neither counts nor gets flagged; a group with fewer than FAMILY_OUTLIER_MIN_N assessable
+    individuals flags nobody.
+    """
+    groups: dict[str, list[tuple[str, float]]] = {}
+    for q in qc:
+        fraction = q.hom_donor_rate + q.het_rate / 2
+        if math.isnan(fraction) or "high_missing" in q.flags:
+            continue
+        family = dataset.sample(q.sample_id).family_id or ""
+        groups.setdefault(family, []).append((q.sample_id, fraction))
+    flagged: set[str] = set()
+    for members in groups.values():
+        if len(members) < FAMILY_OUTLIER_MIN_N:
+            continue
+        values = [f for _, f in members]
+        # statistics.median of an even count is the ordinary mean of the two middle values.
+        med = statistics.median(values)
+        mad = statistics.median([abs(f - med) for f in values])
+        scale = max(1.4826 * mad, FAMILY_OUTLIER_MIN_SCALE)
+        cut = med + FAMILY_OUTLIER_Z * scale
+        flagged.update(sid for sid, f in members if f > cut)
+    return flagged
 
 
 def parent_qc(gm: GenotypeMatrix, dataset: Dataset, classification: Classification, filters: Filters) -> list[str]:
