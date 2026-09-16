@@ -1,0 +1,5 @@
+##fileformat=VCFv4.2
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	RP	DONOR	L1
+Gm02	1000	r1	A	G	.	.	.	GT	0/0	1/1	0/0
+# a note
+Gm02	2000	r2	C	T	.	.	.	GT	0/0	1/1	1/1

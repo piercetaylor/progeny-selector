@@ -38,6 +38,9 @@ ERROR_KIND_PATTERNS: dict[str, str] = {
     ),
     "genotypes.unknown_cell": r"unrecognised (coded|nucleotide) call",
     "genotypes.invalid_position": r"invalid position",
+    "genotypes.column_count": r"expected \d+ columns, found",
+    "genotypes.repeated_header": r"after the #CHROM header",
+    "delimited.unterminated_quote": r"unterminated quoted field",
 }
 
 CASE_NAMES = sorted(p.name for p in CASES.iterdir() if p.is_dir())

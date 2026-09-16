@@ -6,6 +6,7 @@ All notable changes to this project are documented in this file. The format foll
 
 ### Changed
 
+- Contract 1.3.0 mirrored (docs/adr/0013): a blank line before the header is skipped in HapMap, wide CSV, samples.csv and markers.csv; the delimiter is sniffed from the first non-blank line; a blank line holds only spaces and tabs; a quoted field left open at the end of a delimited file, a `#` line after a VCF `#CHROM` line and an unparseable markers.csv `cm` are errors naming the line; line breaks inside quoted fields are read as LF; error kinds `genotypes.column_count` and `delimited.unterminated_quote`.
 - Data contract 1.2.1 (wording only): the sibling browser tool is now called Backcross.
 
 ### Added

@@ -15,13 +15,11 @@ Interface:
 
 from __future__ import annotations
 
-import csv
-import io
 from pathlib import Path
 
 from progeny_selector.constants import SAMPLE_ROLES
 from progeny_selector.core.chrom import normalize_chrom
-from progeny_selector.io.delimited import read_text, sniff_delimiter
+from progeny_selector.io.delimited import csv_rows, read_text
 from progeny_selector.io.position import parse_position
 from progeny_selector.io.wide_csv import add_synthetic_parents
 from progeny_selector.model.dataset import DataContractError, Dataset, GenotypeMatrix, Marker, Sample
@@ -32,18 +30,17 @@ MARKER_REQUIRED = ("marker_id", "chrom", "pos_bp")
 
 def _read_rows(path: str | Path, required: tuple[str, ...]) -> list[tuple[int, dict[str, str]]]:
     text = read_text(path)
-    reader = csv.DictReader(io.StringIO(text, newline=""), delimiter=sniff_delimiter(text))
-    if reader.fieldnames is None:
+    all_rows = csv_rows(text, str(path))
+    if not all_rows:
         raise DataContractError(f"{path}: empty file")
-    names = [n.strip().lower() for n in reader.fieldnames]
+    names = [n.strip().lower() for n in all_rows[0][1]]
     missing = [c for c in required if c not in names]
     if missing:
         raise DataContractError(f"{path}: missing required columns {missing}")
     rows: list[tuple[int, dict[str, str]]] = []
-    for row in reader:
-        clean = {k.strip().lower(): (v or "").strip() for k, v in row.items() if k is not None}
-        if any(clean.values()):
-            rows.append((reader.line_num, clean))
+    for line_num, row in all_rows[1:]:
+        clean = {name: (row[i].strip() if i < len(row) else "") for i, name in enumerate(names)}
+        rows.append((line_num, clean))
     return rows
 
 
@@ -92,7 +89,10 @@ def read_markers(path: str | Path) -> dict[str, Marker]:
         if mid in out:
             raise DataContractError(f"{path}: line {line_no}: duplicate marker_id {mid!r}")
         cm_text = row.get("cm", "")
-        cm = float(cm_text) if cm_text not in ("", "NA", "na", ".") else None
+        try:
+            cm = float(cm_text) if cm_text not in ("", "NA", "na", ".") else None
+        except ValueError as exc:
+            raise DataContractError(f"{path}: line {line_no}: invalid cm {cm_text!r}") from exc
         try:
             pos_bp = parse_position(row["pos_bp"])
         except ValueError as exc:

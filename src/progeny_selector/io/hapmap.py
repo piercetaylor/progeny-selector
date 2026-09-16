@@ -5,7 +5,9 @@ assembly#, center, protLSID, assayLSID, panelLSID, QCcode) followed by one
 column per sample; calls go through calls.parse_nucleotide_call with the HapMap
 missing list "", N, NN, NA, -, --, ., ./., .|., X, XX (contract/data-contract.md
 1.1.0, "HapMap"); IUPAC codes expand; any other cell is an error naming the line.
-`pos` goes through position.py (contract 1.2.0).
+`pos` goes through position.py (contract 1.2.0). Blank lines are skipped
+wherever they occur; the header is the first line that is not blank and must
+start with rs#, so a `#` line before it is an error (contract 1.3.0).
 Column facts [web]
 https://statgen-esalq.github.io/Hapmap-and-VCF-formats-and-its-integration-with-onemap/.
 
@@ -22,7 +24,7 @@ import numpy as np
 from progeny_selector.constants import HAPMAP_MISSING
 from progeny_selector.core.chrom import normalize_chrom
 from progeny_selector.io.calls import encode_marker, parse_nucleotide_call
-from progeny_selector.io.delimited import open_text
+from progeny_selector.io.delimited import is_blank, open_text
 from progeny_selector.io.position import parse_position
 from progeny_selector.model.dataset import DataContractError, GenotypeMatrix, Marker
 
@@ -35,12 +37,17 @@ def read_hapmap(path: str | Path) -> GenotypeMatrix:
     alleles: list[list[str]] = []
     rows: list[np.ndarray] = []
     with open_text(path) as fh:
-        header = fh.readline().rstrip("\r\n").split("\t")
+        header_line = fh.readline()
+        header_no = 1
+        while header_line and is_blank(header_line):
+            header_line = fh.readline()
+            header_no += 1
+        header = header_line.rstrip("\r\n").split("\t")
         if len(header) <= N_FIXED or not header[0].lower().startswith("rs#"):
             raise DataContractError("HapMap header must start with rs# and have 11 fixed columns plus samples")
         sample_ids = header[N_FIXED:]
-        for line_no, line in enumerate(fh, start=2):
-            if not line.strip():
+        for line_no, line in enumerate(fh, start=header_no + 1):
+            if is_blank(line):
                 continue
             fields = line.rstrip("\r\n").split("\t")
             if len(fields) != len(header):

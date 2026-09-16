@@ -20,7 +20,7 @@ from pathlib import Path
 import numpy as np
 
 from progeny_selector.core.chrom import normalize_chrom
-from progeny_selector.io.delimited import open_text
+from progeny_selector.io.delimited import is_blank, open_text
 from progeny_selector.io.position import parse_position
 from progeny_selector.model.dataset import DataContractError, GenotypeMatrix, Marker
 
@@ -45,10 +45,13 @@ def read_vcf(path: str | Path) -> GenotypeMatrix:
     rows: list[np.ndarray] = []
     with open_text(path) as fh:
         for line_no, line in enumerate(fh, start=1):
-            if not line.strip():
+            if is_blank(line):
                 continue
             if line.startswith("##"):
                 continue
+            if sample_ids and line.startswith("#"):
+                # A second #CHROM line or any other single-# line after the header (contract 1.3.0).
+                raise DataContractError(f"line {line_no}: line beginning with '#' after the #CHROM header")
             if line.startswith("#CHROM"):
                 fields = line.rstrip("\r\n").split("\t")
                 if len(fields) < 10 or fields[8] != "FORMAT":

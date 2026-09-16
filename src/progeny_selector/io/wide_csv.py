@@ -5,7 +5,8 @@ other cell such as "?", a stray "B" or "H", "X", "0", "+" or "A?" is an error) o
 coding with auto-detection over every row; a row whose every cell is empty or whitespace
 is skipped, an empty marker_id or an invalid pos_bp (position.py, contract 1.2.0) is an
 error naming the physical line; the first three columns are marker_id, chrom, pos_bp in
-that order (contract 1.1.0); comma or tab delimited (sniffed from the header),
+that order (contract 1.1.0); the header is the first row with a non-blank cell, so
+blank lines before it are skipped (contract 1.3.0); comma or tab delimited (sniffed from the header),
 RFC 4180 quoting, CRLF and a leading BOM accepted; when coded, the parents may be absent
 from the file and are synthesised as all-A (recurrent) and all-B (donor) by build_dataset,
 which records them in Dataset.synthetic_sample_ids.
@@ -17,15 +18,13 @@ Interface:
 
 from __future__ import annotations
 
-import csv
-import io
 from pathlib import Path
 
 import numpy as np
 
 from progeny_selector.core.chrom import normalize_chrom
 from progeny_selector.io.calls import detect_coding, encode_marker, parse_coded_call, parse_nucleotide_call
-from progeny_selector.io.delimited import read_text, sniff_delimiter
+from progeny_selector.io.delimited import csv_rows, read_text
 from progeny_selector.io.position import parse_position
 from progeny_selector.model.dataset import DataContractError, GenotypeMatrix, Marker
 
@@ -35,14 +34,14 @@ FIXED = ("marker_id", "chrom", "pos_bp")
 def read_wide_csv(path: str | Path, coding: str = "auto") -> GenotypeMatrix:
     path = Path(path)
     text = read_text(path)
-    reader = csv.reader(io.StringIO(text, newline=""), delimiter=sniff_delimiter(text))
-    header = [h.strip() for h in next(reader, [])]
+    all_rows = csv_rows(text, "wide CSV")
+    header = [h.strip() for h in all_rows[0][1]] if all_rows else []
     if tuple(h.lower() for h in header[:3]) != FIXED:
         raise DataContractError(f"wide CSV must start with columns {FIXED}, found {header[:3]}")
     sample_ids = header[3:]
     if not sample_ids:
         raise DataContractError("wide CSV has no sample columns")
-    records = [(reader.line_num, row) for row in reader if any(cell.strip() for cell in row)]
+    records = all_rows[1:]
     if not records:
         raise DataContractError("wide CSV has no marker rows")
     if coding == "auto":

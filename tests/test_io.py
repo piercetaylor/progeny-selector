@@ -75,6 +75,77 @@ def test_hapmap(tmp_path: Path):
     assert tuple(gm.calls[1, 2]) == (-1, -1)
 
 
+def test_hapmap_blank_line_before_header(tmp_path: Path):
+    p = tmp_path / "g.hmp.txt"
+    p.write_text("  \n" + HAPMAP)
+    gm = load_genotypes(p)
+    assert gm.alleles[0] == ["A", "T"] and tuple(gm.calls[0, 2]) == (0, 1)
+
+
+def test_hapmap_hash_line_before_header_is_an_error(tmp_path: Path):
+    p = tmp_path / "g.hmp.txt"
+    p.write_text("# note\n" + HAPMAP)
+    with pytest.raises(DataContractError, match="must start with rs#"):
+        load_genotypes(p)
+
+
+def test_wide_csv_tab_blank_line_before_header(tmp_path: Path):
+    p = tmp_path / "g.csv"
+    p.write_text("   \nmarker_id\tchrom\tpos_bp\tRP\tDONOR\nm1\tGm01\t100\tA\tT\n")
+    gm = read_wide_csv(p)
+    assert gm.sample_ids == ["RP", "DONOR"]
+    assert [m.marker_id for m in gm.markers] == ["m1"]
+
+
+def test_samples_blank_line_before_header(tmp_path: Path):
+    s = tmp_path / "samples.csv"
+    s.write_text("\n  \nsample_id,role\nRP,recurrent_parent\nDONOR,donor_parent\nL1,candidate\n")
+    assert [x.sample_id for x in read_samples(s)] == ["RP", "DONOR", "L1"]
+
+
+def test_hapmap_nbsp_line_is_not_blank(tmp_path: Path):
+    p = tmp_path / "g.hmp.txt"
+    p.write_bytes((chr(0xA0) + "\n" + HAPMAP).encode("utf-8"))
+    with pytest.raises(DataContractError, match="must start with rs#"):
+        load_genotypes(p)
+
+
+def test_samples_quoted_line_break_crlf_read_as_lf(tmp_path: Path):
+    s = tmp_path / "samples.csv"
+    s.write_bytes(b'sample_id,role,notes\r\nRP,recurrent_parent,"first\r\nsecond"\r\nDONOR,donor_parent,\r\nL1,candidate,\r\n')
+    samples = read_samples(s)
+    assert [x.sample_id for x in samples] == ["RP", "DONOR", "L1"]
+    assert samples[0].notes == "first\nsecond"
+
+
+def test_samples_quoted_line_break_lf(tmp_path: Path):
+    s = tmp_path / "samples.csv"
+    s.write_bytes(b'sample_id,role,notes\nRP,recurrent_parent,"first\nsecond"\nDONOR,donor_parent,\nL1,candidate,\n')
+    assert read_samples(s)[0].notes == "first\nsecond"
+
+
+def test_midfield_quote_is_literal(tmp_path: Path):
+    s = tmp_path / "samples.csv"
+    s.write_bytes(b'sample_id,line_name,role\nRP,,recurrent_parent\nL1,6" pot,candidate\nDONOR,,donor_parent\n')
+    samples = read_samples(s)
+    assert [x.sample_id for x in samples] == ["RP", "L1", "DONOR"]
+    assert samples[1].line_name == '6" pot'
+
+
+def test_unterminated_quote_names_opening_line(tmp_path: Path):
+    m = tmp_path / "markers.csv"
+    m.write_bytes(b'marker_id,chrom,pos_bp,cm\r\nr1,Gm02,1000,1.5\r\nr2,Gm02,"2000,2.5\r\nr3,Gm02,3000,3.5\r\n')
+    with pytest.raises(DataContractError, match="line 3: unterminated quoted field"):
+        read_markers(m)
+
+
+def test_markers_invalid_cm_names_line(tmp_path: Path):
+    m = tmp_path / "markers.csv"
+    m.write_bytes(b"marker_id,chrom,pos_bp,cm\nr1,Gm02,1000,1.5\nr2,Gm02,2000,abc\n")
+    with pytest.raises(DataContractError, match=r"line 3: invalid cm 'abc'"):
+        read_markers(m)
+
+
 def test_wide_csv_nucleotide_and_coded(tmp_path: Path):
     p = tmp_path / "g.csv"
     p.write_text(WIDE_NUC)
