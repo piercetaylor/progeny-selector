@@ -34,7 +34,7 @@ shiny run src/progeny_selector/app/app.py
 
 ## Input files
 
-Genotypes (VCF 4.2+, plain or bgzip; HapMap; wide CSV with nucleotide or A/B/H calls), samples.csv with exactly one `recurrent_parent` and one `donor_parent`, optional markers.csv with cM, and criteria.yaml. The contract is in docs/data-formats.md and is shared with the sibling isoline-browser project.
+Genotypes (VCF 4.2+, plain or bgzip; HapMap; wide CSV with nucleotide or A/B/H calls), samples.csv with exactly one `recurrent_parent` and one `donor_parent`, optional markers.csv with cM, and criteria.yaml. The contract is in docs/data-formats.md and is shared with the sibling backcross project.
 
 ## Documents
 

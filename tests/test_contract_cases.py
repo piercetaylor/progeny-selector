@@ -5,7 +5,7 @@ samples.csv, optional markers.csv), normalised to the language-neutral shape of
 expected.json and compared; an error case must raise DataContractError matching the
 pattern its kind maps to below. The kind-to-pattern table lives here, not in the
 contract, so rewording a message is a change to this test. The manifest and the
-version string are checked too. Mirrors isoline-browser tests/contract-cases.test.ts.
+version string are checked too. Mirrors backcross tests/contract-cases.test.ts.
 """
 
 from __future__ import annotations

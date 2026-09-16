@@ -5,7 +5,7 @@ individual with target and avoid status chips, RPP per chromosome (carrier
 chromosomes marked), drag bounds and recombinant flags per target, and a
 compact chromosome strip drawn as inline SVG from ``result.classification``
 states in Okabe-Ito colours (``core.strip`` segments, ``app.present.strip_rects``
-geometry). The strip is a summary, not a browser: the sibling isoline-browser
+geometry). The strip is a summary, not a browser: the sibling backcross
 project owns detailed graphical-genotype viewing. Nothing here computes a
 metric; every number is read from ``result.rows``.
 

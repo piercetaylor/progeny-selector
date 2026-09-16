@@ -3,7 +3,7 @@
 Responsibility: serialise analysis rows to CSV with a stable column order,
 write the selected-ID list with free-text notes, and emit a samples.csv
 skeleton for the next genotyping round (same contract as the input manifest,
-so the file round-trips into this tool and the sibling isoline browser).
+so the file round-trips into this tool and the sibling Backcross tool).
 
 Interface:
     write_results_csv(rows, path) -> None

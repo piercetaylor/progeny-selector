@@ -1,8 +1,8 @@
 # Data contract
 
-Contract version: 1.2.0
+Contract version: 1.2.1
 
-The input files shared by isoline-browser and progeny-selector. This directory is the canonical copy in isoline-browser and is mirrored byte for byte into progeny-selector; README.md gives the version rules and the cases under cases/ are the machine-checked examples.
+The input files shared by backcross and progeny-selector. This directory is the canonical copy in backcross and is mirrored byte for byte into progeny-selector; README.md gives the version rules and the cases under cases/ are the machine-checked examples.
 
 ## Chromosome names
 
@@ -29,7 +29,7 @@ Eleven fixed columns `rs# alleles chrom pos strand assembly# center protLSID ass
 | pos_bp            | integer | 1-based position                                                   |
 | `<sample_id>` ... | text    | one column per sample; header is the sample_id used in samples.csv |
 
-Comma or tab delimited (sniffed from the header line: more tabs than commas means tab), RFC 4180 quoting. The first three columns are `marker_id`, `chrom` and `pos_bp` in that order, header names case-insensitive, and every column after them is a sample; a file that places the three elsewhere is outside the contract. isoline-browser finds the three by name in any position and treats every other column as a sample, which accepts more than the contract requires for nucleotide files; its A/B/H detection still assumes the three come first, so a coded file with them elsewhere may be misread. A row whose every cell is empty or whitespace (`,,,`) is skipped; in any other row an empty `marker_id` or an empty `pos_bp` is an error naming the line. Two cell vocabularies:
+Comma or tab delimited (sniffed from the header line: more tabs than commas means tab), RFC 4180 quoting. The first three columns are `marker_id`, `chrom` and `pos_bp` in that order, header names case-insensitive, and every column after them is a sample; a file that places the three elsewhere is outside the contract. backcross finds the three by name in any position and treats every other column as a sample, which accepts more than the contract requires for nucleotide files; its A/B/H detection still assumes the three come first, so a coded file with them elsewhere may be misread. A row whose every cell is empty or whitespace (`,,,`) is skipped; in any other row an empty `marker_id` or an empty `pos_bp` is an error naming the line. Two cell vocabularies:
 
 | mode       | homozygous                                        | heterozygous                                     | missing                                                       |
 | ---------- | ------------------------------------------------- | ------------------------------------------------ | ------------------------------------------------------------- |

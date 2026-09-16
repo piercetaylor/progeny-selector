@@ -1,5 +1,5 @@
 """Position text shared by the VCF, HapMap, wide-CSV and markers.csv readers (contract/data-contract.md 1.2.0, "Genotype file";
-mirrors isoline-browser src/io/position.ts).
+mirrors backcross src/io/position.ts).
 
 Responsibility: read one position cell as a non-negative whole number. The cell, trimmed as JavaScript String.prototype.trim does,
 must be ASCII decimal digits with an optional sign, fraction and exponent ("1000", "+1000", "1000.0", "1e3", "1.0E3",

@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """Verify the mirrored data contract: MANIFEST.sha256 and, optionally, the canonical copy.
 
-Responsibility: recompute the manifest of contract/ exactly as isoline-browser's
+Responsibility: recompute the manifest of contract/ exactly as backcross's
 scripts/make-contract.mjs writes it (every file except MANIFEST.sha256, posix paths
 relative to contract/, sorted, "<sha256 hex>  <path>" per line, LF) and compare it with
 the committed MANIFEST.sha256; when a sibling repository root is given, also byte-compare
-every file with <sibling>/contract, as isoline-browser's scripts/check-contract-mirror.mjs
+every file with <sibling>/contract, as backcross's scripts/check-contract-mirror.mjs
 does from the other side. Never writes: this repository holds the mirror, and the
-canonical copy is regenerated in isoline-browser.
+canonical copy is regenerated in backcross.
 
 Usage: python scripts/check_contract.py [--contract DIR] [SIBLING_REPO]
 Exit codes: 0 manifest matches (and the mirror is identical, when checked);
@@ -81,7 +81,7 @@ def check_mirror(ours: Path, theirs: Path) -> list[str]:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Verify contract/MANIFEST.sha256 and, optionally, the mirror against a sibling checkout.")
-    parser.add_argument("sibling", nargs="?", help="root of the isoline-browser checkout; its contract/ is byte-compared with ours")
+    parser.add_argument("sibling", nargs="?", help="root of the backcross checkout; its contract/ is byte-compared with ours")
     parser.add_argument("--contract", type=Path, default=REPO_CONTRACT, help="contract directory to check (default: this repository's)")
     args = parser.parse_args(argv)
     root = args.contract.resolve()

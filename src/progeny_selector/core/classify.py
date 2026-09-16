@@ -3,7 +3,7 @@
 Responsibility: turn allele-index calls into the six-state code defined in
 ``progeny_selector.constants`` (A, H, B, X, N, U). Pure function of the
 genotype matrix and the two parent sample ids. This is the definition shared
-with the sibling isoline-browser project (PLAN.md, algorithm 1).
+with the sibling backcross project (PLAN.md, algorithm 1).
 
 Interface:
     classify(gm: GenotypeMatrix, rp_id: str, donor_id: str) -> Classification

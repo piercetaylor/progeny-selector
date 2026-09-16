@@ -4,6 +4,10 @@ All notable changes to this project are documented in this file. The format foll
 
 ## [Unreleased]
 
+### Changed
+
+- Data contract 1.2.1 (wording only): the sibling browser tool is now called Backcross.
+
 ### Added
 
 - Package scaffold with a pure compute core, boundary parsers, CLI and a Shiny for Python screen shell.

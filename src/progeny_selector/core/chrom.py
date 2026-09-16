@@ -4,7 +4,7 @@ Responsibility: map the chromosome spellings accepted by the contract (prefix Gm
 Chromosome or LG, optional _, space or - separator, 1..20 with leading zeros;
 contract/data-contract.md 1.1.0) onto the canonical "Gm06", keep other names unchanged,
 and provide a sort key that puts Gm01..Gm20 first and everything else after them in
-natural (numeric-aware) order, the same order as isoline-browser's compareChromosomes.
+natural (numeric-aware) order, the same order as backcross's compareChromosomes.
 
 Interface:
     normalize_chrom(name: str) -> str

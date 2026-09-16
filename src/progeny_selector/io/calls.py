@@ -1,4 +1,4 @@
-"""Shared call-string parsing for HapMap and wide-CSV inputs (contract/data-contract.md 1.1.0; mirrors isoline-browser src/io/calls.ts).
+"""Shared call-string parsing for HapMap and wide-CSV inputs (contract/data-contract.md 1.1.0; mirrors backcross src/io/calls.ts).
 
 Responsibility: turn per-sample call strings into (allele_a, allele_b) pairs,
 build a per-marker allele table, and detect A/B/H coding. VCF has its own
