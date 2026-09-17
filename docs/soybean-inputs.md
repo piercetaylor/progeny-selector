@@ -1,0 +1,24 @@
+# Soybean inputs
+
+Scripts that turn public soybean resources into files this tool reads. Everything they read or write under `data/` is gitignored and never committed. Decisions: docs/adr/0019.
+
+## Song et al. 2016 genetic maps: `scripts/song2016_map.py`
+
+Source: Song et al. 2016, BMC Genomics 17:33, Table S1 (https://media.springernature.com/original/springer-static/esm/art%3A10.1186%2Fs12864-015-2344-0/MediaObjects/12864_2015_2344_MOESM1_ESM.xls). Licence: CC BY 4.0; cite the article when you publish results that use the map.
+
+Preparing the input: open the `.xls` in a spreadsheet program and save the sheet as CSV, unchanged, to `data/song2016/table_s1.csv`. Keep the title row; the header is row 2. The script reads the columns `ss ID`, `Wm82.a2.v1 Chromosome`, `Wm82.a2.v1 Coordinate` (or `Glyma1.01 Chromosome`, `Glyma1.01 Coordinate`), and `WP Linkage Group`, `WP linkage position` (or `EW Linkage Group `, `EW linkage position`).
+
+```
+python3 scripts/song2016_map.py --table data/song2016/table_s1.csv --map WP --assembly a2 --out data/song2016/markers_wp_a2.csv
+python3 scripts/song2016_map.py --table data/song2016/table_s1.csv --map WP --assembly a2 --out data/song2016/markers.csv --markers-in data/my_markers.csv
+```
+
+- `--map WP|EW` (default `WP`): the two maps of Table S1 (Williams 82 x PI 479752 and Essex x Williams 82, per the article; not verified here). The two maps are never averaged.
+- `--assembly a2|a1` (default `a2`): Wm82.a2.v1 or Glyma1.01 coordinates.
+- `--markers-in`: a markers.csv (`marker_id,chrom,pos_bp`, optional `cm`) for your panel, on the same assembly. Markers are matched to the table by `ss` id or by `SNP ID`; at least one must match, and a matched marker at a different position stops the script. A marker with a `cm` keeps it; one matched to a kept table marker takes its cM; other markers get cM interpolated between the kept markers of their chromosome (markers at the same bp count once, at their mean cM), clamped to the end cM beyond them; markers on a chromosome with no kept marker get an empty `cm`, which disables cM mode for a dataset that includes them.
+
+Output: `marker_id,chrom,pos_bp,cm`, sorted by chromosome, position and cM, and a `.log` with the same name beside it counting rows read, no position on assembly, no linkage position on map, LG mismatch, non-monotone dropped, mapped, cM kept from --markers-in, interpolated, clamped (a subset of interpolated) and unplaced. When no marker is kept on any chromosome, the script stops with the largest drop count and writes no markers.csv. Kept table markers that share a position are written at their mean cM, so cM never decreases along the file. Each marker_id appears once: a `--markers-in` marker with the same id as a table marker, or matched to it by `SNP ID`, is written once under the `--markers-in` id, with its own cM when it has one. Column names are fixed; there is no `--columns` option.
+
+Cleaning: rows on scaffolds or without a coordinate are dropped; rows whose linkage group (a number such as `1` or `1.0`, equal to the chromosome number in Table S1) is not the chromosome number are dropped; within a chromosome, with markers ordered by position and then cM, only the longest run of markers whose cM never decreases along bp is kept, so a marker placed out of order on the map is dropped instead of bending the curve.
+
+Assembly caveat: Table S1 has a1 and a2 positions only. Genotype data on Wm82.a4 or later must be placed on a2 (or a1) first, and `--markers-in` positions must be on the assembly passed with `--assembly`; a marker found in both files at different positions stops the script. Set `assembly` in criteria.yaml to the same assembly when you run the analysis.
