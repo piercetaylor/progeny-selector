@@ -9,10 +9,12 @@ from shiny.playwright import controller
 from shiny.pytest import create_app_fixture
 from shiny.run import ShinyAppProc
 
+from progeny_selector.app.screens.rank import DISPLAY_COLUMNS
 from tests.e2e.helpers import FIXTURE, load_fixture
 
 app = create_app_fixture(["../../src/progeny_selector/app/app.py"])
 
+RPP_TOTAL_COL = DISPLAY_COLUMNS.index("rpp_total")
 PASS_RGB = "rgb(0, 158, 115)"  # STATUS_COLORS["pass"], #009E73
 EXCLUDED_RGBA = "rgba(213, 94, 0, 0.25)"  # STATUS_COLORS["fail"] #D55E00 at 25 % (present.qc_row_styles)
 QC_COLUMNS = [
@@ -107,6 +109,20 @@ def test_compare_two_cards(page: Page, app: ShinyAppProc) -> None:
     # Gm06 for BC2F1-F1-001: A, U, A, H (donor segment), A.
     assert svg.locator("g[data-chrom=Gm06] rect").count() >= 3
     expect(first.locator("svg[role=img] rect title").first).not_to_be_empty()
+
+    navbar.set("rank")
+    table.set_sort({"col": RPP_TOTAL_COL, "desc": True})
+    # Sorted by rpp_total descending, view row 2 is BC2F1-F2-015 (test_selection_follows_sorted_view).
+    table.select_rows([0, 2])
+    table.expect_selected_num_rows(2)
+    navbar.set("compare")
+    cards = page.locator("#compare-panels .card")
+    expect(cards).to_have_count(2)
+    second = cards.nth(1)
+    expect(second).to_contain_text("BC2F1-F2-015")
+    drag2 = second.locator("table[data-locus=T1]")
+    # expected_results.csv: BC2F1-F2-015 drag_total_max_cm 109.534.
+    expect(drag2.locator("tr", has_text="total max")).to_contain_text("109.53 cm")
 
 
 def test_compare_caps_at_six(page: Page, app: ShinyAppProc) -> None:

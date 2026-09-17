@@ -68,10 +68,15 @@ jobs:
         run: |
           dir=$(shinylive assets info | sed -n 2p | xargs)
           echo "dir=$dir" >> "$GITHUB_OUTPUT"
+      - name: shinylive version
+        id: shinylive_version
+        run: |
+          v=$(python -c "import importlib.metadata as m; print(m.version('shinylive'))")
+          echo "v=$v" >> "$GITHUB_OUTPUT"
       - uses: actions/cache@v4
         with:
           path: ${{ steps.assets.outputs.dir }}
-          key: shinylive-${{ hashFiles('pyproject.toml') }}
+          key: shinylive-${{ steps.shinylive_version.outputs.v }}-${{ hashFiles('pyproject.toml') }}
       - run: python scripts/build_shinylive.py
       - run: playwright install --with-deps chromium
       - name: export smoke test

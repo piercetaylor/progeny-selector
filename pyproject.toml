@@ -28,7 +28,7 @@ dependencies = [
 [project.optional-dependencies]
 app = ["shiny>=1.4", "pandas>=2.2"]
 dev = ["pytest>=8", "pytest-cov>=5", "ruff>=0.6", "mypy>=1.10", "shiny>=1.4", "pandas>=2.2"]
-export = ["shinylive>=0.8", "build"]
+export = ["shinylive>=0.8"]
 e2e = ["pytest-playwright>=0.5"]
 
 [project.scripts]

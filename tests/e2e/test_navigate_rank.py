@@ -2,13 +2,16 @@
 
 from __future__ import annotations
 
+import csv
+import shutil
+
 from playwright.sync_api import Page, expect
 from shiny.playwright import controller
 from shiny.pytest import create_app_fixture
 from shiny.run import ShinyAppProc
 
 from progeny_selector.app.screens.rank import DISPLAY_COLUMNS
-from tests.e2e.helpers import load_fixture
+from tests.e2e.helpers import FIXTURE, LOAD_STATUS, load_fixture
 
 app = create_app_fixture(["../../src/progeny_selector/app/app.py"])
 
@@ -118,3 +121,42 @@ def test_crumb_links_step_back(page: Page, app: ShinyAppProc) -> None:
     navbar.set("rank")
     controller.InputSwitch(page, "rank-only_pass").set(False)
     controller.OutputDataFrame(page, "rank-table").expect_nrow(40)
+
+
+def test_no_family_node(page: Page, app: ShinyAppProc, tmp_path) -> None:
+    fixture_copy = tmp_path / "synthetic_bc2f1"
+    shutil.copytree(FIXTURE, fixture_copy)
+    samples_path = fixture_copy / "samples.csv"
+    with open(samples_path, newline="", encoding="utf-8") as fh:
+        reader = csv.DictReader(fh)
+        fieldnames = reader.fieldnames
+        rows = list(reader)
+    for row in rows:
+        if row["sample_id"] == "BC2F1-F1-004":
+            row["family_id"] = ""
+    with open(samples_path, "w", newline="", encoding="utf-8") as fh:
+        writer = csv.DictWriter(fh, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(rows)
+
+    page.goto(app.url)
+    controller.InputFile(page, "load-genotypes").set(fixture_copy / "genotypes.vcf")
+    controller.InputFile(page, "load-samples").set(samples_path)
+    controller.InputFile(page, "load-markers").set(fixture_copy / "markers.csv")
+    controller.InputFile(page, "load-criteria").set(fixture_copy / "criteria.yaml")
+    controller.InputActionButton(page, "load-run").click()
+    expect(page.locator("#load-status")).to_contain_text(LOAD_STATUS, timeout=60_000)
+
+    navbar = controller.PageNavbar(page, "screen")
+    navbar.set("navigate")
+    families = controller.Accordion(page, "navigate-families")
+    families.expect_panels(["fam_0", "fam_1", "fam_2"])
+    families.set("fam_2")
+    crumb = page.locator("nav[aria-label=breadcrumb]")
+    expect(crumb.locator("li[aria-current=page]")).to_have_text("(no family)")
+
+    navbar.set("rank")
+    controller.InputSwitch(page, "rank-only_pass").set(False)
+    table = controller.OutputDataFrame(page, "rank-table")
+    table.expect_nrow(1)
+    table.expect_cell("BC2F1-F1-004", row=0, col=DISPLAY_COLUMNS.index("sample_id"))

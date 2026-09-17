@@ -98,7 +98,7 @@ def _rank_cell(frame: FrameLocator, row: int, col: int = 0):
 
 def test_shinylive_export_runs_pipeline_in_browser(site_server: None, page: Page) -> None:
     requests: list[str] = []
-    page.on("request", lambda req: requests.append(req.url))
+    page.context.on("request", lambda req: requests.append(req.url))
 
     t_goto = time.monotonic()
     page.goto(ORIGIN)
@@ -119,6 +119,7 @@ def test_shinylive_export_runs_pipeline_in_browser(site_server: None, page: Page
     print(f"time to #load-status: {time.monotonic() - t_click:.1f}s")
 
     assert requests, "no requests were recorded"
+    print(f"recorded {len(requests)} requests")
     for url in requests:
         assert url.startswith(ORIGIN), f"request left the page's origin: {url}"
 
