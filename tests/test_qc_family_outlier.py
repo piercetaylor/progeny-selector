@@ -167,11 +167,12 @@ def test_flag_does_not_exclude():
     progeny["OUT"] = "HHHHHHHHAAAAAAAAAAAA"
     gm = matrix(progeny)
     ds = dataset_for(gm, dict.fromkeys(progeny, "F"))
-    result = run_analysis(ds, criteria(exclude_qc_flagged=True))
+    crit = criteria(exclude_qc_flagged=True)
+    result = run_analysis(ds, crit)
     out = next(q for q in result.qc if q.sample_id == "OUT")
     assert out.flags == [FLAG]
     assert result.row("OUT")["passes_filters"] is True
-    rows = {r["sample_id"]: r for r in qc_table_rows(result.qc, ds)}
+    rows = {r["sample_id"]: r for r in qc_table_rows(result.qc, ds, crit.filters)}
     assert rows["OUT"]["flags"] == FLAG
     assert rows["OUT"]["qc_excluded"] is False
 

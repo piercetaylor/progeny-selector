@@ -6,6 +6,7 @@ weights, and assign ranks with a fixed tie-break order (PLAN.md, algorithm 7).
 Pure functions on per-sample arrays; no I/O.
 
 Interface:
+    qc_excluding_hits(flags, filters) -> list[str]   excluding QC flags under the applied filters
     hard_filters(target_status, avoid_status, missing_rate, qc_flags, filters) -> (passes, reasons)
     composite_score(components, weights) -> (score, weight_sum_used)
     rank_rows(score, rpp_total, drag_est, missing_rate, sample_ids, passes, family_ids) -> (rank_overall, rank_in_family)
@@ -19,6 +20,13 @@ from progeny_selector.constants import STATUS_FAIL, STATUS_PASS, STATUS_UNKNOWN
 from progeny_selector.model.criteria import Filters, Weights
 
 QC_EXCLUDING_FLAGS = ("possible_self_or_outcross", "possible_outcross", "possible_rp_sample", "possible_donor_sample")
+
+
+def qc_excluding_hits(flags: list[str], filters: Filters) -> list[str]:
+    """The flags in ``QC_EXCLUDING_FLAGS`` when ``filters.exclude_qc_flagged`` is true, else an empty list."""
+    if not filters.exclude_qc_flagged:
+        return []
+    return [f for f in flags if f in QC_EXCLUDING_FLAGS]
 
 
 def hard_filters(
@@ -45,11 +53,10 @@ def hard_filters(
             reasons[i].append(f"avoid:{locus_id}:{'unknown' if status[i] == STATUS_UNKNOWN else 'fail'}")
     for i in np.where(missing_rate > filters.max_missing_rate)[0]:
         reasons[i].append(f"missing_rate>{filters.max_missing_rate}")
-    if filters.exclude_qc_flagged:
-        for i, flags in enumerate(qc_flags):
-            hits = [f for f in flags if f in QC_EXCLUDING_FLAGS]
-            if hits:
-                reasons[i].append("qc:" + "|".join(hits))
+    for i, flags in enumerate(qc_flags):
+        hits = qc_excluding_hits(flags, filters)
+        if hits:
+            reasons[i].append("qc:" + "|".join(hits))
     passes = np.array([len(r) == 0 for r in reasons], dtype=bool)
     return passes, [";".join(r) for r in reasons]
 

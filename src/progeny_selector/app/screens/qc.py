@@ -9,7 +9,7 @@ DataGrid whose QC-excluded and flagged rows are tinted by
 
 Interface:
     view(id) -> Tag
-    server(id, state) -> None   (reads state.dataset, state.result)
+    server(id, state) -> None   (reads state.dataset, state.result, state.criteria)
 """
 
 from __future__ import annotations
@@ -79,9 +79,10 @@ def server_(input, output, session, state) -> None:
     def table():
         dataset = state.dataset()
         result = state.result()
-        if dataset is None or result is None:
+        criteria = state.criteria()
+        if dataset is None or result is None or criteria is None:
             return None
-        rows = qc_table_rows(result.qc, dataset)
+        rows = qc_table_rows(result.qc, dataset, criteria.filters)
         # present.py returns plain dicts shaped as shiny's StyleInfoBody, which it cannot import (Shiny-free).
         styles: Any = qc_row_styles(rows)
         return render.DataGrid(

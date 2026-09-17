@@ -12,7 +12,7 @@ Interface:
     parent_qc(gm, dataset, classification, filters) -> list[str] warnings
     duplicate_pairs(gm, sample_ids, threshold=0.995) -> list[tuple[str, str, float]]
     uninformative_summary(classification) -> list[tuple[str, int]]   (reason, count), count desc then reason
-    qc_table_rows(qc, dataset) -> list[dict]   one flat row per SampleQC for the Validate screen
+    qc_table_rows(qc, dataset, filters) -> list[dict]   one flat row per SampleQC for the Validate screen
 """
 
 from __future__ import annotations
@@ -27,7 +27,7 @@ import numpy as np
 from progeny_selector.constants import STATE_A, STATE_B, STATE_H, STATE_N, STATE_X
 from progeny_selector.core.classify import Classification
 from progeny_selector.core.generation import expected_fractions, parse_generation
-from progeny_selector.core.score import QC_EXCLUDING_FLAGS
+from progeny_selector.core.score import qc_excluding_hits
 from progeny_selector.core.similarity import ibs_to_sample, pairwise_ibs
 from progeny_selector.model.criteria import Filters
 from progeny_selector.model.dataset import Dataset, GenotypeMatrix
@@ -191,12 +191,12 @@ def uninformative_summary(classification: Classification) -> list[tuple[str, int
     return sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))
 
 
-def qc_table_rows(qc: list[SampleQC], dataset: Dataset) -> list[dict]:
+def qc_table_rows(qc: list[SampleQC], dataset: Dataset, filters: Filters) -> list[dict]:
     """Flat rows for the QC table, in ``qc`` order.
 
-    ``qc_excluded`` is true when a QC flag alone excludes the individual (any flag in
-    ``QC_EXCLUDING_FLAGS``); the missing-rate and locus hard filters are reported on the Rank
-    screen. NaN rates become None, as in ``AnalysisResult.rows``.
+    ``qc_excluded`` is true when the applied filters exclude the individual on QC flags alone
+    (``core.score.qc_excluding_hits``); the missing-rate and locus hard filters are reported on
+    the Rank screen. NaN rates become None, as in ``AnalysisResult.rows``.
     """
     rows: list[dict] = []
     for q in qc:
@@ -216,7 +216,7 @@ def qc_table_rows(qc: list[SampleQC], dataset: Dataset) -> list[dict]:
                 "ibs_rp": _num(q.ibs_rp),
                 "ibs_donor": _num(q.ibs_donor),
                 "flags": "|".join(q.flags),
-                "qc_excluded": any(f in QC_EXCLUDING_FLAGS for f in q.flags),
+                "qc_excluded": bool(qc_excluding_hits(q.flags, filters)),
             }
         )
     return rows

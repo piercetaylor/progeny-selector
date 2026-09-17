@@ -18,6 +18,7 @@ Interface:
 
 from __future__ import annotations
 
+import math
 import re
 from dataclasses import fields
 from pathlib import Path
@@ -45,6 +46,18 @@ _NUMBER_KEYS: dict[str, tuple[str, ...]] = {
 }
 _BOOL_KEYS: dict[str, tuple[str, ...]] = {"filters": ("exclude_qc_flagged",)}
 _REGION_RE = re.compile(r"^\s*([^:]+):\s*([\d,]+)\s*-\s*([\d,]+)\s*$")
+_MAX_CRITERIA_BYTES = 1_048_576
+_TEXT_LOCUS_KEYS = ("marker_id", "left_marker", "right_marker", "chrom", "locus_id")
+_POSITION_KEYS = ("start_bp", "end_bp", "anchor_bp", "min_markers", "min_run")
+
+
+class _NoAliasLoader(yaml.SafeLoader):
+    """SafeLoader that refuses YAML aliases, so a small document cannot expand into a huge one; a bare anchor loads."""
+
+    def compose_node(self, parent, index):
+        if self.check_event(yaml.AliasEvent):
+            raise CriteriaError("criteria.yaml: YAML aliases are not accepted")
+        return super().compose_node(parent, index)
 
 
 def _check_number(where: str, key: str, value: object, optional: bool = False) -> None:
@@ -52,11 +65,18 @@ def _check_number(where: str, key: str, value: object, optional: bool = False) -
         return
     if isinstance(value, bool) or not isinstance(value, int | float):
         raise CriteriaError(f"{where}{key} must be a number, got {value!r}")
+    if not math.isfinite(value):
+        raise CriteriaError(f"{where}{key} must be a finite number, got {value!r}")
 
 
 def _check_int(where: str, key: str, value: object) -> None:
     if isinstance(value, bool) or not isinstance(value, int):
         raise CriteriaError(f"{where}{key} must be an integer, got {value!r}")
+
+
+def _is_whole_float(value: object) -> bool:
+    """A finite float with no fractional part, such as 2.0; converted to int in ``_normalise_locus``."""
+    return isinstance(value, float) and math.isfinite(value) and value.is_integer()
 
 
 def _check_bool(where: str, key: str, value: object) -> None:
@@ -103,7 +123,7 @@ def _check_types(doc: dict) -> None:
                     _check_number(where, key, locus[key], optional=True)
             if "region" in locus and not isinstance(locus["region"], str):
                 raise CriteriaError(f"{where}region must be text like 'Gm06:12000000-14000000', got {locus['region']!r}")
-            if "min_markers" in locus:
+            if "min_markers" in locus and not _is_whole_float(locus["min_markers"]):
                 _check_int(where, "min_markers", locus["min_markers"])
             for key in ("flank_left", "flank_right"):
                 if key in locus:
@@ -123,6 +143,8 @@ def _check_run_keys(where: str, locus: dict) -> None:
     On avoid loci these keys are left to the unknown-key check in ``_build``.
     """
     for key in ("min_run", "anchor_bp"):
+        if _is_whole_float(locus.get(key)):
+            continue
         if key in locus:
             _check_int(where, key, locus[key])
     if "tolerate_isolated" in locus:
@@ -179,9 +201,22 @@ def _normalise_locus(doc: dict, where: str) -> dict:
             raise CriteriaError(f"{where}.region must look like 'Gm06:12000000-14000000', got {region!r}")
         chrom, start, end = match.groups()
         out.update(chrom=chrom.strip(), start_bp=int(start.replace(",", "")), end_bp=int(end.replace(",", "")))
-    for key in ("start_bp", "end_bp", "min_markers"):
-        if key in out and out[key] is not None:
-            out[key] = int(out[key])
+    for key in _TEXT_LOCUS_KEYS:
+        if key not in out:
+            continue
+        value = out[key]
+        if isinstance(value, bool):  # before int: YAML true is an int in Python
+            raise CriteriaError(f"{where}.{key} must be text, got {value!r}")
+        if isinstance(value, int | float):
+            out[key] = value = str(value)
+        if not isinstance(value, str):
+            raise CriteriaError(f"{where}.{key} must be text, got {value!r}")
+    for key in _POSITION_KEYS:
+        value = out.get(key)
+        if isinstance(value, float):
+            if not math.isfinite(value) or value != int(value):
+                raise CriteriaError(f"{where}.{key} must be an integer, got {value!r}")
+            out[key] = int(value)
     return out
 
 
@@ -190,11 +225,19 @@ def read_criteria(path: str | Path) -> Criteria:
 
 
 def read_criteria_text(text: str) -> Criteria:
-    """Parse a criteria.yaml document held in memory; malformed YAML and empty text raise CriteriaError."""
+    """Parse a criteria.yaml document held in memory.
+
+    Malformed YAML, empty text, documents over 1 MB, YAML aliases and nesting deep enough to exhaust
+    the recursion limit raise CriteriaError.
+    """
+    if len(text.encode("utf-8")) > _MAX_CRITERIA_BYTES:
+        raise CriteriaError("criteria.yaml is larger than 1 MB")
     try:
-        doc = yaml.safe_load(text)
+        doc = yaml.load(text, Loader=_NoAliasLoader)
     except yaml.YAMLError as exc:
         raise CriteriaError(f"criteria.yaml is not valid YAML: {exc}") from exc
+    except RecursionError as exc:
+        raise CriteriaError("criteria.yaml is nested too deeply") from exc
     return criteria_from_dict(doc)
 
 
