@@ -8,11 +8,15 @@ missing list "", N, NN, NA, -, --, ., ./., .|., X, XX (contract/data-contract.md
 `pos` goes through position.py (contract 1.2.0). Blank lines are skipped
 wherever they occur; the header is the first line that is not blank and must
 start with rs#, so a `#` line before it is an error (contract 1.3.0).
+Under a token profile (contract 1.4.0) cells go through the profile first; a
+heterozygote token that names no alleles resolves to the row's two alleles (the
+`alleles` column upper-cased, minus N, plus the symbols the cells show), and any other number of
+alleles is an error naming the line.
 Column facts [web]
 https://statgen-esalq.github.io/Hapmap-and-VCF-formats-and-its-integration-with-onemap/.
 
 Interface:
-    read_hapmap(path: str | Path) -> GenotypeMatrix
+    read_hapmap(path: str | Path, profile: TokenProfile | None = None) -> GenotypeMatrix
 """
 
 from __future__ import annotations
@@ -26,13 +30,15 @@ from progeny_selector.core.chrom import normalize_chrom
 from progeny_selector.io.calls import encode_marker, parse_nucleotide_call
 from progeny_selector.io.delimited import is_blank, open_text
 from progeny_selector.io.position import parse_position
+from progeny_selector.io.profiles import TokenProfile, compile_profile
 from progeny_selector.model.dataset import DataContractError, GenotypeMatrix, Marker
 
 N_FIXED = 11
 
 
-def read_hapmap(path: str | Path) -> GenotypeMatrix:
+def read_hapmap(path: str | Path, profile: TokenProfile | None = None) -> GenotypeMatrix:
     path = Path(path)
+    compiled = compile_profile(profile) if profile is not None else None
     markers: list[Marker] = []
     alleles: list[list[str]] = []
     rows: list[np.ndarray] = []
@@ -53,10 +59,12 @@ def read_hapmap(path: str | Path) -> GenotypeMatrix:
             if len(fields) != len(header):
                 raise DataContractError(f"line {line_no}: expected {len(header)} columns, found {len(fields)}")
             try:
-                calls = [parse_nucleotide_call(t, HAPMAP_MISSING) for t in fields[N_FIXED:]]
+                cells = fields[N_FIXED:]
+                calls = [parse_nucleotide_call(t, HAPMAP_MISSING, compiled) for t in cells]
+                seed = [a.strip().upper() for a in fields[1].split("/") if a.strip() and a.strip().upper() != "N"]
+                allele_list, pairs = encode_marker(calls, seed, cells)
             except ValueError as exc:
                 raise DataContractError(f"line {line_no}: {exc}") from exc
-            allele_list, pairs = encode_marker(calls)
             try:
                 pos_bp = parse_position(fields[3])
             except ValueError as exc:

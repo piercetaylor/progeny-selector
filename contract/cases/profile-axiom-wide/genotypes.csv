@@ -1,0 +1,3 @@
+marker_id,chrom,pos_bp,RP,DONOR,L1
+r1,Gm02,1000,AA,BB,AB
+r2,Gm02,2000,0,2,NoCall

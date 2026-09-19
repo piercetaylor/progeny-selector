@@ -1,0 +1,12 @@
+{
+  "id": "kasp",
+  "name": "KASP SNPviewer export",
+  "description": "X:X and Y:Y homozygous, X:Y heterozygous, ?, Uncallable and Missing missing; NTC, Dupe and Bad are missing too. Allele symbols are X and Y, the assay's alleles.",
+  "base": "none",
+  "homozygous": { "X:X": "X", "Y:Y": "Y" },
+  "heterozygous": { "X:Y": ["X", "Y"], "Y:X": ["X", "Y"] },
+  "missing": ["", "?", "Uncallable", "Missing", "NTC", "Dupe", "Bad", "NA"],
+  "sources": [
+    "https://www.biosearchtech.com/products/pcr-reagents-kits-and-instruments/pcr-instruments-and-software/genotyping-and-lims-software/snpviewer"
+  ]
+}

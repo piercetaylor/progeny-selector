@@ -152,12 +152,15 @@ class Dataset:
 
     synthetic_sample_ids: parents of a coded file that had no genotype column and were synthesised by
     build_dataset; they are not part of the loaded sample list the contract describes.
+    token_profile: the token profile the genotype file was read with (contract 1.4.0): "default",
+    a built-in id, or "custom:<id>".
     """
 
     genotypes: GenotypeMatrix
     samples: list[Sample]
     warnings: list[str] = field(default_factory=list)
     synthetic_sample_ids: tuple[str, ...] = ()
+    token_profile: str = "default"
 
     def __post_init__(self) -> None:
         roles = [s.role for s in self.samples]

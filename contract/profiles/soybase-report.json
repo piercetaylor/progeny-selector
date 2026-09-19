@@ -1,0 +1,12 @@
+{
+  "id": "soybase-report",
+  "name": "SoyBase SNP allele report",
+  "description": "Nucleotides for homozygotes, H for a heterozygote (resolved to the marker's two alleles on the row), U for a missing call.",
+  "base": "nucleotide",
+  "homozygous": {},
+  "heterozygous": { "H": "*" },
+  "missing": ["U"],
+  "sources": [
+    "maintainer's note, 2026-09-14 (docs/adr/0014); SoyBase pages returned 403 on 2026-09-14"
+  ]
+}

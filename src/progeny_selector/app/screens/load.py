@@ -7,7 +7,12 @@ in AppState: it is rewritten in canonical form after every successful Load or
 Apply, Apply parses the text with the strict reader and re-analyses the loaded
 dataset, and the download always serialises the applied criteria, never the
 raw editor text. Errors from the data contract and the criteria reader are
-shown verbatim; a failed Apply leaves AppState untouched.
+shown verbatim; a failed Apply leaves AppState untouched. A "Token profile" select
+(contract 1.4.0: the contract default or a built-in profile) and a "Custom token profile
+(JSON, optional)" file input choose how HapMap and wide-CSV cells are read; a custom file,
+when given, is used instead of the select, which is disabled while it is set (as backcross's
+Upload screen); "Clear custom token profile" forgets it and resets the file input; an
+unreadable or invalid file is a load error.
 
 Interface:
     view(id) -> Tag
@@ -18,12 +23,17 @@ Interface:
 
 from __future__ import annotations
 
+import json
+import logging
+
+from htmltools import Tag, TagChild
 from shiny import module, reactive, render, ui
 
 from progeny_selector.core.navigation import build_tree
 from progeny_selector.core.pipeline import run_analysis
 from progeny_selector.io import load_dataset, read_criteria
 from progeny_selector.io.criteria import dump_criteria_yaml, read_criteria_text
+from progeny_selector.io.profiles import BUILTIN_PROFILES, DEFAULT_PROFILE_ID
 from progeny_selector.model.criteria import CriteriaError
 from progeny_selector.model.dataset import DataContractError
 
@@ -34,9 +44,16 @@ def ui_(id: str = "") -> ui.Tag:
         ui.layout_columns(
             ui.card(
                 ui.card_header("Input files"),
-                ui.input_file("genotypes", "Genotypes (VCF, VCF.gz, HapMap, wide CSV)", accept=[".vcf", ".gz", ".txt", ".csv", ".hmp"]),
-                ui.input_file("samples", "samples.csv", accept=[".csv"]),
-                ui.input_file("markers", "markers.csv (optional)", accept=[".csv"]),
+                ui.input_file(
+                    "genotypes",
+                    "Genotypes (VCF, VCF.gz, HapMap, wide CSV)",
+                    accept=[".vcf", ".gz", ".bgz", ".txt", ".csv", ".tsv", ".hmp", ".hapmap"],
+                ),
+                ui.input_file("samples", "samples.csv", accept=[".csv", ".tsv", ".txt"]),
+                ui.input_file("markers", "markers.csv (optional)", accept=[".csv", ".tsv", ".txt"]),
+                ui.output_ui("profile_select"),
+                ui.output_ui("profile_file_input"),
+                ui.input_action_button("profile_clear", "Clear custom token profile"),
                 ui.input_file("criteria", "criteria.yaml", accept=[".yaml", ".yml"]),
                 ui.input_action_button("run", "Load and analyse", class_="btn-primary"),
             ),
@@ -59,6 +76,29 @@ def ui_(id: str = "") -> ui.Tag:
     )
 
 
+PROFILE_CHOICES: dict[str, str] = {
+    DEFAULT_PROFILE_ID: "Contract default (by format)",
+    **{pid: p.name for pid, p in BUILTIN_PROFILES.items()},
+}
+
+
+def _disable_select(node: TagChild) -> None:
+    """Marks every <select> under ``node`` disabled."""
+    if isinstance(node, Tag):
+        if node.name == "select":
+            node.attrs["disabled"] = "disabled"
+        for child in node.children:
+            _disable_select(child)
+
+
+def profile_select_tag(selected: str, disabled: bool) -> Tag:
+    """The Token profile select; disabled while a custom profile file is set."""
+    tag = ui.input_select("profile", "Token profile", PROFILE_CHOICES, selected=selected)
+    if disabled:
+        _disable_select(tag)
+    return tag
+
+
 def view(id: str) -> ui.Tag:
     return ui_(id)
 
@@ -67,6 +107,32 @@ def view(id: str) -> ui.Tag:
 def server_(input, output, session, state) -> None:
     message = reactive.Value("Choose files and press Load.")
     criteria_message = reactive.Value("")
+    custom_profile_path: reactive.Value[str | None] = reactive.Value(None)
+
+    @reactive.effect
+    @reactive.event(input.profile_file)
+    def _profile_file() -> None:
+        f = input.profile_file()
+        custom_profile_path.set(f[0]["datapath"] if f else None)
+
+    @reactive.effect
+    @reactive.event(input.profile_clear)
+    def _profile_clear() -> None:
+        custom_profile_path.set(None)
+
+    @render.ui
+    def profile_select() -> Tag:
+        with reactive.isolate():
+            try:
+                selected = input.profile() or DEFAULT_PROFILE_ID
+            except Exception:
+                selected = DEFAULT_PROFILE_ID
+        return profile_select_tag(selected if selected in PROFILE_CHOICES else DEFAULT_PROFILE_ID, custom_profile_path() is not None)
+
+    @render.ui
+    def profile_file_input() -> Tag:
+        input.profile_clear()  # a Clear re-renders the input, so the chosen file name disappears too
+        return ui.input_file("profile_file", "Custom token profile (JSON, optional)", accept=[".json"])
 
     @reactive.effect
     @reactive.event(input.run)
@@ -77,7 +143,18 @@ def server_(input, output, session, state) -> None:
                 message.set("Genotypes, samples.csv and criteria.yaml are required.")
                 return
             m = input.markers()
-            dataset = load_dataset(g[0]["datapath"], s[0]["datapath"], m[0]["datapath"] if m else None)
+            pf = custom_profile_path()
+            profile: str | dict = input.profile() or DEFAULT_PROFILE_ID
+            if pf is not None:
+                try:
+                    with open(pf, encoding="utf-8") as fh:
+                        loaded = json.load(fh)
+                except (OSError, ValueError) as exc:
+                    raise DataContractError(f"token profile file: {exc}") from exc
+                if not isinstance(loaded, dict):
+                    raise DataContractError("token profile: must be a JSON object")
+                profile = loaded
+            dataset = load_dataset(g[0]["datapath"], s[0]["datapath"], m[0]["datapath"] if m else None, profile=profile)
             criteria = read_criteria(c[0]["datapath"])
             result = run_analysis(dataset, criteria)
             state.dataset.set(dataset)
@@ -94,6 +171,9 @@ def server_(input, output, session, state) -> None:
             message.set("\n".join(lines))
         except (DataContractError, CriteriaError) as exc:
             message.set(f"error: {exc}")
+        except Exception as exc:
+            message.set(f"unexpected error: {type(exc).__name__}: {exc}")
+            logging.getLogger(__name__).exception("load failed")
 
     @render.text
     def status() -> str:
@@ -112,6 +192,11 @@ def server_(input, output, session, state) -> None:
         except (DataContractError, CriteriaError) as exc:
             # Nothing in AppState has been written yet, so a failed Apply leaves the last good run in place.
             criteria_message.set(f"error: {exc}")
+            return
+        except Exception as exc:
+            # Nothing in AppState has been written yet, so a failed Apply leaves the last good run in place.
+            criteria_message.set(f"unexpected error: {type(exc).__name__}: {exc}")
+            logging.getLogger(__name__).exception("load failed")
             return
         state.criteria.set(criteria)
         state.result.set(result)

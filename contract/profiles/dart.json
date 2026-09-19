@@ -1,0 +1,10 @@
+{
+  "id": "dart",
+  "name": "DArTseq SNP report, one row per marker",
+  "description": "0 is homozygous reference, 1 homozygous alternate, 2 heterozygous, - missing. Allele symbols are 0 and 1. Do not use for the two-row report or for dartR's recoding, where 1 is the heterozygote.",
+  "base": "none",
+  "homozygous": { "0": "0", "1": "1" },
+  "heterozygous": { "2": ["0", "1"] },
+  "missing": ["", "-", "NA"],
+  "sources": ["docs/research/cross-crop-genotype-conventions.md [3], search only"]
+}

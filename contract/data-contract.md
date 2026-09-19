@@ -1,6 +1,6 @@
 # Data contract
 
-Contract version: 1.3.0
+Contract version: 1.4.0
 
 The input files shared by backcross and progeny-selector. This directory is the canonical copy in backcross and is mirrored byte for byte into progeny-selector; README.md gives the version rules and the cases under cases/ are the machine-checked examples.
 
@@ -85,6 +85,10 @@ NIL_01,NIL-01,candidate,BC5F3,FAM1,one donor segment Gm13
 A row whose every field is empty or whitespace is skipped.
 
 Map positions override genotype-file positions when they differ (the count of overrides is reported as a warning); markers absent from the map keep their genotype-file position and have no cM.
+
+## Token profiles
+
+A token profile changes how HapMap and wide-CSV cells are read. It is a JSON file under profiles/ with: `id` (`^[a-z0-9][a-z0-9-]{0,31}$`), `name`, `description`, `base` (`nucleotide`: the format's own vocabulary stays underneath; `none`: the profile is the whole vocabulary), `homozygous` (token to allele symbol), `heterozygous` (token to the two allele symbols, or `*` meaning the two alleles the marker shows on that row, HapMap's `alleles` column included and upper-cased), `missing` (tokens) and `sources`; no other key is allowed. Tokens are trimmed and compared case-insensitively; no token appears twice, within a set or across the three; a heterozygote pair names two different symbols. A cell is resolved in this order: a missing token of the profile, then of the format when `base` is `nucleotide`; a homozygous token; a heterozygous token; then, when `base` is `nucleotide`, the format's vocabulary; anything else is `genotypes.unknown_cell`. A `*` heterozygote at a marker whose row shows a number of alleles other than two is the error `genotypes.ambiguous_heterozygote`, and so is a `*` heterozygote at a marker one of whose two alleles is `-`. Coded A/B/H detection runs only without a profile or under `base: nucleotide`, where the profile's tokens do not vote. A profile other than the default with a VCF, or with a wide CSV whose coding is coded A/B/H (requested or detected), is the error `genotypes.profile_format`. The built-in profiles are `tassel`, `soybase-report`, `dart`, `axiom` and `kasp`; a user-supplied file with the same shape is accepted and is recorded as `custom:<id>`, even when its id is a built-in's. Every per-line and pairwise export carries a trailing `token_profile` column holding the id, or `default`. A case chooses a profile with an `options.json` beside its files: `{ "profile": "<id>" }`.
 
 ## Class codes in exports
 

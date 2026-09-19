@@ -1,7 +1,7 @@
 """The shared data contract (contract/README.md), checked against this repository's loaders.
 
 Every directory under contract/cases/ is loaded through load_dataset (genotypes.<ext>,
-samples.csv, optional markers.csv), normalised to the language-neutral shape of
+samples.csv, optional markers.csv, and the token profile of an optional options.json), normalised to the language-neutral shape of
 expected.json and compared; an error case must raise DataContractError matching the
 pattern its kind maps to below. The kind-to-pattern table lives here, not in the
 contract, so rewording a message is a change to this test. The manifest and the
@@ -19,6 +19,7 @@ import pytest
 
 from progeny_selector.core.chrom import chrom_sort_key
 from progeny_selector.io import load_dataset
+from progeny_selector.io.profiles import profile_label, resolve_profile
 from progeny_selector.model.dataset import DataContractError, Dataset
 
 CONTRACT = Path(__file__).resolve().parent.parent / "contract"
@@ -41,6 +42,8 @@ ERROR_KIND_PATTERNS: dict[str, str] = {
     "genotypes.column_count": r"expected \d+ columns, found",
     "genotypes.repeated_header": r"after the #CHROM header",
     "delimited.unterminated_quote": r"unterminated quoted field",
+    "genotypes.ambiguous_heterozygote": r"heterozygote token but the marker shows",
+    "genotypes.profile_format": r"applies to HapMap and wide CSV",
 }
 
 CASE_NAMES = sorted(p.name for p in CASES.iterdir() if p.is_dir())
@@ -77,7 +80,12 @@ def _genotype_file(case_dir: Path) -> Path:
 
 def _load(case_dir: Path) -> Dataset:
     markers = case_dir / "markers.csv"
-    return load_dataset(_genotype_file(case_dir), case_dir / "samples.csv", markers if markers.exists() else None)
+    options_path = case_dir / "options.json"
+    options = json.loads(options_path.read_bytes().decode("utf-8")) if options_path.exists() else {}
+    profile = resolve_profile(options.get("profile"))
+    dataset = load_dataset(_genotype_file(case_dir), case_dir / "samples.csv", markers if markers.exists() else None, profile=profile)
+    assert dataset.token_profile == profile_label(profile)
+    return dataset
 
 
 def test_cases_exist_with_one_expectation_each() -> None:

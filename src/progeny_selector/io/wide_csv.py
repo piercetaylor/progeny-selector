@@ -10,9 +10,14 @@ blank lines before it are skipped (contract 1.3.0); comma or tab delimited (snif
 RFC 4180 quoting, CRLF and a leading BOM accepted; when coded, the parents may be absent
 from the file and are synthesised as all-A (recurrent) and all-B (donor) by build_dataset,
 which records them in Dataset.synthetic_sample_ids.
+Under a token profile (contract 1.4.0) nucleotide cells go through the profile first and a
+heterozygote token that names no alleles resolves to the row's two alleles; detection is
+skipped (nucleotide) under a base "none" profile, the profile's tokens do not vote under a
+base "nucleotide" profile, and a profile on a file whose coding is "abh", requested or detected,
+is an error naming the profile and how the coding was reached (contract 1.4.0).
 
 Interface:
-    read_wide_csv(path, coding='auto') -> GenotypeMatrix
+    read_wide_csv(path, coding='auto', profile=None) -> GenotypeMatrix
     add_synthetic_parents(gm, rp_id, donor_id) -> GenotypeMatrix   (coded matrices only)
 """
 
@@ -26,13 +31,16 @@ from progeny_selector.core.chrom import normalize_chrom
 from progeny_selector.io.calls import detect_coding, encode_marker, parse_coded_call, parse_nucleotide_call
 from progeny_selector.io.delimited import csv_rows, read_text
 from progeny_selector.io.position import parse_position
+from progeny_selector.io.profiles import TokenProfile, compile_profile
 from progeny_selector.model.dataset import DataContractError, GenotypeMatrix, Marker
 
 FIXED = ("marker_id", "chrom", "pos_bp")
 
 
-def read_wide_csv(path: str | Path, coding: str = "auto") -> GenotypeMatrix:
+def read_wide_csv(path: str | Path, coding: str = "auto", profile: TokenProfile | None = None) -> GenotypeMatrix:
     path = Path(path)
+    requested = coding
+    compiled = compile_profile(profile) if profile is not None else None
     text = read_text(path)
     all_rows = csv_rows(text, "wide CSV")
     header = [h.strip() for h in all_rows[0][1]] if all_rows else []
@@ -44,8 +52,16 @@ def read_wide_csv(path: str | Path, coding: str = "auto") -> GenotypeMatrix:
     records = all_rows[1:]
     if not records:
         raise DataContractError("wide CSV has no marker rows")
-    if coding == "auto":
-        coding = detect_coding(cell for _, row in records for cell in row[3:])
+    if coding == "auto" and compiled is not None and compiled.base == "none":
+        coding = "nucleotide"
+    elif coding == "auto":
+        claimed = set(compiled.missing) | set(compiled.homozygous) | set(compiled.heterozygous) if compiled is not None else set()
+        coding = detect_coding(cell for _, row in records for cell in row[3:] if cell.strip().upper() not in claimed)
+    if profile is not None and coding == "abh":
+        how = "requested" if requested == "abh" else "detected"
+        raise DataContractError(
+            f'token profile "{profile.id}" applies to HapMap and wide CSV nucleotide calls; the genotype file is coded A/B/H ({how})'
+        )
     markers: list[Marker] = []
     alleles: list[list[str]] = []
     rows: list[np.ndarray] = []
@@ -61,7 +77,8 @@ def read_wide_csv(path: str | Path, coding: str = "auto") -> GenotypeMatrix:
                 pairs = np.array([parse_coded_call(c) for c in row[3:]], dtype=np.int8)
                 alleles.append(["A", "B"])
             else:
-                allele_list, pairs = encode_marker([parse_nucleotide_call(c) for c in row[3:]])
+                cells = row[3:]
+                allele_list, pairs = encode_marker([parse_nucleotide_call(c, profile=compiled) for c in cells], (), cells)
                 alleles.append(allele_list)
         except ValueError as exc:
             raise DataContractError(f"line {line_no}: {exc}") from exc

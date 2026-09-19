@@ -15,7 +15,9 @@ Interface:
 
 The ``*_text`` wrappers return exactly what the path writers put in the file
 (``csv.writer`` line endings, CRLF), so a download encoded as UTF-8 is
-byte-identical to the CLI's output.
+byte-identical to the CLI's output. Both results.csv and selected.csv end with the
+``token_profile`` column (contract 1.4.0): results rows carry it as their last key, so
+``_columns`` puts it last; selected.csv appends it after ``notes``.
 """
 
 from __future__ import annotations
@@ -101,7 +103,18 @@ def _write_selection_csv(fh: TextIO, rows: list[dict], notes: dict[str, str] | N
     notes = notes or {}
     writer = csv.writer(fh)
     writer.writerow(
-        ["sample_id", "line_name", "family_id", "generation", "rank_overall", "rank_in_family", "composite_score", "rpp_total", "notes"]
+        [
+            "sample_id",
+            "line_name",
+            "family_id",
+            "generation",
+            "rank_overall",
+            "rank_in_family",
+            "composite_score",
+            "rpp_total",
+            "notes",
+            "token_profile",
+        ]
     )
     for r in rows:
         writer.writerow(
@@ -115,6 +128,7 @@ def _write_selection_csv(fh: TextIO, rows: list[dict], notes: dict[str, str] | N
                 _fmt(r.get("composite_score")),
                 _fmt(r.get("rpp_total")),
                 notes.get(r["sample_id"], ""),
+                r.get("token_profile", ""),
             ]
         )
 

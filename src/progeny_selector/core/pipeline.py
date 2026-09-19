@@ -60,7 +60,11 @@ def run_analysis(dataset: Dataset, criteria: Criteria) -> AnalysisResult:
     criteria.validate()
     gm = dataset.genotypes.sorted_by_position()
     dataset = Dataset(
-        genotypes=gm, samples=dataset.samples, warnings=list(dataset.warnings), synthetic_sample_ids=dataset.synthetic_sample_ids
+        genotypes=gm,
+        samples=dataset.samples,
+        warnings=list(dataset.warnings),
+        synthetic_sample_ids=dataset.synthetic_sample_ids,
+        token_profile=dataset.token_profile,
     )
     warnings = list(dataset.warnings)
     rp_id, donor_id = dataset.recurrent_parent.sample_id, dataset.donor_parent.sample_id
@@ -207,6 +211,8 @@ def run_analysis(dataset: Dataset, criteria: Criteria) -> AnalysisResult:
             row[f"avoid_{a.locus_id}_status"] = STATUS_LABELS[int(avoid_st[a.locus_id][i])]
         for chrom, values in rpp_chrom.items():
             row[f"rpp_{chrom}"] = _num(values[i])
+        # Last key, so results.csv carries it as its last column (contract 1.4.0).
+        row["token_profile"] = dataset.token_profile
         rows.append(row)
     rows.sort(key=lambda r: (r["rank_overall"] if r["rank_overall"] is not None else float("inf"), r["sample_id"]))
     return AnalysisResult(

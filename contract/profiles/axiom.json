@@ -1,0 +1,10 @@
+{
+  "id": "axiom",
+  "name": "Axiom Analysis Suite or GenomeStudio AA/AB/BB export",
+  "description": "AA, AB, BB with NoCall or -- missing; also the numeric form 0, 1, 2 with -1 (NoCall) and -2 (OTV) missing. Allele symbols are A and B, the array's alleles, not the parents'.",
+  "base": "none",
+  "homozygous": { "AA": "A", "BB": "B", "0": "A", "2": "B" },
+  "heterozygous": { "AB": ["A", "B"], "BA": ["A", "B"], "1": ["A", "B"] },
+  "missing": ["", "NoCall", "OTV", "-1", "-2", "--", "NA"],
+  "sources": ["docs/research/cross-crop-genotype-conventions.md [5], [6], search only"]
+}

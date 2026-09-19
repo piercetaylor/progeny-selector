@@ -1,0 +1,73 @@
+{
+  "contractVersion": "1.4.0",
+  "coded": false,
+  "chromosomeOrder": [
+    "Gm02"
+  ],
+  "markers": [
+    {
+      "id": "r1",
+      "chrom": "Gm02",
+      "posBp": 1000,
+      "cm": null
+    },
+    {
+      "id": "r2",
+      "chrom": "Gm02",
+      "posBp": 2000,
+      "cm": null
+    },
+    {
+      "id": "r3",
+      "chrom": "Gm02",
+      "posBp": 3000,
+      "cm": null
+    }
+  ],
+  "sampleIds": [
+    "RP",
+    "DONOR",
+    "L1"
+  ],
+  "calls": {
+    "RP": [
+      [
+        "A",
+        "A"
+      ],
+      [
+        "C",
+        "C"
+      ],
+      [
+        "A",
+        "A"
+      ]
+    ],
+    "DONOR": [
+      [
+        "G",
+        "G"
+      ],
+      [
+        "T",
+        "T"
+      ],
+      [
+        "A",
+        "A"
+      ]
+    ],
+    "L1": [
+      [
+        "A",
+        "G"
+      ],
+      null,
+      [
+        "A",
+        "G"
+      ]
+    ]
+  }
+}

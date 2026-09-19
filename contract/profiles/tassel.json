@@ -1,0 +1,12 @@
+{
+  "id": "tassel",
+  "name": "TASSEL HapMap vocabulary in a wide CSV",
+  "description": "The HapMap vocabulary applied to a wide CSV converted from TASSEL: X and XX are missing, as in HapMap. Nothing else changes.",
+  "base": "nucleotide",
+  "homozygous": {},
+  "heterozygous": {},
+  "missing": ["X", "XX"],
+  "sources": [
+    "https://bitbucket.org/tasseladmin/tassel-5-source/raw/master/src/net/maizegenetics/dna/snp/NucleotideAlignmentConstants.java"
+  ]
+}

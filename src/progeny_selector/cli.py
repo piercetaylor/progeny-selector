@@ -6,8 +6,8 @@ error), 2 (usage). Useful for batch runs on an HPC node and for wiring
 outputs into downstream Shiny dashboards.
 
 Interface (subcommands):
-    progeny-selector validate --genotypes G --samples S [--markers M] [--criteria C]
-    progeny-selector rank     --genotypes G --samples S --criteria C [--markers M] --out results.csv
+    progeny-selector validate --genotypes G --samples S [--markers M] [--criteria C] [--profile ID_OR_FILE]
+    progeny-selector rank     --genotypes G --samples S --criteria C [--markers M] [--profile ID_OR_FILE] --out results.csv
     progeny-selector select   --results results.csv --top N [--overall] --out selected.csv
                               [--next-manifest next_samples.csv --next-generation BC3F1 --samples S]
 """
@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import json
 import sys
 
 from progeny_selector.core.pipeline import run_analysis
@@ -32,6 +33,11 @@ def _add_data_args(p: argparse.ArgumentParser, criteria_required: bool) -> None:
     p.add_argument("--markers", help="optional markers.csv with chrom, pos_bp, cm")
     p.add_argument("--criteria", required=criteria_required, help="criteria.yaml")
     p.add_argument("--coding", default="auto", choices=("auto", "nucleotide", "abh"), help="wide CSV call coding")
+    p.add_argument(
+        "--profile",
+        metavar="ID_OR_FILE",
+        help="token profile for HapMap and wide CSV cells: a built-in id (tassel, soybase-report, dart, axiom, kasp) or a JSON file",
+    )
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -57,8 +63,22 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _profile_ref(ref: str | None) -> str | dict | None:
+    """A built-in id as given; a value containing / or \\ or ending .json is read as a profile JSON file."""
+    if ref is None or not ("/" in ref or "\\" in ref or ref.lower().endswith(".json")):
+        return ref
+    try:
+        with open(ref, encoding="utf-8") as fh:
+            obj = json.load(fh)
+    except (OSError, ValueError) as exc:
+        raise DataContractError(f"token profile file {ref}: {exc}") from exc
+    if not isinstance(obj, dict):
+        raise DataContractError("token profile: must be a JSON object")
+    return obj
+
+
 def _load(args: argparse.Namespace):
-    dataset = load_dataset(args.genotypes, args.samples, args.markers, coding=args.coding)
+    dataset = load_dataset(args.genotypes, args.samples, args.markers, coding=args.coding, profile=_profile_ref(args.profile))
     criteria = read_criteria(args.criteria) if args.criteria else None
     return dataset, criteria
 
