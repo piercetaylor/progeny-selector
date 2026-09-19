@@ -36,7 +36,7 @@ def load_genotypes(path: str | Path, coding: str = "auto", profile: str | dict |
             raise DataContractError(f'token profile "{resolved.id}" applies to HapMap and wide CSV; the genotype file is VCF')
         return read_vcf(path)
     if base.endswith((".hmp.txt", ".hmp", ".hapmap")):
-        return read_hapmap(path, profile=resolved)
+        return read_hapmap(path, coding=coding, profile=resolved)
     if base.endswith((".csv", ".tsv", ".txt")):
         return read_wide_csv(path, coding=coding, profile=resolved)
     raise DataContractError(f"cannot infer genotype format from extension: {path}")

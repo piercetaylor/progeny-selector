@@ -68,7 +68,7 @@ def validate_profile(obj: object) -> TokenProfile:
     if unknown:
         raise _fail("unknown key(s) " + ", ".join(f'"{k}"' for k in unknown))
     pid = obj.get("id")
-    if not isinstance(pid, str) or not _ID_PATTERN.match(pid):
+    if not isinstance(pid, str) or not _ID_PATTERN.fullmatch(pid):
         raise _fail(f'"id" must match {_ID_PATTERN.pattern}')
     name = obj.get("name")
     if not isinstance(name, str) or not name.strip():
@@ -87,7 +87,7 @@ def validate_profile(obj: object) -> TokenProfile:
     for token, symbol in homozygous.items():
         if symbol == "*":
             raise _fail(f'"*" is allowed only in "heterozygous" (homozygous token "{token}")')
-        if not isinstance(symbol, str) or not _SYMBOL_PATTERN.match(symbol):
+        if not isinstance(symbol, str) or not _SYMBOL_PATTERN.fullmatch(symbol):
             raise _fail(f'homozygous token "{token}" must map to a non-blank allele symbol')
         hom[str(token)] = symbol
 
@@ -99,7 +99,7 @@ def validate_profile(obj: object) -> TokenProfile:
         if pair == "*":
             het[str(token)] = "*"
             continue
-        if not isinstance(pair, list) or len(pair) != 2 or not all(isinstance(s, str) and _SYMBOL_PATTERN.match(s) for s in pair):
+        if not isinstance(pair, list) or len(pair) != 2 or not all(isinstance(s, str) and _SYMBOL_PATTERN.fullmatch(s) for s in pair):
             raise _fail(f'heterozygous token "{token}" must map to two allele symbols or "*"')
         if pair[0] == pair[1]:
             raise _fail(f'heterozygous token "{token}" maps to two identical symbols "{pair[0]}"')

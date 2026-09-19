@@ -11,12 +11,13 @@ start with rs#, so a `#` line before it is an error (contract 1.3.0).
 Under a token profile (contract 1.4.0) cells go through the profile first; a
 heterozygote token that names no alleles resolves to the row's two alleles (the
 `alleles` column upper-cased, minus N, plus the symbols the cells show), and any other number of
-alleles is an error naming the line.
+alleles is an error naming the line, and a profile with ``coding="abh"`` is an
+error naming the profile.
 Column facts [web]
 https://statgen-esalq.github.io/Hapmap-and-VCF-formats-and-its-integration-with-onemap/.
 
 Interface:
-    read_hapmap(path: str | Path, profile: TokenProfile | None = None) -> GenotypeMatrix
+    read_hapmap(path: str | Path, coding: str = 'auto', profile: TokenProfile | None = None) -> GenotypeMatrix
 """
 
 from __future__ import annotations
@@ -36,8 +37,12 @@ from progeny_selector.model.dataset import DataContractError, GenotypeMatrix, Ma
 N_FIXED = 11
 
 
-def read_hapmap(path: str | Path, profile: TokenProfile | None = None) -> GenotypeMatrix:
+def read_hapmap(path: str | Path, coding: str = "auto", profile: TokenProfile | None = None) -> GenotypeMatrix:
     path = Path(path)
+    if profile is not None and coding == "abh":
+        raise DataContractError(
+            f'token profile "{profile.id}" applies to HapMap and wide CSV nucleotide calls; the genotype file is coded A/B/H (requested)'
+        )
     compiled = compile_profile(profile) if profile is not None else None
     markers: list[Marker] = []
     alleles: list[list[str]] = []

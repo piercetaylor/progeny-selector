@@ -71,7 +71,10 @@ def parse_nucleotide_call(text: str, missing: frozenset[str] = WIDE_NUCLEOTIDE_M
                 return HET_OF_MARKER
             return (min(pair[0], pair[1]), max(pair[0], pair[1]))
         if profile.base == "none":
-            raise ValueError(f'unrecognised nucleotide call {text!r} (not a token of the "{profile.label}" token profile)')
+            raise ValueError(
+                f'unrecognised nucleotide call {text!r} (not a token of the "{profile.label}" token profile; '
+                "an A/B/H-coded file is read without a profile)"
+            )
     elif t in missing:
         return None
     if len(t) == 1:

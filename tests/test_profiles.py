@@ -7,15 +7,19 @@ reject what backcross tests/profiles.test.ts rejects.
 
 from __future__ import annotations
 
+import csv
 import dataclasses
 import json
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
 
-from progeny_selector.app.screens.load import profile_select_tag
+from progeny_selector.app.screens.load import profile_select_tag, read_profile_json
+from progeny_selector.cli import _profile_ref
 from progeny_selector.core.pipeline import run_analysis
-from progeny_selector.io import load_dataset, read_criteria
+from progeny_selector.io import load_dataset, load_genotypes, read_criteria
 from progeny_selector.io.calls import parse_nucleotide_call
 from progeny_selector.io.export import results_csv_text, selection_csv_text
 from progeny_selector.io.hapmap import read_hapmap
@@ -175,3 +179,115 @@ def test_token_profile_in_results_rows_and_selected_csv(fixture_dir: Path) -> No
 def test_profile_select_disabled_while_custom_file_set() -> None:
     assert 'disabled="disabled"' in str(profile_select_tag("default", True))
     assert "disabled" not in str(profile_select_tag("dart", False))
+
+
+CASES = Path(__file__).resolve().parent.parent / "contract" / "cases"
+MINIMAL_CRITERIA = """name: profile case
+targets:
+  - locus_id: T1
+    marker_id: r1
+    required_state: either
+background:
+  model: count
+  map_unit: bp
+filters:
+  max_missing_rate: 0.5
+"""
+
+
+def test_hapmap_abh_with_profile_is_an_error(tmp_path: Path) -> None:
+    """A profile on a HapMap file read as A/B/H is genotypes.profile_format, as for wide CSV."""
+    path = _write(tmp_path, "g.hmp.txt", HAPMAP_HEADER + f"r1\ta/g\tGm02\t1000\t{HAPMAP_FIXED}\tAA\tAA\tH\n")
+    with pytest.raises(
+        DataContractError, match=r"applies to HapMap and wide CSV nucleotide calls; the genotype file is coded A/B/H \(requested\)"
+    ):
+        load_genotypes(path, coding="abh", profile="soybase-report")
+    with pytest.raises(DataContractError, match="applies to HapMap and wide CSV"):
+        read_hapmap(path, coding="abh", profile=BUILTIN_PROFILES["soybase-report"])
+
+
+def test_trailing_newline_rejected_in_id_and_symbol() -> None:
+    """The patterns are anchored on the whole string, so a trailing newline is not a valid id or symbol."""
+    with pytest.raises(DataContractError, match=r'^token profile: "id" must match'):
+        validate_profile({**VALID, "id": "dart\n"})
+    with pytest.raises(DataContractError, match="must map to a non-blank allele symbol"):
+        validate_profile({**VALID, "homozygous": {"0": "A\n"}})
+    with pytest.raises(DataContractError, match="must map to two allele symbols"):
+        validate_profile({**VALID, "heterozygous": {"2": ["A\n", "T"]}})
+
+
+def test_profile_ref_file_branch(tmp_path: Path) -> None:
+    assert _profile_ref(None) is None
+    assert _profile_ref("dart") == "dart"
+    path = tmp_path / "p.json"
+    path.write_text(json.dumps(VALID), encoding="utf-8")
+    assert _profile_ref(str(path)) == VALID
+    with pytest.raises(DataContractError, match="token profile file"):
+        _profile_ref(str(tmp_path / "absent.json"))
+    bad = tmp_path / "bad.json"
+    bad.write_text("[1]", encoding="utf-8")
+    with pytest.raises(DataContractError, match="must be a JSON object"):
+        _profile_ref(str(bad))
+
+
+def test_read_profile_json_for_the_load_screen(tmp_path: Path) -> None:
+    path = tmp_path / "p.json"
+    path.write_text(json.dumps(VALID), encoding="utf-8")
+    assert read_profile_json(str(path)) == VALID
+    with pytest.raises(DataContractError, match="token profile file"):
+        read_profile_json(str(tmp_path / "absent.json"))
+    notjson = tmp_path / "bad.json"
+    notjson.write_text("nope", encoding="utf-8")
+    with pytest.raises(DataContractError, match="token profile file"):
+        read_profile_json(str(notjson))
+    arr = tmp_path / "arr.json"
+    arr.write_text("[1]", encoding="utf-8")
+    with pytest.raises(DataContractError, match="must be a JSON object"):
+        read_profile_json(str(arr))
+
+
+def test_load_dataset_records_the_profile_from_an_id_and_from_a_dict() -> None:
+    case = CASES / "profile-dart-wide"
+    by_id = load_dataset(case / "genotypes.csv", case / "samples.csv", profile="dart")
+    assert by_id.token_profile == "dart"
+    obj = json.loads((PROFILES / "dart.json").read_bytes().decode("utf-8"))
+    by_dict = load_dataset(case / "genotypes.csv", case / "samples.csv", profile=obj)
+    assert by_dict.token_profile == "custom:dart"
+
+
+def test_cli_rank_and_select_carry_the_profile(tmp_path: Path) -> None:
+    """The profile the CLI read reaches the last cell of results.csv and of selected.csv."""
+    case = CASES / "profile-dart-wide"
+    criteria = tmp_path / "criteria.yaml"
+    criteria.write_text(MINIMAL_CRITERIA, encoding="utf-8")
+    results, selected = tmp_path / "results.csv", tmp_path / "selected.csv"
+    env = {"PYTHONPATH": str(Path(__file__).resolve().parents[1] / "src")}
+    rank = [
+        sys.executable,
+        "-m",
+        "progeny_selector",
+        "rank",
+        "--genotypes",
+        str(case / "genotypes.csv"),
+        "--samples",
+        str(case / "samples.csv"),
+        "--criteria",
+        str(criteria),
+        "--profile",
+        "dart",
+        "--out",
+        str(results),
+    ]
+    proc = subprocess.run(rank, capture_output=True, text=True, env=env)
+    assert proc.returncode == 0, proc.stderr
+    rows = list(csv.reader(results.read_text(encoding="utf-8").splitlines()))
+    assert rows[0][-1] == "token_profile"
+    assert [r[-1] for r in rows[1:]] == ["dart"] * (len(rows) - 1)
+
+    sel = [sys.executable, "-m", "progeny_selector", "select", "--results", str(results), "--top", "1", "--out", str(selected)]
+    proc = subprocess.run(sel, capture_output=True, text=True, env=env)
+    assert proc.returncode == 0, proc.stderr
+    chosen = list(csv.reader(selected.read_text(encoding="utf-8").splitlines()))
+    assert chosen[0][-1] == "token_profile"
+    assert len(chosen) > 1
+    assert [r[-1] for r in chosen[1:]] == ["dart"] * (len(chosen) - 1)

@@ -15,6 +15,8 @@ Upload screen); "Clear custom token profile" forgets it and resets the file inpu
 unreadable or invalid file is a load error.
 
 Interface:
+    read_profile_json(path) -> dict   (a custom token profile file; DataContractError when unreadable
+                                       or not a JSON object)
     view(id) -> Tag
     server(id, state: AppState) -> None   (writes state.dataset, state.criteria, state.result;
                                            Load resets state.breadcrumb and state.selected_ids on success;
@@ -99,6 +101,18 @@ def profile_select_tag(selected: str, disabled: bool) -> Tag:
     return tag
 
 
+def read_profile_json(path: str) -> dict:
+    """The custom token profile file as a dict; DataContractError when unreadable or not a JSON object."""
+    try:
+        with open(path, encoding="utf-8") as fh:
+            loaded = json.load(fh)
+    except (OSError, ValueError) as exc:
+        raise DataContractError(f"token profile file: {exc}") from exc
+    if not isinstance(loaded, dict):
+        raise DataContractError("token profile: must be a JSON object")
+    return loaded
+
+
 def view(id: str) -> ui.Tag:
     return ui_(id)
 
@@ -146,14 +160,7 @@ def server_(input, output, session, state) -> None:
             pf = custom_profile_path()
             profile: str | dict = input.profile() or DEFAULT_PROFILE_ID
             if pf is not None:
-                try:
-                    with open(pf, encoding="utf-8") as fh:
-                        loaded = json.load(fh)
-                except (OSError, ValueError) as exc:
-                    raise DataContractError(f"token profile file: {exc}") from exc
-                if not isinstance(loaded, dict):
-                    raise DataContractError("token profile: must be a JSON object")
-                profile = loaded
+                profile = read_profile_json(pf)
             dataset = load_dataset(g[0]["datapath"], s[0]["datapath"], m[0]["datapath"] if m else None, profile=profile)
             criteria = read_criteria(c[0]["datapath"])
             result = run_analysis(dataset, criteria)
