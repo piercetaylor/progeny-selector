@@ -300,7 +300,10 @@ def test_run_roundtrip_and_canonical_dump():
         "min_run",
         "anchor_bp",
         "tolerate_isolated",
+        "notes",
         "required_state",
+        "flank_left",
+        "flank_right",
     ]
     assert (r["min_run"], r["anchor_bp"], r["tolerate_isolated"]) == (4, 2_000_000, True)
     assert (d["min_run"], d["anchor_bp"], d["tolerate_isolated"]) == (3, 5_000_000, False)  # (1_000_001 + 9_000_000) // 2

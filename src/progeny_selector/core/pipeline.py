@@ -20,16 +20,23 @@ import numpy as np
 
 from progeny_selector.constants import STATE_A, STATE_B, STATE_H, STATE_N, STATUS_LABELS
 from progeny_selector.core.avoid import avoid_status
-from progeny_selector.core.background import carrier_mask, marker_weights, n_called_informative, rpp, rpp_per_chromosome
-from progeny_selector.core.chrom import chrom_length_bp
+from progeny_selector.core.background import (
+    DEFAULT_MAX_COVERAGE,
+    carrier_mask,
+    marker_weights,
+    n_called_informative,
+    rpp,
+    rpp_per_chromosome,
+)
+from progeny_selector.core.chrom import chrom_length_bp, chrom_sort_key
 from progeny_selector.core.classify import Classification, classify
 from progeny_selector.core.drag import DragResult, donor_segment
 from progeny_selector.core.foreground import ResolvedLocus, foreground_status, resolve_locus
 from progeny_selector.core.qc import SampleQC, parent_qc, sample_qc
-from progeny_selector.core.score import composite_score, hard_filters, rank_rows
+from progeny_selector.core.score import composite_score, hard_filters, rank_rows, rank_rows_staged
 from progeny_selector.core.similarity import ibs_to_sample
 from progeny_selector.model.criteria import Criteria
-from progeny_selector.model.dataset import Dataset
+from progeny_selector.model.dataset import Dataset, GenotypeMatrix
 
 
 @dataclass
@@ -48,12 +55,59 @@ class AnalysisResult:
         return next(r for r in self.rows if r["sample_id"] == sample_id)
 
 
-def _pick_unit(dataset: Dataset, requested: str) -> str:
-    if requested == "cm" and dataset.genotypes.has_cm():
-        return "cm"
-    if requested == "auto" and dataset.genotypes.has_cm():
-        return "cm"
-    return "bp"
+def _pick_unit(dataset: Dataset, requested: str, what: str) -> tuple[str, str | None]:
+    """The unit actually used and a warning when ``cm`` was requested but the map has no cM."""
+    if requested in ("cm", "auto") and dataset.genotypes.has_cm():
+        return "cm", None
+    if requested == "cm":
+        did = "RPP weights computed" if what == "background.map_unit" else "windows interpreted"
+        return "bp", f"{what} is cm but the map has no cM; {did} in bp"
+    return "bp", None
+
+
+_MAX_LISTED_WARNINGS = 5
+
+
+def _chrom_lengths(gm: GenotypeMatrix, assembly: str) -> tuple[dict[str, float], set[str], list[str]]:
+    """Chromosome ends, the chromosomes the assembly does not place, and the warnings for both.
+
+    A chromosome the assembly gives no length for (every chromosome under ``assembly: none``) ends at
+    its last marker, and so does a chromosome whose markers run past the assembly length. The names
+    without a length are returned as well: their terminal marker weights use the coverage cap instead
+    of the last-marker end, so a terminal marker keeps its weight in the weighted RPP (docs/adr/0015).
+    """
+    chroms = gm.chroms()
+    pos = gm.positions("bp")
+    lengths: dict[str, float] = {}
+    unplaced: set[str] = set()
+    missing: list[str] = []
+    beyond: list[str] = []
+    warnings: list[str] = []
+    for c in sorted(set(chroms.tolist()), key=chrom_sort_key):
+        max_pos = float(pos[chroms == c].max())
+        length = chrom_length_bp(c, None, assembly)
+        if length is None:
+            lengths[c] = max_pos
+            unplaced.add(c)
+            missing.append(c)
+        elif max_pos > length:
+            lengths[c] = max_pos
+            beyond.append(c)
+            if len(beyond) <= _MAX_LISTED_WARNINGS:
+                warnings.append(
+                    f"chromosome {c}: marker positions reach {max_pos:.0f} beyond the {assembly} length {length}; "
+                    "check the assembly setting"
+                )
+        else:
+            lengths[c] = float(length)
+    if len(beyond) > _MAX_LISTED_WARNINGS:
+        n = len(beyond) - _MAX_LISTED_WARNINGS
+        warnings.append(f"... and {n} more chromosomes with marker positions beyond the {assembly} length")
+    for c in missing[:_MAX_LISTED_WARNINGS]:
+        warnings.append(f"chromosome {c}: the assembly {assembly} gives no length; the last marker is the chromosome end for drag bounds")
+    if len(missing) > _MAX_LISTED_WARNINGS:
+        warnings.append(f"... and {len(missing) - _MAX_LISTED_WARNINGS} more chromosomes to which the assembly {assembly} gives no length")
+    return lengths, unplaced, warnings
 
 
 def run_analysis(dataset: Dataset, criteria: Criteria) -> AnalysisResult:
@@ -77,11 +131,11 @@ def run_analysis(dataset: Dataset, criteria: Criteria) -> AnalysisResult:
     sample_ids = [s.sample_id for s in progeny]
     family_ids = [s.family_id for s in progeny]
 
-    unit = _pick_unit(dataset, criteria.background.map_unit)
-    flank_unit = _pick_unit(dataset, criteria.flank_unit)
-    if criteria.flank_unit == "cm" and flank_unit == "bp":
-        warnings.append("flank_unit is cm but the map has no cM; windows interpreted in bp")
-    chrom_lengths = {c: float(chrom_length_bp(c, None) or gm.positions("bp")[gm.chroms() == c].max()) for c in set(gm.chroms().tolist())}
+    unit, unit_warning = _pick_unit(dataset, criteria.background.map_unit, "background.map_unit")
+    flank_unit, flank_warning = _pick_unit(dataset, criteria.flank_unit, "flank_unit")
+    warnings += [w for w in (unit_warning, flank_warning) if w is not None]
+    chrom_lengths, unplaced, length_warnings = _chrom_lengths(gm, criteria.assembly)
+    warnings += length_warnings
 
     # Foreground
     resolved_t = {t.locus_id: resolve_locus(t, gm) for t in criteria.targets}
@@ -105,9 +159,14 @@ def run_analysis(dataset: Dataset, criteria: Criteria) -> AnalysisResult:
     # Background
     weights = None
     if criteria.background.model == "weighted":
-        weights = marker_weights(
-            gm, cls.informative, unit, criteria.background.max_marker_coverage, chrom_lengths if unit == "bp" else None
-        )
+        if unit == "bp" and criteria.background.map_unit != "bp":  # a cM map was wanted and the dataset has none
+            cap = criteria.background.max_marker_coverage
+            cap = DEFAULT_MAX_COVERAGE["bp"] if cap is None else cap
+            warnings.append(f"weighted RPP in bp: no cM map, weights capped at {cap:.0f} bp per marker")
+        # A chromosome without an assembly length is left out, so its terminal markers weigh the cap's
+        # half rather than nothing (docs/adr/0015); drag bounds still end at the last marker.
+        placed = {c: length for c, length in chrom_lengths.items() if c not in unplaced}
+        weights = marker_weights(gm, cls.informative, unit, criteria.background.max_marker_coverage, placed if unit == "bp" else None)
     cmask = carrier_mask(gm, carrier)
     rpp_total = rpp(states, weights)
     rpp_carrier = rpp(states, weights, cmask)
@@ -148,6 +207,7 @@ def run_analysis(dataset: Dataset, criteria: Criteria) -> AnalysisResult:
         span = chrom_lengths[r.chrom] if flank_unit == "bp" else float(np.nanmax(gm.positions("cm")[gm.chroms() == r.chrom]))
         drag_norm += np.clip(d.total_est / span, 0.0, 1.0) if span > 0 else 1.0
         rec_frac += d.recombinant_left.astype(float) + d.recombinant_right.astype(float)
+    rec_count = rec_frac  # the integer count of recombinant flanks, before the division below
     n_t = max(len(criteria.targets), 1)
     components = {
         "rpp_noncarrier": np.where(np.isnan(rpp_noncarrier), rpp_total, rpp_noncarrier),
@@ -159,7 +219,12 @@ def run_analysis(dataset: Dataset, criteria: Criteria) -> AnalysisResult:
     }
     score, _ = composite_score(components, criteria.weights)
     passes, reasons = hard_filters(target_status, avoid_st, missing_rate, qc_flags, criteria.filters)
-    rank_overall, rank_in_family = rank_rows(score, rpp_total, drag_total_est, missing_rate, sample_ids, passes, family_ids)
+    if criteria.ranking.mode == "staged":
+        rank_overall, rank_in_family = rank_rows_staged(
+            rec_count, rpp_carrier, rpp_noncarrier, drag_total_est, missing_rate, sample_ids, passes, family_ids
+        )
+    else:
+        rank_overall, rank_in_family = rank_rows(score, rpp_total, drag_total_est, missing_rate, sample_ids, passes, family_ids)
 
     # Rows
     counted = (states == STATE_A) | (states == STATE_H) | (states == STATE_B)

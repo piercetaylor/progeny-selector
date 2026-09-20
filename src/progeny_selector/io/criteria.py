@@ -26,17 +26,19 @@ from pathlib import Path
 import yaml
 
 from progeny_selector.model.criteria import (
+    DEFAULT_ASSEMBLY,
     AvoidSpec,
     BackgroundOptions,
     Criteria,
     CriteriaError,
     Filters,
     LocusSpec,
+    RankingOptions,
     TargetSpec,
     Weights,
 )
 
-TOP_KEYS = {"name", "targets", "avoid", "weights", "filters", "background", "flank_window", "flank_unit"}
+TOP_KEYS = {"name", "targets", "avoid", "weights", "filters", "background", "ranking", "assembly", "flank_window", "flank_unit"}
 
 # Field types checked at the boundary so a wrong-typed value raises CriteriaError here instead of
 # a TypeError inside Criteria.validate(). bool is a subclass of int, so it is rejected explicitly.
@@ -86,7 +88,7 @@ def _check_bool(where: str, key: str, value: object) -> None:
 
 def _check_shapes(doc: dict) -> None:
     """Sections must be mappings and locus lists must be lists of mappings; absent or null means default."""
-    for section in ("weights", "filters", "background"):
+    for section in ("weights", "filters", "background", "ranking"):
         if doc.get(section) is not None and not isinstance(doc[section], dict):
             raise CriteriaError(f"{section} must be a mapping, got {doc[section]!r}")
     for section in ("targets", "avoid"):
@@ -112,6 +114,8 @@ def _check_types(doc: dict) -> None:
         for key in _BOOL_KEYS.get(section, ()):
             if key in sub:
                 _check_bool(f"{section}.", key, sub[key])
+    if "assembly" in doc and not isinstance(doc["assembly"], str):
+        raise CriteriaError(f"assembly must be text, got {doc['assembly']!r}")
     background = doc.get("background") or {}
     if "max_marker_coverage" in background:
         _check_number("background.", "max_marker_coverage", background["max_marker_coverage"], optional=True)
@@ -182,6 +186,8 @@ def criteria_from_dict(doc: dict) -> Criteria:
         weights=_build(Weights, doc.get("weights") or {}, "weights"),
         filters=_build(Filters, doc.get("filters") or {}, "filters"),
         background=_build(BackgroundOptions, doc.get("background") or {}, "background"),
+        ranking=_build(RankingOptions, doc.get("ranking") or {}, "ranking"),
+        assembly=str(doc.get("assembly", DEFAULT_ASSEMBLY)),
         flank_window=float(doc.get("flank_window", 5.0)),
         flank_unit=str(doc.get("flank_unit", "cm")),
     )
@@ -259,32 +265,31 @@ def _locus_to_dict(spec: LocusSpec) -> dict:
         out["min_run"] = spec.min_run
         out["anchor_bp"] = spec.resolved_anchor_bp()
         out["tolerate_isolated"] = spec.tolerate_isolated
-    if spec.notes is not None:
-        out["notes"] = spec.notes
+    out["notes"] = spec.notes  # explicit null when unset (docs/data-formats.md, criteria.yaml)
     if isinstance(spec, TargetSpec):
         out["required_state"] = spec.required_state
-        if spec.flank_left is not None:
-            out["flank_left"] = spec.flank_left
-        if spec.flank_right is not None:
-            out["flank_right"] = spec.flank_right
+        out["flank_left"] = spec.flank_left
+        out["flank_right"] = spec.flank_right
     elif isinstance(spec, AvoidSpec):
         out["allow_het"] = spec.allow_het
     return out
 
 
 def criteria_to_dict(criteria: Criteria) -> dict:
-    """Canonical document: every weight and filter explicit, optional values only when set."""
+    """Canonical document: every key explicit; an optional key with no value is written as null."""
     doc: dict = {}
-    if criteria.name is not None:
-        doc["name"] = criteria.name
+    doc["name"] = criteria.name
     doc["targets"] = [_locus_to_dict(t) for t in criteria.targets]
     doc["avoid"] = [_locus_to_dict(a) for a in criteria.avoid]
     doc["flank_window"] = criteria.flank_window
     doc["flank_unit"] = criteria.flank_unit
-    background: dict = {"model": criteria.background.model, "map_unit": criteria.background.map_unit}
-    if criteria.background.max_marker_coverage is not None:
-        background["max_marker_coverage"] = criteria.background.max_marker_coverage
-    doc["background"] = background
+    doc["assembly"] = criteria.assembly
+    doc["background"] = {
+        "model": criteria.background.model,
+        "map_unit": criteria.background.map_unit,
+        "max_marker_coverage": criteria.background.max_marker_coverage,
+    }
+    doc["ranking"] = {"mode": criteria.ranking.mode}
     doc["weights"] = {f.name: getattr(criteria.weights, f.name) for f in fields(Weights)}
     doc["filters"] = {f.name: getattr(criteria.filters, f.name) for f in fields(Filters)}
     return doc

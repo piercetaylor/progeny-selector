@@ -4,11 +4,11 @@ This document is the contract for every file progeny-selector reads or writes. T
 
 ## Input contract
 
-The input contract is `contract/data-contract.md`, version 1.4.0, mirrored byte for byte from backcross, where the canonical copy lives. It defines chromosome names (soybean-only in this version), the genotype file (VCF, HapMap, wide CSV; diploid calls only), the cell vocabulary per format (IUPAC codes expand to the heterozygote; `?`, stray `B`/`H`, `0`, `+`, `A?` are errors; `X`/`XX` are missing in HapMap, and in a wide CSV only under a token profile that lists them, such as `tassel`), samples.csv, markers.csv and the class codes; `contract/README.md` gives the version rules, `tests/test_contract_cases.py` runs every case under `contract/cases/` through `load_dataset`, and `scripts/check_contract.py` recomputes `MANIFEST.sha256` and, given `../backcross`, byte-compares the mirror with the canonical copy. backcross's docs/input-coding.md tabulates the accepted, missing and rejected codes per format and applies here unchanged. What this tool adds on top of the contract: the genotype format is chosen by file extension alone (`.vcf`, `.hmp.txt`, `.hmp`, `.hapmap`, `.csv`, `.tsv`, `.txt`, each optionally `.gz` or `.bgz`), which is the contract's minimum; for an A/B/H-coded file whose parents have no column the loader creates them internally (recurrent = all A, donor = all B, with a warning) and lists them in `Dataset.synthetic_sample_ids`; a pair of one nucleotide and one of N, `-`, `.` (`AN`, `A-`) is read as missing, which the contract has not yet decided; the Wm82.a4.v1 chromosome lengths in `constants.py` are the chromosome ends for drag bounds and marker weights when positions are in bp; `generation` values such as `BC2F1`, `BC3F2`, `F2`, `BC1`, `BC2S1` are parsed for expected values and unparseable strings are kept and flagged `generation_unparsed`; `family_id` groups progeny for per-family ranks and top-N selection; and markers absent from markers.csv have no cM, which disables cM mode for the whole dataset (all markers need cM).
+The input contract is `contract/data-contract.md`, version 1.4.0, mirrored byte for byte from backcross, where the canonical copy lives. It defines chromosome names (soybean-only in this version), the genotype file (VCF, HapMap, wide CSV; diploid calls only), the cell vocabulary per format (IUPAC codes expand to the heterozygote; `?`, stray `B`/`H`, `0`, `+`, `A?` are errors; `X`/`XX` are missing in HapMap, and in a wide CSV only under a token profile that lists them, such as `tassel`), samples.csv, markers.csv and the class codes; `contract/README.md` gives the version rules, `tests/test_contract_cases.py` runs every case under `contract/cases/` through `load_dataset`, and `scripts/check_contract.py` recomputes `MANIFEST.sha256` and, given `../backcross`, byte-compares the mirror with the canonical copy. backcross's docs/input-coding.md tabulates the accepted, missing and rejected codes per format and applies here unchanged. What this tool adds on top of the contract: the genotype format is chosen by file extension alone (`.vcf`, `.hmp.txt`, `.hmp`, `.hapmap`, `.csv`, `.tsv`, `.txt`, each optionally `.gz` or `.bgz`), which is the contract's minimum; for an A/B/H-coded file whose parents have no column the loader creates them internally (recurrent = all A, donor = all B, with a warning) and lists them in `Dataset.synthetic_sample_ids`; a pair of one nucleotide and one of N, `-`, `.` (`AN`, `A-`) is read as missing, which the contract has not yet decided; the chromosome lengths of the assembly named by `assembly` (`constants.py`) are the chromosome ends for drag bounds and marker weights when positions are in bp; `generation` values such as `BC2F1`, `BC3F2`, `F2`, `BC1`, `BC2S1` are parsed for expected values and unparseable strings are kept and flagged `generation_unparsed`; `family_id` groups progeny for per-family ranks and top-N selection; and markers absent from markers.csv have no cM, which disables cM mode for the whole dataset (all markers need cM).
 
 ## criteria.yaml (selection criteria)
 
-Top-level keys: `name`, `targets`, `avoid`, `flank_window`, `flank_unit`, `background`, `weights`, `filters`. Unknown keys anywhere are an error. The UI's Download criteria.yaml writes this schema with every key explicit (defaults included) and regions as `chrom`/`start_bp`/`end_bp`; the file reloads unchanged.
+Top-level keys: `name`, `targets`, `avoid`, `flank_window`, `flank_unit`, `assembly`, `background`, `ranking`, `weights`, `filters`. Unknown keys anywhere are an error. The UI's Download criteria.yaml writes this schema with every key explicit (defaults included); an optional key with no value is written as `null`, and regions are written as `chrom`/`start_bp`/`end_bp`; the file reloads unchanged.
 
 ### Locus definition (targets and avoid)
 
@@ -40,6 +40,18 @@ Targets on a region locus also accept `rule: run` (docs/adr/0011), with `min_run
 ### flank_window and flank_unit
 
 `flank_window` (default 5) in `flank_unit` (`cm` default, or `bp`). When `cm` is requested but the map has no cM, windows are interpreted in bp with a warning.
+
+### assembly
+
+The chromosome-length table used for chromosome ends: `Wm82.a1`, `Wm82.a2`, `Wm82.a4` (default) or `none`. Chromosome ends for RPP weights, drag bounds and strips when positions are in bp; `none` uses the last marker. A chromosome the assembly does not cover also falls back to its last marker, and both that fallback and a marker position beyond the assembly length are reported as warnings (docs/adr/0015).
+
+### ranking
+
+| key | values | default |
+|---|---|---|
+| mode | `weighted`, `staged` | `weighted` |
+
+Under `staged`, hard filters still apply first, then the survivors are ordered: recombinant flanks (count) descending, `rpp_carrier` descending, `rpp_noncarrier` descending, `drag_total_est` ascending, `missing_rate` ascending, then `sample_id`, with exact ties at each key and no bins. `composite_score` is still written (docs/adr/0007).
 
 ### background
 
@@ -89,6 +101,9 @@ avoid:
     marker_id: ss715607145
 flank_window: 5
 flank_unit: cm
+assembly: Wm82.a4
+ranking:
+  mode: weighted
 background:
   model: weighted
   max_marker_coverage: 10

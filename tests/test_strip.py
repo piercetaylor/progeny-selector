@@ -158,3 +158,19 @@ def test_view_marker_order_matches_pipeline_states():
     want = chromosome_strips(progeny_states(ordered), ordered)
     assert got == want
     assert [[seg.state for seg in s.segments] for s in got] == [[STATE_B, STATE_A], [STATE_H, STATE_B, STATE_H, STATE_A]]
+
+
+def test_strip_length_follows_the_assembly():
+    """Gm11 markers at 35 Mb and 39 Mb: a4 places both inside the chromosome, a2 (34.8 Mb) does not."""
+    gm = make_matrix(["A", "B"], chrom="Gm11", spacing_bp=1)
+    gm = GenotypeMatrix(
+        markers=[Marker(m.marker_id, m.chrom, bp, m.cm) for m, bp in zip(gm.markers, (35_000_000, 39_000_000), strict=True)],
+        sample_ids=list(gm.sample_ids),
+        alleles=gm.alleles,
+        calls=gm.calls,
+    )
+    states = progeny_states(gm)
+    assert chromosome_strips(states, gm, "Wm82.a4")[0].length_bp == 39_643_746
+    assert chromosome_strips(states, gm, "Wm82.a2")[0].length_bp == 39_000_000  # stretched to the last marker
+    assert chromosome_strips(states, gm, "none")[0].length_bp == 39_000_000
+    assert chromosome_strips(states, gm)[0].length_bp == 39_643_746  # the default is Wm82.a4

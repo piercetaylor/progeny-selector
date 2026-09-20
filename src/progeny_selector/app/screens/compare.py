@@ -231,8 +231,9 @@ def server_(input, output, session, state) -> None:
     def panels() -> ui.TagChild:
         dataset = state.dataset()
         result = state.result()
+        criteria = state.criteria()
         ids = state.selected_ids()
-        if dataset is None or result is None or not ids:
+        if dataset is None or result is None or criteria is None or not ids:
             return ui.p("Select rows on the Rank screen.")
         by_id = {r["sample_id"]: r for r in result.rows}
         # An id left over from an earlier result is skipped rather than raised on, and counted.
@@ -253,7 +254,7 @@ def server_(input, output, session, state) -> None:
         for sid in shown:
             row = by_id[sid]
             j = gm.sample_index(sid)
-            strips = chromosome_strips(states[:, j], gm)
+            strips = chromosome_strips(states[:, j], gm, criteria.assembly)
             ticks = locus_ticks(result.resolved_targets, result.resolved_avoid, strips)
             geometry = strip_rects(strips, ticks, row_px=ROW_PX, label_px=LABEL_PX)
             zero_width = [[seg.start == seg.end for seg in strip.segments] for strip in strips]

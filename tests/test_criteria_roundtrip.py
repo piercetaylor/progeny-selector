@@ -40,19 +40,44 @@ def test_yaml_roundtrip(fixture_criteria):
         assert read_criteria_text(text) == c
 
 
-def test_dump_starts_with_name_or_targets(fixture_criteria):
-    assert dump_criteria_yaml(fixture_criteria).startswith("name:")
-    assert dump_criteria_yaml(hand_built()).startswith("targets:")
+def test_dump_starts_with_name(fixture_criteria):
+    assert dump_criteria_yaml(fixture_criteria).startswith("name: synthetic BC2F1 fixture")
+    assert dump_criteria_yaml(hand_built()).startswith("name: null")  # an unset optional key is explicit null
 
 
 def test_canonical_form():
     doc = criteria_to_dict(hand_built())
-    assert list(doc) == ["targets", "avoid", "flank_window", "flank_unit", "background", "weights", "filters"]
+    assert list(doc) == [
+        "name",
+        "targets",
+        "avoid",
+        "flank_window",
+        "flank_unit",
+        "assembly",
+        "background",
+        "ranking",
+        "weights",
+        "filters",
+    ]
     target = doc["targets"][0]
-    assert list(target) == ["locus_id", "chrom", "start_bp", "end_bp", "rule", "min_markers", "required_state", "flank_left"]
+    assert list(target) == [
+        "locus_id",
+        "chrom",
+        "start_bp",
+        "end_bp",
+        "rule",
+        "min_markers",
+        "notes",
+        "required_state",
+        "flank_left",
+        "flank_right",
+    ]
+    assert (doc["name"], target["notes"], target["flank_right"]) == (None, None, None)
     assert list(doc["avoid"][0]) == ["locus_id", "left_marker", "right_marker", "rule", "min_markers", "notes", "allow_het"]
     assert doc["background"] == {"model": "weighted", "map_unit": "auto", "max_marker_coverage": 8}
-    assert "max_marker_coverage" not in criteria_to_dict(Criteria(targets=[TargetSpec("T", marker_id="m")]))["background"]
+    assert doc["ranking"] == {"mode": "weighted"}
+    assert doc["assembly"] == "Wm82.a4"
+    assert criteria_to_dict(Criteria(targets=[TargetSpec("T", marker_id="m")]))["background"]["max_marker_coverage"] is None
     text = dump_criteria_yaml(hand_built())
     assert "region" not in text
     loaded = yaml.safe_load(text)["targets"][0]
@@ -126,3 +151,25 @@ def test_read_criteria_text_rejects_non_mappings():
         read_criteria_text("")
     with pytest.raises(CriteriaError, match="must be a mapping"):
         read_criteria_text("- a")
+
+
+def test_ranking_and_assembly_round_trip(fixture_criteria):
+    text = dump_criteria_yaml(fixture_criteria)
+    assert "ranking:\n  mode: weighted" in text
+    assert "assembly: Wm82.a4" in text
+    assert read_criteria_text(text).ranking.mode == "weighted"
+    assert read_criteria_text(T1 + "ranking: {mode: staged}\nassembly: none\n").ranking.mode == "staged"
+
+
+@pytest.mark.parametrize(
+    ("text", "key"),
+    [
+        (T1 + "ranking: {mode: lexicographic}\n", "ranking.mode"),
+        (T1 + "assembly: Wm82.a9\n", "assembly"),
+        (T1 + "assembly: 4\n", "assembly must be text"),
+        (T1 + "ranking: [mode]\n", "ranking must be a mapping"),
+    ],
+)
+def test_bad_ranking_or_assembly_raises(text: str, key: str):
+    with pytest.raises(CriteriaError, match=key):
+        read_criteria_text(text)

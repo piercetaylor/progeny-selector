@@ -1,4 +1,4 @@
-"""Shared constants: parent-of-origin state codes, soybean chromosome table, palette.
+"""Shared constants: parent-of-origin state codes, soybean chromosome tables, palette.
 
 Responsibility: single source of truth for small tables used across io, core and app.
 Interface: module-level constants only; no functions with side effects.
@@ -35,9 +35,40 @@ STATUS_PASS: int = 1
 STATUS_UNKNOWN: int = 2
 STATUS_LABELS: dict[int, str] = {STATUS_FAIL: "fail", STATUS_PASS: "pass", STATUS_UNKNOWN: "unknown"}
 
-# Soybean (Glycine max) chromosomes. Lengths in bp for the Wm82.a4.v1 and Wm82.a2.v1 assemblies
-# as listed by SoyBase, https://www.soybase.org/resources/genome_info/ (fetched 2026-09-04).
+# Soybean (Glycine max) chromosomes. Lengths in bp per assembly; the criteria.yaml key ``assembly``
+# picks the table (docs/adr/0015). a1, a2 and a4 are as listed by SoyBase,
+# https://www.soybase.org/resources/genome_info/ (a2 and a4 fetched 2026-09-04, a1 2026-09-16).
+# Checked 2026-09-19 against NCBI's assembly sequence reports (datasets v2alpha) for GCF_000004515.3
+# (v1.1 = a1), .4 (v2.0 = a2) and .6 (v4.0 = a4): every a1 and a4 chromosome is exactly one greater
+# than the NCBI length, which is SoyBase's end convention, not an off-by-one here. Ten a2 chromosomes
+# are 300 bp to 3.6 kb longer than NCBI's, because SoyBase's Wm82.a2.v1 is not NCBI's copy of it;
+# SoyBase governs, since SoySNP50K positions are published against it.
 SOYBEAN_CHROMOSOMES: tuple[str, ...] = tuple(f"Gm{i:02d}" for i in range(1, 21))
+
+# Wm82.a1.v1, SoyBase https://www.soybase.org/resources/genome_info/ (fetched 2026-09-16).
+# The values are the 1-based chromosome ends as published, so Gm01 ends at 55,915,596 and Gm18 at 62,308,141.
+SOYBEAN_CHROM_LENGTHS_BP_WM82A1: dict[str, int] = {
+    "Gm01": 55_915_596,
+    "Gm02": 51_656_714,
+    "Gm03": 47_781_077,
+    "Gm04": 49_243_853,
+    "Gm05": 41_936_505,
+    "Gm06": 50_722_822,
+    "Gm07": 44_683_158,
+    "Gm08": 46_995_533,
+    "Gm09": 46_843_751,
+    "Gm10": 50_969_636,
+    "Gm11": 39_172_791,
+    "Gm12": 40_113_141,
+    "Gm13": 44_408_972,
+    "Gm14": 49_711_205,
+    "Gm15": 50_939_161,
+    "Gm16": 37_397_386,
+    "Gm17": 41_906_775,
+    "Gm18": 62_308_141,
+    "Gm19": 50_589_442,
+    "Gm20": 46_773_168,
+}
 
 SOYBEAN_CHROM_LENGTHS_BP_WM82A4: dict[str, int] = {
     "Gm01": 57_932_356,
@@ -83,6 +114,19 @@ SOYBEAN_CHROM_LENGTHS_BP_WM82A2: dict[str, int] = {
     "Gm18": 58_018_743,
     "Gm19": 50_746_917,
     "Gm20": 47_904_182,
+}
+
+
+# The criteria.yaml ``assembly`` default; ``model.criteria`` re-exports it, and ``core`` reads it from here
+# because ``model`` imports ``core.chrom``.
+DEFAULT_ASSEMBLY: str = "Wm82.a4"
+
+# Chromosome lengths keyed by the criteria.yaml ``assembly`` value; "none" and unknown names have no table
+# and fall back to the last marker on the chromosome (docs/adr/0015).
+SOYBEAN_CHROM_LENGTHS_BP: dict[str, dict[str, int]] = {
+    "Wm82.a1": SOYBEAN_CHROM_LENGTHS_BP_WM82A1,
+    "Wm82.a2": SOYBEAN_CHROM_LENGTHS_BP_WM82A2,
+    "Wm82.a4": SOYBEAN_CHROM_LENGTHS_BP_WM82A4,
 }
 
 # Okabe-Ito colorblind-safe palette, hex values as shipped in R's grDevices::palette.colors

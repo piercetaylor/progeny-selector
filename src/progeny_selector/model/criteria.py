@@ -5,7 +5,7 @@ section "criteria.yaml"). Validation of field values happens here so that
 ``progeny_selector.io.criteria`` only maps YAML keys onto these classes.
 
 Interface:
-    LocusSpec, TargetSpec, AvoidSpec, Weights, Filters, BackgroundOptions, Criteria
+    LocusSpec, TargetSpec, AvoidSpec, Weights, Filters, BackgroundOptions, RankingOptions, Criteria
     Criteria.validate() -> None (raises CriteriaError)
 """
 
@@ -14,11 +14,16 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import ClassVar
 
+from progeny_selector.constants import DEFAULT_ASSEMBLY as DEFAULT_ASSEMBLY  # re-exported: core reads it from constants
+
 REQUIRED_STATES: tuple[str, ...] = ("hom_donor", "het", "either")
 LOCUS_RULES: tuple[str, ...] = ("all", "any")
 TARGET_RULES: tuple[str, ...] = ("all", "any", "run")
 BACKGROUND_MODELS: tuple[str, ...] = ("count", "weighted")
 MAP_UNITS: tuple[str, ...] = ("auto", "bp", "cm")
+RANK_MODES: tuple[str, ...] = ("weighted", "staged")
+# Assembly names for the chromosome-length tables in ``constants``; "none" uses the last marker (docs/adr/0015).
+ASSEMBLIES: tuple[str, ...] = ("Wm82.a1", "Wm82.a2", "Wm82.a4", "none")
 UNKNOWN_POLICIES: tuple[str, ...] = ("fail", "pass")
 COMPONENT_NAMES: tuple[str, ...] = (
     "rpp_noncarrier",
@@ -164,12 +169,25 @@ class BackgroundOptions:
 
 
 @dataclass
+class RankingOptions:
+    """How survivors of the hard filters are ordered (docs/adr/0007, amendment 2026-09-16)."""
+
+    mode: str = "weighted"
+
+    def validate(self) -> None:
+        if self.mode not in RANK_MODES:
+            raise CriteriaError(f"ranking.mode must be one of {RANK_MODES}")
+
+
+@dataclass
 class Criteria:
     targets: list[TargetSpec] = field(default_factory=list)
     avoid: list[AvoidSpec] = field(default_factory=list)
     weights: Weights = field(default_factory=Weights)
     filters: Filters = field(default_factory=Filters)
     background: BackgroundOptions = field(default_factory=BackgroundOptions)
+    ranking: RankingOptions = field(default_factory=RankingOptions)
+    assembly: str = DEFAULT_ASSEMBLY  # chromosome-length table for RPP weights, drag bounds and strips
     flank_window: float = 5.0  # default recombinant window on each side of a target
     flank_unit: str = "cm"  # "cm" or "bp"; falls back to bp when the map has no cM
     name: str | None = None
@@ -187,6 +205,9 @@ class Criteria:
         self.weights.validate()
         self.filters.validate()
         self.background.validate()
+        self.ranking.validate()
+        if self.assembly not in ASSEMBLIES:
+            raise CriteriaError(f"assembly must be one of {ASSEMBLIES}")
         if self.flank_unit not in ("cm", "bp"):
             raise CriteriaError("flank_unit must be 'cm' or 'bp'")
         if self.flank_window <= 0:

@@ -10,9 +10,13 @@ Interface:
     hard_filters(target_status, avoid_status, missing_rate, qc_flags, filters) -> (passes, reasons)
     composite_score(components, weights) -> (score, weight_sum_used)
     rank_rows(score, rpp_total, drag_est, missing_rate, sample_ids, passes, family_ids) -> (rank_overall, rank_in_family)
+    rank_rows_staged(rec_count, rpp_carrier, rpp_noncarrier, drag_est, missing_rate, sample_ids, passes, family_ids)
+        -> (rank_overall, rank_in_family)   lexicographic order (docs/adr/0007, amendment 2026-09-16)
 """
 
 from __future__ import annotations
+
+from typing import SupportsFloat
 
 import numpy as np
 
@@ -108,6 +112,54 @@ def rank_rows(
             sample_ids[i],
         ),
     )
+    return _dense_ranks(order, passes, family_ids)
+
+
+def rank_rows_staged(
+    rec_count: np.ndarray,
+    rpp_carrier: np.ndarray,
+    rpp_noncarrier: np.ndarray,
+    drag_est: np.ndarray,
+    missing_rate: np.ndarray,
+    sample_ids: list[str],
+    passes: np.ndarray,
+    family_ids: list[str | None],
+) -> tuple[np.ndarray, np.ndarray]:
+    """Dense ranks (1 = best) among passing samples in staged order; NaN for excluded samples.
+
+    Order: recombinant flanks (count) desc, rpp_carrier desc, rpp_noncarrier desc, drag estimate asc,
+    missing rate asc, sample_id asc. Exact ties at each key, no bins. NaN sorts last on every key.
+    """
+    n = len(sample_ids)
+    order = sorted(
+        range(n),
+        key=lambda i: (
+            -_desc(rec_count[i]),
+            -_desc(rpp_carrier[i]),
+            -_desc(rpp_noncarrier[i]),
+            _asc(drag_est[i]),
+            _asc(missing_rate[i]),
+            sample_ids[i],
+        ),
+    )
+    return _dense_ranks(order, passes, family_ids)
+
+
+def _desc(value: SupportsFloat) -> float:
+    """NaN -> -inf, so a NaN sorts last on a descending key."""
+    v = float(value)
+    return -np.inf if np.isnan(v) else v
+
+
+def _asc(value: SupportsFloat) -> float:
+    """NaN -> +inf, so a NaN sorts last on an ascending key."""
+    v = float(value)
+    return np.inf if np.isnan(v) else v
+
+
+def _dense_ranks(order: list[int], passes: np.ndarray, family_ids: list[str | None]) -> tuple[np.ndarray, np.ndarray]:
+    """Number the passing samples 1..k in ``order``, overall and within family; excluded samples stay NaN."""
+    n = len(passes)
     rank_overall = np.full(n, np.nan)
     rank_in_family = np.full(n, np.nan)
     counter = 0
