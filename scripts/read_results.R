@@ -108,11 +108,25 @@ main <- function(args) {
   path <- args[[1]]
   df <- read_results(path)
 
-  prefix_len <- length(FIXED_COLUMNS)
+  # The fixed names are not contiguous: the first 34 lead the file, the dynamic
+  # per-target, per-avoid and per-chromosome columns follow, and `token_profile`
+  # is last (docs/adr/0016). A header-only file holds the 34 and `token_profile`.
+  leading <- FIXED_COLUMNS[seq_len(length(FIXED_COLUMNS) - 1L)]
+  trailing <- FIXED_COLUMNS[[length(FIXED_COLUMNS)]]
+  last_name <- if (ncol(df) > 0) names(df)[[ncol(df)]] else NA_character_
+  if (!identical(last_name, trailing)) {
+    stop(sprintf(
+      "results.csv last column must be %s, got %s",
+      trailing,
+      if (is.na(last_name)) "<none>" else last_name
+    ))
+  }
+
+  prefix_len <- length(leading)
   actual_prefix <- names(df)[seq_len(min(prefix_len, ncol(df)))]
-  if (!identical(actual_prefix, FIXED_COLUMNS[seq_along(actual_prefix)]) ||
+  if (!identical(actual_prefix, leading[seq_along(actual_prefix)]) ||
       length(actual_prefix) < prefix_len) {
-    expected <- FIXED_COLUMNS
+    expected <- leading
     mismatch <- NA_integer_
     for (i in seq_along(expected)) {
       got <- if (i <= length(actual_prefix)) actual_prefix[[i]] else NA_character_
