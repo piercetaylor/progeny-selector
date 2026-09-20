@@ -18,7 +18,7 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
-from progeny_selector.constants import STATE_A, STATE_B, STATE_H, STATE_N, STATUS_LABELS
+from progeny_selector.constants import RESULTS_SCHEMA, STATE_A, STATE_B, STATE_H, STATE_N, STATUS_LABELS
 from progeny_selector.core.avoid import avoid_status
 from progeny_selector.core.background import (
     DEFAULT_MAX_COVERAGE,
@@ -36,7 +36,7 @@ from progeny_selector.core.qc import SampleQC, parent_qc, sample_qc
 from progeny_selector.core.score import composite_score, hard_filters, rank_rows, rank_rows_staged
 from progeny_selector.core.similarity import ibs_to_sample
 from progeny_selector.model.criteria import Criteria
-from progeny_selector.model.dataset import Dataset, GenotypeMatrix
+from progeny_selector.model.dataset import DataContractError, Dataset, GenotypeMatrix
 
 
 @dataclass
@@ -250,19 +250,24 @@ def run_analysis(dataset: Dataset, criteria: Criteria) -> AnalysisResult:
             "rpp_total": _num(rpp_total[i]),
             "rpp_carrier": _num(rpp_carrier[i]),
             "rpp_noncarrier": _num(rpp_noncarrier[i]),
-            "expected_rpp": qc[i].expected_rpp,
+            "expected_rpp": _num(qc[i].expected_rpp),
             "drag_total_est": _num(drag_total_est[i]),
             "drag_total_max": _num(drag_total_max[i]),
             "drag_unit": flank_unit,
             "ibs_rp": _num(ibs_rp_all[i]),
             "ibs_donor": _num(ibs_dp_all[i]),
             "missing_rate": _num(missing_rate[i]),
-            "het_rate": qc[i].het_rate,
-            "expected_het": qc[i].expected_het,
+            "het_rate": _num(qc[i].het_rate),
+            "expected_het": _num(qc[i].expected_het),
             "n_informative_called": int(n_inf_called[i]),
             "frac_a": float(frac_a[i]),
             "frac_h": float(frac_h[i]),
             "frac_b": float(frac_b[i]),
+            "background_model": criteria.background.model,
+            "background_unit": unit,
+            "rank_mode": criteria.ranking.mode,
+            "assembly": criteria.assembly,
+            "results_schema": RESULTS_SCHEMA,
             "qc_flags": "|".join(qc[i].flags),
         }
         for t in criteria.targets:
@@ -275,7 +280,15 @@ def run_analysis(dataset: Dataset, criteria: Criteria) -> AnalysisResult:
         for a in criteria.avoid:
             row[f"avoid_{a.locus_id}_status"] = STATUS_LABELS[int(avoid_st[a.locus_id][i])]
         for chrom, values in rpp_chrom.items():
-            row[f"rpp_{chrom}"] = _num(values[i])
+            key = f"rpp_{chrom}"
+            if key in row:
+                # normalize_chrom keeps an unrecognised name verbatim, so a chromosome called "total",
+                # "carrier" or "noncarrier" would overwrite a fixed results column (docs/adr/0016).
+                raise DataContractError(
+                    f"chromosome {chrom!r}: its results column {key} collides with a fixed results column; "
+                    "rename the chromosome in markers.csv or the genotype file"
+                )
+            row[key] = _num(values[i])
         # Last key, so results.csv carries it as its last column (contract 1.4.0).
         row["token_profile"] = dataset.token_profile
         rows.append(row)
@@ -293,8 +306,10 @@ def run_analysis(dataset: Dataset, criteria: Criteria) -> AnalysisResult:
     )
 
 
-def _num(x: float) -> float | None:
-    """NaN -> None so rows serialise cleanly."""
+def _num(x: float | None) -> float | None:
+    """NaN or None -> None so rows serialise cleanly (the writer prints ``NA``)."""
+    if x is None:
+        return None
     x = float(x)
     return None if np.isnan(x) else x
 

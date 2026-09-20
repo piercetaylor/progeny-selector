@@ -17,7 +17,13 @@ The ``*_text`` wrappers return exactly what the path writers put in the file
 (``csv.writer`` line endings, CRLF), so a download encoded as UTF-8 is
 byte-identical to the CLI's output. Both results.csv and selected.csv end with the
 ``token_profile`` column (contract 1.4.0): results rows carry it as their last key, so
-``_columns`` puts it last; selected.csv appends it after ``notes``.
+``_columns`` puts it last; selected.csv appends it after ``results_schema``.
+
+results.csv is schema 1.0.0 (docs/adr/0016): a missing value is written ``NA`` and empty
+text (``exclusion_reason``, ``qc_flags``, ``notes``) stays an empty cell; with no rows the
+header is exactly ``FIXED_COLUMNS``. selected.csv carries ``results_schema`` too;
+next_samples.csv does not, and keeps empty cells, because it is the input contract's
+samples.csv.
 """
 
 from __future__ import annotations
@@ -27,7 +33,26 @@ from io import StringIO
 from pathlib import Path
 from typing import TextIO
 
+from progeny_selector.constants import RESULTS_SCHEMA
 from progeny_selector.model.dataset import Sample
+
+__all__ = [
+    "FIXED_COLUMNS",
+    "LEADING_COLUMNS",
+    "MANIFEST_COLUMNS",
+    "NA",
+    "RESULTS_SCHEMA",
+    "SELECTION_COLUMNS",
+    "next_round_manifest_text",
+    "results_csv_text",
+    "selection_csv_text",
+    "write_next_round_manifest",
+    "write_results_csv",
+    "write_selection_csv",
+]
+
+# The text written for a missing value (docs/adr/0016). Empty text stays an empty cell.
+NA = "NA"
 
 LEADING_COLUMNS = (
     "rank_overall",
@@ -56,13 +81,48 @@ LEADING_COLUMNS = (
     "qc_flags",
 )
 
+# The fixed prefix of results.csv: the leading columns, the composition columns, then the metadata
+# columns of schema 1.0.0 (docs/adr/0016), and last ``token_profile`` (contract 1.4.0), which the
+# dynamic per-locus and per-chromosome columns are written before.
+FIXED_COLUMNS = (
+    *LEADING_COLUMNS,
+    "role",
+    "n_informative_called",
+    "frac_a",
+    "frac_h",
+    "frac_b",
+    "background_model",
+    "background_unit",
+    "rank_mode",
+    "assembly",
+    "results_schema",
+    "token_profile",
+)
+
+SELECTION_COLUMNS = (
+    "sample_id",
+    "line_name",
+    "family_id",
+    "generation",
+    "rank_overall",
+    "rank_in_family",
+    "composite_score",
+    "rpp_total",
+    "notes",
+    "results_schema",
+    "token_profile",
+)
+
 
 # samples.csv contract columns, in the order docs/data-formats.md lists them.
 MANIFEST_COLUMNS = ("sample_id", "line_name", "role", "generation", "family_id", "notes")
 
 
 def _columns(rows: list[dict]) -> list[str]:
-    seen: list[str] = [c for c in LEADING_COLUMNS if rows and c in rows[0]]
+    if not rows:
+        return list(FIXED_COLUMNS)
+    # ``token_profile`` is left to dict order so it stays last, after the dynamic columns.
+    seen: list[str] = [c for c in FIXED_COLUMNS[:-1] if c in rows[0]]
     for row in rows:
         for c in row:
             if c not in seen:
@@ -72,10 +132,12 @@ def _columns(rows: list[dict]) -> list[str]:
 
 def _fmt(v):
     if v is None:
-        return ""
+        return NA
     if isinstance(v, bool):
         return "TRUE" if v else "FALSE"
     if isinstance(v, float):
+        if v != v:
+            return NA
         return f"{v:.6g}" if abs(v) < 1e6 else f"{v:.0f}"
     return v
 
@@ -102,32 +164,20 @@ def results_csv_text(rows: list[dict]) -> str:
 def _write_selection_csv(fh: TextIO, rows: list[dict], notes: dict[str, str] | None = None) -> None:
     notes = notes or {}
     writer = csv.writer(fh)
-    writer.writerow(
-        [
-            "sample_id",
-            "line_name",
-            "family_id",
-            "generation",
-            "rank_overall",
-            "rank_in_family",
-            "composite_score",
-            "rpp_total",
-            "notes",
-            "token_profile",
-        ]
-    )
+    writer.writerow(SELECTION_COLUMNS)
     for r in rows:
         writer.writerow(
             [
                 r["sample_id"],
                 r.get("line_name", ""),
-                r.get("family_id") or "",
-                r.get("generation") or "",
+                r.get("family_id") or NA,
+                r.get("generation") or NA,
                 _fmt(r.get("rank_overall")),
                 _fmt(r.get("rank_in_family")),
                 _fmt(r.get("composite_score")),
                 _fmt(r.get("rpp_total")),
                 notes.get(r["sample_id"], ""),
+                RESULTS_SCHEMA,
                 r.get("token_profile", ""),
             ]
         )

@@ -15,7 +15,7 @@ from shiny.run import ShinyAppProc
 from progeny_selector.core.pipeline import run_analysis
 from progeny_selector.io import load_dataset, read_criteria
 from progeny_selector.io.criteria import read_criteria_text
-from progeny_selector.io.export import results_csv_text
+from progeny_selector.io.export import FIXED_COLUMNS, results_csv_text
 from tests.e2e.helpers import FIXTURE, load_fixture
 
 app = create_app_fixture(["../../src/progeny_selector/app/app.py"])
@@ -100,6 +100,16 @@ def test_manifest_before_load_is_header_only(page: Page, app: ShinyAppProc) -> N
     name, body = _download(page, "export-manifest")
     assert name == "next_samples.csv"
     assert body == (SAMPLES_HEADER + "\r\n").encode("utf-8")
+
+
+def test_results_before_load_is_header_only(page: Page, app: ShinyAppProc) -> None:
+    page.goto(app.url)
+    controller.PageNavbar(page, "screen").set("export")
+    name, body = _download(page, "export-results")
+    assert name == "results.csv"
+    # results.csv schema 1.0.0: with no results the header is exactly the fixed columns (docs/adr/0016).
+    assert body == (",".join(FIXED_COLUMNS) + "\r\n").encode("utf-8")
+    assert len(FIXED_COLUMNS) == 35
 
 
 def test_export_downloads(page: Page, app: ShinyAppProc) -> None:

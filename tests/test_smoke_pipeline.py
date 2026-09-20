@@ -101,6 +101,19 @@ def test_results_csv_roundtrip(result, tmp_path: Path):
     write_results_csv(result.rows, out)
     header = out.read_text().splitlines()[0].split(",")
     assert header[:3] == ["rank_overall", "rank_in_family", "sample_id"]
+    assert header[24:34] == [
+        "role",
+        "n_informative_called",
+        "frac_a",
+        "frac_h",
+        "frac_b",
+        "background_model",
+        "background_unit",
+        "rank_mode",
+        "assembly",
+        "results_schema",
+    ]
+    assert header[-1] == "token_profile"
     assert "target_T1_status" in header and "rpp_Gm06" in header
 
 

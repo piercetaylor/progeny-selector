@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 
 from progeny_selector.app.present import Rect, StripRow, TickShape
-from progeny_selector.app.screens.compare import LABEL_PX, _bar_end, _placed_rects, _tick_vertices
+from progeny_selector.app.screens.compare import LABEL_PX, _bar_end, _placed_rects, _rpp_table, _tick_vertices
 from progeny_selector.app.screens.qc import qc_frame
 
 BLUE, GREEN, VERMILION = "#0072B2", "#009E73", "#D55E00"
@@ -92,3 +92,24 @@ def test_qc_frame_keeps_none_blank() -> None:
     data = serialize_frame(frame)["data"]
     assert data[0] == ["P1", None, None, 0.3, False]
     assert data[1] == ["P2", "BC2F1", 0.25, None, True]
+
+
+def test_rpp_table_lists_chromosomes_only() -> None:
+    """A metadata column is not a per-chromosome value, so it must not become a row of the RPP table."""
+    row = {
+        "sample_id": "P1",
+        "rpp_total": 0.9,
+        "rpp_carrier": 0.8,
+        "rpp_noncarrier": 0.95,
+        "background_model": "count",
+        "background_unit": "cm",
+        "rank_mode": "weighted",
+        "assembly": "Wm82.a4",
+        "results_schema": "1.0.0",
+        "rpp_Gm01": 0.75,
+        "rpp_Gm06": 0.5,
+    }
+    text = str(_rpp_table(row, {"Gm06"}))
+    assert "Gm01" in text and "Gm06 (carrier)" in text
+    for meta in ("background_model", "background_unit", "rank_mode", "assembly", "results_schema", "count", "cm"):
+        assert meta not in text

@@ -172,7 +172,7 @@ def test_token_profile_in_results_rows_and_selected_csv(fixture_dir: Path) -> No
         assert row["token_profile"] == "default"
     assert results_csv_text(result.rows).split("\r\n")[0].endswith(",token_profile")
     selected = selection_csv_text(result.rows[:2]).split("\r\n")
-    assert selected[0].endswith(",notes,token_profile")
+    assert selected[0].endswith(",notes,results_schema,token_profile")
     assert all(line.endswith(",default") for line in selected[1:3])
 
 

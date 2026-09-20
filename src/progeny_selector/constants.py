@@ -164,3 +164,8 @@ WIDE_NUCLEOTIDE_MISSING: frozenset[str] = frozenset({"", "N", "NN", "NA", "-", "
 WIDE_CODED_MISSING: frozenset[str] = frozenset({"", "N", "NA"})
 # HapMap missing tokens (contract 1.1.0, "HapMap"): the wide-CSV nucleotide list plus TASSEL's X/XX.
 HAPMAP_MISSING: frozenset[str] = WIDE_NUCLEOTIDE_MISSING | {"X", "XX"}
+
+# results.csv schema version, written on every row (docs/adr/0016). SemVer: a column added bumps the
+# minor version, a column removed or renamed bumps the major. ``io/export.py`` re-exports it; it lives
+# here because ``core`` writes it into its rows and must not import ``io``.
+RESULTS_SCHEMA: str = "1.0.0"

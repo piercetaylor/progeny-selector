@@ -3,7 +3,7 @@
 Responsibility: thin argparse layer over ``progeny_selector.io`` and
 ``progeny_selector.core``; exit codes 0 (ok), 1 (data-contract or criteria
 error), 2 (usage). Useful for batch runs on an HPC node and for wiring
-outputs into downstream Shiny dashboards.
+outputs into the R reader ``scripts/read_results.R``.
 
 Interface (subcommands):
     progeny-selector validate --genotypes G --samples S [--markers M] [--criteria C] [--profile ID_OR_FILE]
@@ -113,12 +113,20 @@ def cmd_rank(args: argparse.Namespace) -> int:
     return 0
 
 
+NUMERIC_RESULT_COLUMNS = ("rank_overall", "rank_in_family", "composite_score", "rpp_total", "frac_a", "frac_h", "frac_b")
+# Columns where a missing value is meaningful and ``NA`` therefore means "missing" rather than the text "NA".
+# Identifier and free-text columns (sample_id, line_name, notes, qc_flags, ...) keep whatever the file says,
+# so a line genuinely named NA survives ``rank`` -> ``select`` -> next_samples.csv (docs/adr/0016).
+NA_RESULT_COLUMNS = frozenset({*NUMERIC_RESULT_COLUMNS, "family_id", "generation"})
+
+
 def _read_results(path: str) -> list[dict]:
     rows: list[dict] = []
     with open(path, encoding="utf-8", newline="") as fh:
         for raw in csv.DictReader(fh):
-            row = dict(raw)
-            for k in ("rank_overall", "rank_in_family", "composite_score", "rpp_total", "frac_a", "frac_h", "frac_b"):
+            # results.csv writes NA for a missing value (docs/adr/0016); a pre-freeze file writes an empty cell.
+            row: dict = {k: (None if (v == "NA" and k in NA_RESULT_COLUMNS) else v) for k, v in raw.items()}
+            for k in NUMERIC_RESULT_COLUMNS:
                 row[k] = float(row[k]) if row.get(k) not in (None, "") else None
             row["passes_filters"] = row.get("passes_filters") == "TRUE"
             rows.append(row)

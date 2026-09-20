@@ -6,6 +6,7 @@ All notable changes to this project are documented in this file. The format foll
 
 ### Changed
 
+- **BREAKING CHANGE:** results.csv schema 1.0.0: missing cells are `NA`, the header is written with no results, new columns `background_model`, `background_unit`, `rank_mode`, `assembly`, `results_schema`; `het_rate`, `expected_het` and `expected_rpp` never print `nan`. selected.csv gains `results_schema` and writes `NA` for missing family or generation (docs/adr/0016). next_samples.csv is unchanged: empty cells, no schema column. A chromosome whose name would collide with `rpp_total`, `rpp_carrier` or `rpp_noncarrier` is now an error naming the chromosome.
 - Contract 1.3.0 mirrored (docs/adr/0013): a blank line before the header is skipped in HapMap, wide CSV, samples.csv and markers.csv; the delimiter is sniffed from the first non-blank line; a blank line holds only spaces and tabs; a quoted field left open at the end of a delimited file, a `#` line after a VCF `#CHROM` line and an unparseable markers.csv `cm` are errors naming the line; line breaks inside quoted fields are read as LF; error kinds `genotypes.column_count` and `delimited.unterminated_quote`.
 - Data contract 1.2.1 (wording only): the sibling browser tool is now called Backcross.
 
