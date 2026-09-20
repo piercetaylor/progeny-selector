@@ -28,6 +28,7 @@ progeny-selector select --results results.csv --top 3 --out selected.csv \
   --next-manifest next_samples.csv --next-generation BC3F1 \
   --samples tests/fixtures/synthetic_bc2f1/samples.csv
 shiny run src/progeny_selector/app/app.py
+Rscript scripts/read_results.R results.csv
 ```
 
 `python3 scripts/build_shinylive.py` produces the static site in `site/` (see docs/adr/0003, docs/adr/0009).
