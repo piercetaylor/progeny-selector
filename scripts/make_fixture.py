@@ -1,4 +1,4 @@
-"""Generate the synthetic BC2F1 fixture under tests/fixtures/synthetic_bc2f1/.
+"""Generate the synthetic BC2F1 and BC3F1 fixtures under tests/fixtures/.
 
 Deterministic (seed 20260904). Design:
   - 20 chromosomes Gm01..Gm20, 25 evenly spaced markers each (500 markers), positions
@@ -22,6 +22,12 @@ Deterministic (seed 20260904). Design:
     the staged rank columns (rank_*_staged, docs/adr/0007 amendment) and the advisory
     possible_duplicate flag (docs/adr/0017), each computed here by the same independent
     route, so a test compares two implementations rather than a function against itself.
+  - tests/fixtures/synthetic_bc3f1/ is the next generation of the same cross (docs/adr/0018):
+    the generator's own top 2 per family by rank_in_family are backcrossed once more, 10 BC3F1
+    progeny each, from the true (pre-missing) BC2F1 states. Its samples.csv is written in the
+    layout write_next_round_manifest produces, so the round-trip test compares the writer's
+    output with this independently built file. criteria.yaml and markers.csv are not duplicated;
+    the BC3F1 fixture reuses the BC2F1 ones.
 
 Usage: python scripts/make_fixture.py
 """
@@ -37,7 +43,9 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 from progeny_selector.constants import SOYBEAN_CHROM_LENGTHS_BP_WM82A4
 
-OUT = Path(__file__).resolve().parents[1] / "tests" / "fixtures" / "synthetic_bc2f1"
+FIXTURES = Path(__file__).resolve().parents[1] / "tests" / "fixtures"
+OUT = FIXTURES / "synthetic_bc2f1"
+OUT_BC3F1 = FIXTURES / "synthetic_bc3f1"
 SEED = 20260904
 PER_CHROM = 25
 CM_PER_BP = 2.5 / 1_000_000
@@ -49,6 +57,10 @@ MAX_COVERAGE_CM = 10.0  # weighted model: each marker covers at most 10 cM, half
 DUPLICATE_THRESHOLD = 0.995  # docs/adr/0017
 MIN_DUPLICATE_OVERLAP_FRAC = 0.5  # a pair needs calls in common at this fraction of the markers used
 WEIGHTS = {"rpp_noncarrier": 0.5, "rpp_carrier": 0.2, "drag": 0.2, "recombinant": 0.1}
+TOP_PER_FAMILY = 2  # BC3F1 parents: the generator's own top 2 per family by rank_in_family
+BC3F1_PER_PARENT = 10  # placeholder progeny per selected parent, matching --per-selected 10
+BC3F1_MISSING_RATE = 0.01
+BC3F1_PARENTS = ("BC2F1-F1-001", "BC2F1-F1-010", "BC2F1-F2-005", "BC2F1-F2-019")
 NUC = "ACGT"
 
 rng = random.Random(SEED)
@@ -107,26 +119,34 @@ def haldane_gamete(hap_a: list[int], hap_b: list[int], cm: list[float]) -> list[
     return out
 
 
-def simulate(markers: list[dict]) -> tuple[list[str], dict[str, list[int]], dict[str, str], dict[str, str]]:
-    """Return progeny ids, per-progeny states (0=A,1=H,2=B,4=N), family map, generation map."""
+def index_by_chrom(markers: list[dict]) -> dict[str, list[int]]:
+    """Marker indices grouped by chromosome, in file order."""
     by_chrom: dict[str, list[int]] = {}
     for i, m in enumerate(markers):
         by_chrom.setdefault(m["chrom"], []).append(i)
+    return by_chrom
+
+
+def bc_gamete(markers: list[dict], by_chrom: dict[str, list[int]], hap_donor_side: list[int]) -> list[int]:
+    """One gamete from a plant whose haplotypes are (RP all 0, ``hap_donor_side``), chromosome by chromosome."""
+    gam = [0] * len(markers)
+    for idx in by_chrom.values():
+        cm = [markers[i]["cm"] for i in idx]
+        g = haldane_gamete([0] * len(idx), [hap_donor_side[i] for i in idx], cm)
+        for j, i in enumerate(idx):
+            gam[i] = g[j]
+    return gam
+
+
+def simulate(markers: list[dict]) -> tuple[list[str], dict[str, list[int]], dict[str, list[int]], dict[str, str], dict[str, str]]:
+    """Return progeny ids, states (0=A,1=H,2=B,4=N), the true pre-missing states, family map, generation map."""
+    by_chrom = index_by_chrom(markers)
     n = len(markers)
     t_idx = next(i for i, m in enumerate(markers) if m["id"] == TARGET)
 
-    def bc_gamete(hap_donor_side: list[int]) -> list[int]:
-        gam = [0] * n
-        for idx in by_chrom.values():
-            cm = [markers[i]["cm"] for i in idx]
-            g = haldane_gamete([0] * len(idx), [hap_donor_side[i] for i in idx], cm)
-            for j, i in enumerate(idx):
-                gam[i] = g[j]
-        return gam
-
     def bc1f1_carrier() -> list[int]:
         while True:
-            g = bc_gamete([1] * n)  # F1 gamete: recombinant of RP and donor haplotypes
+            g = bc_gamete(markers, by_chrom, [1] * n)  # F1 gamete: recombinant of RP and donor haplotypes
             if g[t_idx] == 1:
                 return g  # BC1F1 haplotype pair is (RP all 0, g)
 
@@ -138,7 +158,7 @@ def simulate(markers: list[dict]) -> tuple[list[str], dict[str, list[int]], dict
         parent_hap = bc1f1_carrier()
         for k in range(1, 21):
             sid = f"BC2F1-{fam}-{k:03d}"
-            g = bc_gamete(parent_hap)  # BC1F1 gamete from haplotypes (0..., parent_hap)
+            g = bc_gamete(markers, by_chrom, parent_hap)  # BC1F1 gamete from haplotypes (0..., parent_hap)
             st = [1 if a == 1 else 0 for a in g]  # other gamete is RP -> H where donor, else A
             ids.append(sid)
             states[sid] = st
@@ -165,10 +185,13 @@ def simulate(markers: list[dict]) -> tuple[list[str], dict[str, list[int]], dict
     states["BC2F1-F2-001"] = fail_avoid
     # self contaminant: a BC2F2 plant (selfed progeny of BC2F1-F1-010) mislabelled as BC2F1 in family F2
     parent_hap = [1 if s == 1 else 0 for s in states["BC2F1-F1-010"]]
-    g1, g2 = bc_gamete(parent_hap), bc_gamete(parent_hap)
+    g1, g2 = bc_gamete(markers, by_chrom, parent_hap), bc_gamete(markers, by_chrom, parent_hap)
     selfed = [g1[i] + g2[i] for i in range(n)]  # 0=A,1=H,2=B
     selfed[t_idx] = max(selfed[t_idx], 1)
     states["BC2F1-F2-002"] = selfed
+    states["BC2F1-F1-003"][t_idx] = 1  # the high-missing individual still carries the target
+    # the true states, before missing calls are punched in: the BC3F1 fixture breeds from these
+    true_states = {sid: list(states[sid]) for sid in ids}
     # missing calls (never at the target or avoid marker, never in the planted best individual)
     a_idx = next(i for i, m in enumerate(markers) if m["id"] == AVOID)
     for sid in ids:
@@ -179,8 +202,7 @@ def simulate(markers: list[dict]) -> tuple[list[str], dict[str, list[int]], dict
         for i in range(n):
             if i not in (t_idx, a_idx) and rng.random() < rate:
                 st[i] = 4
-    states["BC2F1-F1-003"][t_idx] = 1
-    return ids, states, family, generation
+    return ids, states, true_states, family, generation
 
 
 def marker_weights_cm(markers: list[dict]) -> list[float]:
@@ -258,7 +280,16 @@ def _asc(value: float) -> float:
     return float("inf") if math.isnan(value) else value
 
 
-def expected_metrics(markers: list[dict], ids: list[str], states: dict[str, list[int]], family: dict[str, str]) -> list[dict]:
+def expected_metrics(
+    markers: list[dict],
+    ids: list[str],
+    states: dict[str, list[int]],
+    family: dict[str, str],
+    expected_het: float = 0.25,
+    design_checks: bool = True,
+) -> list[dict]:
+    """Expected per-individual metrics. ``expected_het`` is the generation's Mendelian heterozygosity
+    (BC2F1 0.25, BC3F1 0.125); ``design_checks`` asserts the planted BC2F1 individuals came out as designed."""
     n = len(markers)
     t_idx = next(i for i, m in enumerate(markers) if m["id"] == TARGET)
     a_idx = next(i for i, m in enumerate(markers) if m["id"] == AVOID)
@@ -332,7 +363,7 @@ def expected_metrics(markers: list[dict], ids: list[str], states: dict[str, list
         hom_donor_rate = n_b / (n_a + n_h + n_b)
         het_rate = n_h / (n_a + n_h + n_b)
         qc_self = hom_donor_rate > 0.02  # B calls are impossible in a true BCnF1 (excluding flag)
-        qc_het = abs(het_rate - 0.25) > 0.15  # advisory flag only, never excludes
+        qc_het = abs(het_rate - expected_het) > 0.15  # advisory flag only, never excludes
         reasons = []
         if target_status != "pass":
             reasons.append(f"target:T1:{target_status}")
@@ -416,15 +447,16 @@ def expected_metrics(markers: list[dict], ids: list[str], states: dict[str, list
         r.setdefault("rank_in_family", "")
         r.setdefault("rank_overall_staged", "")
         r.setdefault("rank_in_family_staged", "")
-    design = {r["sample_id"]: r for r in rows}
-    assert design["BC2F1-F1-001"]["rank_overall"] == 1, "planted best individual must rank first"
-    assert design["BC2F1-F1-002"]["exclusion_reason"].startswith("target:"), "planted foreground failure"
-    assert "avoid:" in design["BC2F1-F2-001"]["exclusion_reason"], "planted avoid failure"
-    assert "qc:possible_self_or_outcross" in design["BC2F1-F2-002"]["exclusion_reason"], "planted self contaminant"
-    assert "missing_rate" in design["BC2F1-F1-003"]["exclusion_reason"], "planted high-missing individual"
-    outliers = {r["sample_id"] for r in rows if r["family_donor_outlier"]}
-    assert outliers == {"BC2F1-F2-002"}, f"family donor outliers {sorted(outliers)}"
-    assert not duplicates, f"fixture progeny at or above IBS {DUPLICATE_THRESHOLD}: {sorted(duplicates)}"
+    if design_checks:
+        design = {r["sample_id"]: r for r in rows}
+        assert design["BC2F1-F1-001"]["rank_overall"] == 1, "planted best individual must rank first"
+        assert design["BC2F1-F1-002"]["exclusion_reason"].startswith("target:"), "planted foreground failure"
+        assert "avoid:" in design["BC2F1-F2-001"]["exclusion_reason"], "planted avoid failure"
+        assert "qc:possible_self_or_outcross" in design["BC2F1-F2-002"]["exclusion_reason"], "planted self contaminant"
+        assert "missing_rate" in design["BC2F1-F1-003"]["exclusion_reason"], "planted high-missing individual"
+        outliers = {r["sample_id"] for r in rows if r["family_donor_outlier"]}
+        assert outliers == {"BC2F1-F2-002"}, f"family donor outliers {sorted(outliers)}"
+        assert not duplicates, f"fixture progeny at or above IBS {DUPLICATE_THRESHOLD}: {sorted(duplicates)}"
     return rows
 
 
@@ -435,12 +467,10 @@ def middle_value(values: list[float]) -> float:
     return s[k // 2] if k % 2 == 1 else (s[k // 2 - 1] + s[k // 2]) / 2
 
 
-def write_outputs(
-    markers: list[dict], ids: list[str], states: dict[str, list[int]], family: dict[str, str], generation: dict[str, str], rows: list[dict]
-) -> None:
-    OUT.mkdir(parents=True, exist_ok=True)
+def write_vcf(path: Path, markers: list[dict], ids: list[str], states: dict[str, list[int]]) -> None:
+    """The genotype matrix: both parents then the progeny, one row per marker, GT only."""
     samples = [RP_ID, DONOR_ID, *ids]
-    with open(OUT / "genotypes.vcf", "w", newline="\n") as fh:
+    with open(path, "w", newline="\n") as fh:
         fh.write("##fileformat=VCFv4.2\n##source=progeny-selector make_fixture.py (synthetic)\n")
         fh.write('##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n')
         fh.write("#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\t" + "\t".join(samples) + "\n")
@@ -458,6 +488,22 @@ def write_outputs(
                 s = states[sid][i]
                 calls.append({0: "0/0", 1: "0/1", 2: "1/1", 4: "./."}[s])
             fh.write(f"{m['chrom']}\t{m['pos']}\t{m['id']}\t{ref}\t{alt}\t.\tPASS\t.\tGT\t" + "\t".join(calls) + "\n")
+
+
+def write_expected_results(path: Path, rows: list[dict]) -> None:
+    """The generator's independently computed expectations, one row per progeny."""
+    with open(path, "w", newline="") as fh:
+        w = csv.DictWriter(fh, fieldnames=list(rows[0].keys()), lineterminator="\n")
+        w.writeheader()
+        for r in rows:
+            w.writerow({k: (f"{v:.10g}" if isinstance(v, float) else v) for k, v in r.items()})
+
+
+def write_outputs(
+    markers: list[dict], ids: list[str], states: dict[str, list[int]], family: dict[str, str], generation: dict[str, str], rows: list[dict]
+) -> None:
+    OUT.mkdir(parents=True, exist_ok=True)
+    write_vcf(OUT / "genotypes.vcf", markers, ids, states)
     with open(OUT / "samples.csv", "w", newline="") as fh:
         w = csv.writer(fh, lineterminator="\n")
         w.writerow(["sample_id", "line_name", "role", "generation", "family_id", "notes"])
@@ -504,21 +550,124 @@ filters:
 """,
         newline="\n",
     )
-    with open(OUT / "expected_results.csv", "w", newline="") as fh:
-        w = csv.DictWriter(fh, fieldnames=list(rows[0].keys()), lineterminator="\n")
-        w.writeheader()
-        for r in rows:
-            w.writerow({k: (f"{v:.10g}" if isinstance(v, float) else v) for k, v in r.items()})
+    write_expected_results(OUT / "expected_results.csv", rows)
+
+
+def line_name_bc2f1(sid: str) -> str:
+    """The line_name samples.csv carries for a BC2F1 individual; write_next_round_manifest copies it to the progeny."""
+    return sid.replace("BC2F1-", "L")
+
+
+def select_bc3f1_parents(rows: list[dict]) -> list[str]:
+    """The generator's own top TOP_PER_FAMILY per family by rank_in_family, in select_top_n order (family, rank)."""
+    chosen = [r for r in rows if r["passes_filters"] and r["rank_in_family"] != "" and r["rank_in_family"] <= TOP_PER_FAMILY]
+    chosen.sort(key=lambda r: (r["family_id"], r["rank_in_family"]))
+    parents = [r["sample_id"] for r in chosen]
+    assert tuple(parents) == BC3F1_PARENTS, f"BC3F1 parents {parents}"
+    return parents
+
+
+def simulate_bc3f1(
+    markers: list[dict], parents: list[str], true_states: dict[str, list[int]]
+) -> tuple[list[str], dict[str, list[int]], dict[str, str]]:
+    """One more backcross to the RP from each selected BC2F1 plant's true (pre-missing) states.
+
+    The parent's haplotypes are (RP all 0, 1 where its true state is H); one gamete is a Haldane
+    recombinant of those, the other is RP, so the progeny is H where the gamete carries the donor
+    allele and A otherwise. Missing calls are punched in at BC3F1_MISSING_RATE, never at the target
+    or avoid marker. Returns ids in samples.csv order, states and the family map (family = parent id).
+    """
+    by_chrom = index_by_chrom(markers)
+    n = len(markers)
+    t_idx = next(i for i, m in enumerate(markers) if m["id"] == TARGET)
+    a_idx = next(i for i, m in enumerate(markers) if m["id"] == AVOID)
+    ids: list[str] = []
+    states: dict[str, list[int]] = {}
+    family: dict[str, str] = {}
+    for parent in parents:
+        hap = [1 if state == 1 else 0 for state in true_states[parent]]
+        for k in range(1, BC3F1_PER_PARENT + 1):
+            sid = f"{parent}-BC3F1-{k:03d}"
+            gamete = bc_gamete(markers, by_chrom, hap)
+            st = [1 if a == 1 else 0 for a in gamete]
+            for i in range(n):
+                if i not in (t_idx, a_idx) and rng.random() < BC3F1_MISSING_RATE:
+                    st[i] = 4
+            ids.append(sid)
+            states[sid] = st
+            family[sid] = parent
+    return ids, states, family
+
+
+BC3F1_README = f"""# Synthetic BC3F1 fixture
+
+Generated by `python scripts/make_fixture.py` (seed 20260904); do not edit by hand. The next
+generation of `../synthetic_bc2f1`: the {TOP_PER_FAMILY} best individuals per family by
+`rank_in_family` ({{parents}}) are each backcrossed once more to the recurrent parent, giving
+{BC3F1_PER_PARENT} BC3F1 progeny apiece, bred from the parents' true (pre-missing) states. The same
+500 markers and the same two parents; `criteria.yaml` and `markers.csv` are not duplicated, the tests
+read the BC2F1 copies. {BC3F1_MISSING_RATE:.0%} of calls are missing, never at the target or avoid marker.
+
+`samples.csv` is exactly what `write_next_round_manifest(..., n_per_selected={BC3F1_PER_PARENT})` writes
+from the BC2F1 selection, built here independently of that writer, so `tests/test_round_trip.py` compares
+two implementations of the manifest format (docs/adr/0018). It follows the writer in copying each selected
+parent's `line_name` to all {BC3F1_PER_PARENT} of its progeny, so a line_name is shared within a family;
+ids and line names are placeholders to be edited after planting. The parent rows' `generation` and
+`family_id` are empty cells, never `NA`, because this file is the input contract's samples.csv.
+
+`expected_results.csv` holds statuses, RPP, drag bounds (cM), recombinant flags, composite scores,
+exclusion reasons, ranks and advisory QC flags computed by the generator's independent implementation,
+with the BC3F1 expectations (expected RPP 0.9375, expected heterozygosity 0.125).
+
+## The `possible_duplicate` flags are an artefact of one planted parent
+
+Eight of these forty individuals carry the advisory `possible_duplicate` flag (docs/adr/0017), and all
+eight are in the family of `BC2F1-F1-001`. **Do not read that as typical of a BC3F1 generation.**
+`BC2F1-F1-001` is the deliberately extreme individual planted in the BC2F1 fixture as the best possible
+passer: 28 heterozygous markers in four blocks, RPP 0.9705 and heterozygosity 0.059, which is
+BC4/BC5-equivalent genome recovery wearing a BC2F1 label. Its progeny inherit half of what little donor
+genome it has, so they differ from one another at a handful of markers and reach IBS 0.995 honestly.
+
+The three families descending from realistic parents show nothing of the kind. Maximum within-family IBS,
+by parent: `BC2F1-F1-001` 0.99892 (five pairs flagged), `BC2F1-F1-010` (RPP 0.783) 0.93629,
+`BC2F1-F2-005` (RPP 0.902) 0.98191, `BC2F1-F2-019` (RPP 0.851) 0.96269 — not one flag between the three.
+So the fixture shows 80 % of one deliberately extreme family flagged and 0 % of the three normal ones.
+Every pair overlaps at more than 460 of the 475 informative markers, far above the 238-marker overlap
+floor, so the threshold alone produces this and the floor plays no part. docs/adr/0017 records the same.
+"""
+
+
+def write_bc3f1_outputs(
+    markers: list[dict], parents: list[str], ids: list[str], states: dict[str, list[int]], family: dict[str, str], rows: list[dict]
+) -> None:
+    OUT_BC3F1.mkdir(parents=True, exist_ok=True)
+    write_vcf(OUT_BC3F1 / "genotypes.vcf", markers, ids, states)
+    with open(OUT_BC3F1 / "samples.csv", "w", newline="") as fh:
+        w = csv.writer(fh, lineterminator="\n")
+        w.writerow(["sample_id", "line_name", "role", "generation", "family_id", "notes"])
+        w.writerow([RP_ID, "Williams 82 (synthetic)", "recurrent_parent", "", "", "synthetic recurrent parent"])
+        w.writerow([DONOR_ID, "PI synthetic donor", "donor_parent", "", "", "synthetic donor"])
+        for sid in ids:
+            parent = family[sid]
+            w.writerow([sid, line_name_bc2f1(parent), "progeny", "BC3F1", parent, f"derived from {parent}"])
+    write_expected_results(OUT_BC3F1 / "expected_results.csv", rows)
+    (OUT_BC3F1 / "README.md").write_text(BC3F1_README.format(parents=", ".join(parents)), encoding="utf-8", newline="\n")
 
 
 def main() -> None:
     markers = build_markers()
-    ids, states, family, generation = simulate(markers)
+    ids, states, true_states, family, generation = simulate(markers)
     rows = expected_metrics(markers, ids, states, family)
     write_outputs(markers, ids, states, family, generation, rows)
     n_pass = sum(1 for r in rows if r["passes_filters"])
     n_inf = sum(m["informative"] for m in markers)
     print(f"wrote fixture to {OUT}: {len(markers)} markers, {len(ids)} progeny, {n_pass} pass; informative {n_inf}")
+    parents = select_bc3f1_parents(rows)
+    ids3, states3, family3 = simulate_bc3f1(markers, parents, true_states)
+    rows3 = expected_metrics(markers, ids3, states3, family3, expected_het=0.125, design_checks=False)
+    write_bc3f1_outputs(markers, parents, ids3, states3, family3, rows3)
+    n_pass3 = sum(1 for r in rows3 if r["passes_filters"])
+    print(f"wrote fixture to {OUT_BC3F1}: {len(parents)} selected parents, {len(ids3)} BC3F1 progeny, {n_pass3} pass")
 
 
 if __name__ == "__main__":

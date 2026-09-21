@@ -9,7 +9,8 @@ Interface (subcommands):
     progeny-selector validate --genotypes G --samples S [--markers M] [--criteria C] [--profile ID_OR_FILE]
     progeny-selector rank     --genotypes G --samples S --criteria C [--markers M] [--profile ID_OR_FILE] --out results.csv
     progeny-selector select   --results results.csv --top N [--overall] --out selected.csv
-                              [--next-manifest next_samples.csv --next-generation BC3F1 --samples S]
+                              [--next-manifest next_samples.csv --next-generation BC3F1 --samples S
+                               --per-selected N]
 """
 
 from __future__ import annotations
@@ -58,9 +59,27 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--out", required=True, help="selected.csv")
     s.add_argument("--next-manifest", help="write a samples.csv skeleton for the next round")
     s.add_argument("--next-generation", default="BC3F1")
+    s.add_argument(
+        "--per-selected",
+        type=_positive_int,
+        default=1,
+        metavar="N",
+        help="placeholder progeny rows per selected individual in --next-manifest (default 1)",
+    )
     s.add_argument("--samples", help="current samples.csv (needed for --next-manifest to copy the parents)")
     s.add_argument("--project", choices=("backcross", "self"), default="backcross")
     return parser
+
+
+def _positive_int(value: str) -> int:
+    """argparse type for a count of at least 1; anything else is a usage error (exit 2)."""
+    try:
+        n = int(value)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"expected an integer, got {value!r}") from None
+    if n < 1:
+        raise argparse.ArgumentTypeError(f"must be 1 or more, got {n}")
+    return n
 
 
 def _profile_ref(ref: str | None) -> str | dict | None:
@@ -155,7 +174,7 @@ def cmd_select(args: argparse.Namespace) -> int:
         samples = read_samples(args.samples)
         rp = next(s for s in samples if s.role == "recurrent_parent")
         dp = next(s for s in samples if s.role == "donor_parent")
-        write_next_round_manifest(chosen, args.next_manifest, args.next_generation, rp, dp)
+        write_next_round_manifest(chosen, args.next_manifest, args.next_generation, rp, dp, args.per_selected)
         print(f"wrote {args.next_manifest}")
     return 0
 

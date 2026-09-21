@@ -134,7 +134,7 @@ Booleans are `TRUE`/`FALSE`; missing values are `NA`, while empty text (`exclusi
 
 ### next_samples.csv
 
-A samples.csv skeleton for the next genotyping round: both parents, then one placeholder progeny row per selected individual (`<sample_id>-<next_generation>-001`, role `progeny`, `family_id` = the selected parent's id). Edit ids after planting; the file already satisfies this contract. Columns and empty cells are the samples.csv contract's, so this file carries no `results_schema` column and writes an empty cell, never `NA`. When more than one placeholder per selected individual is requested (the Export count), one row per planted plant is written and the file loads unchanged as the next generation's samples.csv.
+A samples.csv skeleton for the next genotyping round: both parents, then one placeholder progeny row per selected individual (`<sample_id>-<next_generation>-001`, role `progeny`, `family_id` = the selected parent's id). Edit ids after planting; the file already satisfies this contract. Columns and empty cells are the samples.csv contract's, so this file carries no `results_schema` column and writes an empty cell, never `NA`. When more than one placeholder per selected individual is requested (`select --per-selected N` on the command line, or the Export count), one row per planted plant is written and the file loads unchanged as the next generation's samples.csv.
 
 ## State and status codes
 
