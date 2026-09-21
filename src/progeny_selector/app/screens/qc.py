@@ -2,10 +2,17 @@
 
 Responsibility: summarise the loaded dataset and run (marker, sample and progeny
 counts, informative markers, uninformative markers by reason from
-``core.qc.uninformative_summary``, the map unit, warnings verbatim) and show the
+``core.qc.uninformative_summary``, the map unit, background model, RPP unit,
+drag unit, assembly, rank mode, duplicate pairs, warnings verbatim) and show the
 ``SampleQC`` table from ``core.qc.qc_table_rows`` as a sortable, filterable
 DataGrid whose QC-excluded and flagged rows are tinted by
 ``app.present.qc_row_styles``.
+
+Duplicate pairs (``AnalysisResult.duplicates``, docs/adr/0017 and its
+2026-09-21 amendment) are listed as ``sample_a, sample_b: IBS 0.xxx``: the IBS
+is measured over informative markers called in both individuals, and a pair
+is reported only when the two overlap on half or more of the markers used for
+that comparison, not over the whole panel.
 
 Interface:
     view(id) -> Tag
@@ -54,9 +61,14 @@ def server_(input, output, session, state) -> None:
     def summary() -> ui.TagChild:
         dataset = state.dataset()
         result = state.result()
-        if dataset is None or result is None:
+        criteria = state.criteria()
+        if dataset is None or result is None or criteria is None:
             return ui.p("Load data first.")
         reasons = uninformative_summary(result.classification)
+        drag_unit = result.rows[0]["drag_unit"] if result.rows else "-"
+        dup_items = (
+            [ui.tags.li(f"{a}, {b}: IBS {ibs:.3f}") for a, b, ibs in result.duplicates] if result.duplicates else [ui.tags.li("none")]
+        )
         items: list[ui.TagChild] = [
             ui.tags.dt("markers"),
             ui.tags.dd(str(dataset.genotypes.n_markers)),
@@ -70,6 +82,18 @@ def server_(input, output, session, state) -> None:
             *([ui.tags.dd(f"{reason}: {count}") for reason, count in reasons] or [ui.tags.dd("none")]),
             ui.tags.dt("map unit"),
             ui.tags.dd(result.unit),
+            ui.tags.dt("background model"),
+            ui.tags.dd(criteria.background.model),
+            ui.tags.dt("RPP unit"),
+            ui.tags.dd(result.unit),
+            ui.tags.dt("drag unit"),
+            ui.tags.dd(drag_unit),
+            ui.tags.dt("assembly"),
+            ui.tags.dd(criteria.assembly),
+            ui.tags.dt("rank mode"),
+            ui.tags.dd(criteria.ranking.mode),
+            ui.tags.dt("duplicate pairs"),
+            ui.tags.dd(ui.tags.ul(*dup_items)),
         ]
         # result.warnings already begins with the dataset's own warnings (core.pipeline.run_analysis).
         warnings = ui.tags.ul(*[ui.tags.li(w) for w in result.warnings]) if result.warnings else ui.p("No warnings.")

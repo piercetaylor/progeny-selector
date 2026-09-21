@@ -65,6 +65,12 @@ def test_qc_table_and_summary(page: Page, app: ShinyAppProc) -> None:
     # expected: 500 markers, 475 informative; uninformative: 20 monomorphic, 3 donor missing, 2 RP heterozygous.
     expect(summary).to_contain_text("475")
     expect(summary).to_contain_text("parents identical (monomorphic): 20")
+    expect(summary).to_contain_text("background model")
+    expect(summary).to_contain_text("count")
+    expect(summary).to_contain_text("assembly")
+    expect(summary).to_contain_text("Wm82.a4")
+    expect(summary).to_contain_text("duplicate pairs")
+    expect(summary).to_contain_text("none")
 
 
 def _select_rank_rows(page: Page, rows: list[int]) -> None:

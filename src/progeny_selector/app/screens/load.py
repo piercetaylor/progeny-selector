@@ -19,8 +19,9 @@ Interface:
                                        or not a JSON object)
     view(id) -> Tag
     server(id, state: AppState) -> None   (writes state.dataset, state.criteria, state.result;
-                                           Load resets state.breadcrumb and state.selected_ids on success;
-                                           Apply clears state.selected_ids and keeps state.breadcrumb)
+                                           Load resets state.breadcrumb, state.selected_ids and state.notes
+                                           on success; Apply clears state.selected_ids and keeps
+                                           state.breadcrumb and state.notes)
 """
 
 from __future__ import annotations
@@ -170,6 +171,7 @@ def server_(input, output, session, state) -> None:
             # A new dataset starts at the cross node with nothing selected.
             state.breadcrumb.set({"cross": build_tree(dataset).cross, "family": None, "generation": None})
             state.selected_ids.set([])
+            state.notes.set({})
             ui.update_text_area("criteria_text", value=dump_criteria_yaml(criteria))
             criteria_message.set("criteria loaded; edit and Apply to re-analyse (YAML comments are not kept)")
             n_pass = sum(1 for r in result.rows if r["passes_filters"])

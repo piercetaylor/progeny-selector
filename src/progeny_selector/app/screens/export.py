@@ -22,6 +22,7 @@ def ui_(id: str = "") -> ui.Tag:
     return ui.card(
         ui.card_header("Export"),
         ui.input_text("next_gen", "Next generation label", value="BC3F1"),
+        ui.input_numeric("per_selected", "Placeholder rows per selected individual", value=1, min=1, max=999),
         ui.download_button("results", "results.csv (ranks and statuses)"),
         ui.download_button("selected", "selected.csv"),
         ui.download_button("manifest", "next_samples.csv (manifest for the next genotyping round)"),
@@ -51,7 +52,9 @@ def server_(input, output, session, state) -> None:
         result, dataset = state.result(), state.dataset()
         rows = [result.row(s) for s in state.selected_ids()] if result else []
         if dataset:
-            yield next_round_manifest_text(rows, input.next_gen(), dataset.recurrent_parent, dataset.donor_parent)
+            yield next_round_manifest_text(
+                rows, input.next_gen(), dataset.recurrent_parent, dataset.donor_parent, n_per_selected=int(input.per_selected())
+            )
         else:
             # No parents yet: the header row alone, with the writers' CRLF line ending.
             yield ",".join(MANIFEST_COLUMNS) + "\r\n"
