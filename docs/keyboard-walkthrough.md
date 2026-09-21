@@ -46,11 +46,16 @@ arrow keys move the selection between generations, which is a change event
 keyboard focus at all; the `Tab` sequence around the grid skips over it and
 returns to the page chrome. A cell must be clicked first. Once a cell has been
 clicked (and its row thereby selected), arrow keys move the focused cell
-without changing the selection, and `Space` toggles the focused row's
-selection on top of whatever was already selected (additive, not exclusive:
-pressing `Space` again on a different row grows the selection rather than
-replacing it). There is no keyboard equivalent of the mouse's
-Ctrl/Cmd-click or shift-click range selection observed in the e2e tests.
+without changing the selection.
+
+What `Space` does to the selection once inside the grid is not documented
+here and the e2e test does not assert it: on one run it toggled the focused
+row into a growing multi-row selection, and on another (CI) run, with the
+same steps, it cleared the selection instead. That is Shiny DataGrid's own
+keyboard handling, not something this project implements, and it is not
+relied on anywhere in the app: multi-row selection for Compare and Selection
+list is exercised through the mouse (click plus Ctrl/Cmd-click) in the other
+e2e tests, and there is no documented keyboard path to it.
 
 ## Selection list
 

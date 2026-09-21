@@ -26,6 +26,10 @@ def test_navbar_arrow_keys_move_focus_enter_activates(page: Page, app: ShinyAppP
 
 
 def test_rank_grid_needs_a_click_before_the_keyboard_works(page: Page, app: ShinyAppProc) -> None:
+    # This test covers only what docs/keyboard-walkthrough.md claims for the Rank grid: Tab does not
+    # reach it, and a mouse click is needed before the keyboard does anything there. Whether a
+    # subsequent Space extends the selection to a second row is Shiny DataGrid's own behaviour, not
+    # this project's, and it is not part of the documented claim (docs/keyboard-walkthrough.md).
     page.goto(app.url)
     load_fixture(page)
     controller.PageNavbar(page, "screen").set("rank")
@@ -34,16 +38,14 @@ def test_rank_grid_needs_a_click_before_the_keyboard_works(page: Page, app: Shin
         page.keyboard.press("Tab")
     page.keyboard.press("ArrowDown")
     page.keyboard.press(" ")
-    assert page.locator("#rank-table tr[aria-selected=true]").count() == 0
+    expect(page.locator("#rank-table tr[aria-selected=true]")).to_have_count(0)
 
     table = controller.OutputDataFrame(page, "rank-table")
     table.cell_locator(0, 0).click()
-    assert page.locator("#rank-table tr[aria-selected=true]").count() == 1
+    expect(page.locator("#rank-table tr[aria-selected=true]")).to_have_count(1)
     page.keyboard.press("ArrowDown")
     page.keyboard.press("ArrowDown")
-    assert page.locator("#rank-table tr[aria-selected=true]").count() == 1
-    page.keyboard.press(" ")
-    assert page.locator("#rank-table tr[aria-selected=true]").count() == 2
+    expect(page.locator("#rank-table tr[aria-selected=true]")).to_have_count(1)
 
 
 def test_selection_list_enter_commits(page: Page, app: ShinyAppProc) -> None:
