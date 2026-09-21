@@ -218,6 +218,38 @@ Real-data protocol (Q7): run 2026-09-14 to 2026-09-16 on SoySNP50K Clark isoline
 
 GitHub Actions on d1adc20 (run 34884283693, 2026-09-14): check on 3.11 and 3.12, e2e, and export including the smoke test all passed; deploy-pages skipped because ENABLE_PAGES is unset.
 
+### M2 verification, 2026-09-21
+
+Real segregating data, not the fixture: the Clark x PI86024 SoySNP50K NILs in the gitignored `data/nils/`, recurrent parent
+PI548533, 41,358 markers x 10 samples, 8 NILs. Target dt1 (Glyma.19g194300, Gm19 Wm82.a2.v1) +/- 1 Mb, `hom_donor` under
+`rule: run`, weighted background model, `exclude_qc_flagged: false` — the program's own `criteria_dt1_run.yaml`, with
+`assembly: Wm82.a2` added in a scratch copy because that file predates phase 3. Nothing under `data/` was written or committed.
+
+The CLI, the local `shiny run` and the Pages site agree exactly: 41,358 markers, 8 progeny, 4 pass hard filters.
+
+Browser run, local `shiny run` on port 8009, Chromium 151 driven by Playwright: uploads complete 4.5 s, status 8.5 s. Validate
+reports background model weighted, RPP unit bp, drag unit bp, assembly Wm82.a2, rank mode weighted, duplicate pairs none, and
+14,538 informative markers against 26,820 uninformative because the parents are identical there. Two individuals were ranked,
+selected and exported with a note typed on the Selection screen; selected.csv carried `results_schema` 1.0.0 and the note on the
+right `sample_id` (PI547472, rank 1, rpp_total 0.946929). All 48 requests went to `localhost:8009`; none left the origin.
+
+Browser run, https://piercetaylor.github.io/progeny-selector/ , same files: 20.7 s to the Run button, 21.8 s with the three
+uploads complete, 29.1 s to the status line. All 81 requests went to `piercetaylor.github.io`; none left the origin, so the
+Pyodide runtime and the package both came from the page. Shinylive export 44.4 MB, unchanged from M1.
+
+Phase 3 on real data, which is the point of the assembly selector: with the criteria as the program wrote them in September,
+and so with the `Wm82.a4` default, the run warns that marker positions on Gm04, Gm06, Gm08, Gm13 and Gm20 reach past the
+recorded a4 lengths — Gm04 to 52,367,723 against 51,203,390. With `assembly: Wm82.a2`, which is what the data is, there are no
+warnings. The dataset's own README had recorded that mismatch as an accepted approximation; it is now detected and fixable.
+
+Phase 6 on real data: no pair of the 8 NILs reaches the 0.995 duplicate threshold. The closest is PI547429 x PI547472 at 0.99100
+over 2,000 informative markers subsampled from 14,538, then 0.98300 and 0.97000. These are sibling isolines from one backcross
+family, which is the population the threshold was most likely to fire on spuriously, and it does not.
+
+The two-generation real-data round trip (Question B) was not run: no linked consecutive-generation dataset has been found, and
+the maintainer is still sourcing one. The synthetic round trip covers the writer and the reader (phase 8, `tests/test_round_trip.py`).
+
+
 ## Handoff (updated after every phase)
 
 - Milestone / phase: M2 in progress from `docs/m2-phases.md`. Done: phase 1 (deferred core/io findings, 0bb7712), phase 2 (deferred UI/CI/test findings, b8382f2), phase 9 (genetic map interpolation and the Song 2016 converter, 19a9cfc), phase 3 (ranking.mode staged, the assembly selector and map warnings, 19c2770, docs/adr/0015), phase 4 (results.csv schema 1.0.0: `NA` for missing cells, a header row with no results, the metadata columns, selected.csv; 419a4c5, docs/adr/0016), phase 5 (`scripts/read_results.R` and the CI `r-reader` job; e97d566, fixed by 2b966bc). Two phase-4/5 facts a fresh session cannot reconstruct: the column the spec called `rpp_unit` ships as `background_unit`, because `rpp_<chrom>` is the only dynamic family with no suffix and a fixed column sharing that prefix broke the Compare screen's chromosome table; and contract 1.4.0's `token_profile` is the last results column, after `results_schema`, so the empty-file header is the 34-name fixed prefix plus `token_profile` and the R reader checks only that prefix. Also mirrored since M1: contract 1.3.0 (96a2114, docs/adr/0013) and 1.4.0 token profiles (17464e3 with review fixes b2c347c, docs/adr/0014). phase 6 (advisory `possible_duplicate`, weighted and staged fixture expectations, the per-target window test; 66f968c, docs/adr/0017 with its 2026-09-21 amendment). Phase 6 took one review, one delta re-review and three fix rounds; what the reviewer caught and the gates did not: the informative-marker restriction had no test that failed when it was removed, duplicate IBS had no minimum overlap so a 93 %-missing sample was a duplicate of everyone it agreed with, and the dedup test compared two samples identical at every indexed marker, so it passed with `np.unique` deleted. Demand a discriminating input for every new test. Phases 7 and 8 ran in parallel on disjoint files, 2026-09-21: phase 7 (Selection notes, the Validate model and duplicates block, Export per-selected, `docs/keyboard-walkthrough.md`; ed4c4ea) and phase 8 (the two-generation synthetic round trip, `tests/fixtures/synthetic_bc3f1/`, `select --per-selected N`; e73d7cc, docs/adr/0018). Phase 10 (the SoySNP position table across assemblies and the KASP converter; b5136b2) landed 2026-09-21, verified against the real SoyBase GFF3s outside the test suite: 60,800 / 60,556 / 58,394 rows for a1, a2 and a4, 58,350 marker ids joining across all three, and all 60 per-chromosome maxima under the lengths in `constants.py`. Next: phase 11, the last. Last commit 4ab0bdb; pushed 2026-09-21; CI run 35643909719 green on every job — check on 3.11 and 3.12, `e2e`, `export`, `r-reader` and deploy-pages. The first run on phases 7 and 8 (35634129183) failed `e2e` on a test that asserted Shiny DataGrid's own keyboard selection behaviour, which differs between runners; af87ac9 cut the test back to what `docs/keyboard-walkthrough.md` actually claims. Local gates never cover `e2e`, `export` or `r-reader`, so push and read the run before calling a phase finished. `validate` on the fixture prints `duplicate pairs: 0`; Pages public at https://piercetaylor.github.io/progeny-selector/. Wm82.a5 and a6 lengths are still unverified and deliberately absent from ASSEMBLIES.
