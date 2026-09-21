@@ -40,6 +40,8 @@ python3 scripts/soysnp_positions.py --gff3 Wm82.a4=data/soybase/glyma.Wm82.gnm4.
 - `--emit-markers-csv ASSEMBLY --markers-out PATH`: a `marker_id,chrom,pos_bp` file for one assembly, Gm01..Gm20 only (scaffolds excluded), sorted by chromosome then position; loads directly through `io.manifest.read_markers`.
 - `--download`: fetches every file in `SOYBASE_URLS` into `data/soybase/` with a browser User-Agent and verifies each directory's `CHECKSUM.*.md5`; never run in CI or by the test suite.
 
+`--emit-markers-csv Wm82.a5` and `Wm82.a6` produce a markers.csv on positions no `assembly` value in criteria.yaml can name: `constants.py` carries no length table for a5 or a6 (docs/adr/0015), because no published SoyBase table exists and the figures once circulated for them were never checked against the Data Store FASTA files. A run against a markers.csv emitted this way falls back to the last marker on each chromosome for the drag right bound and the weighted RPP's terminal weight, and reports beyond-length warnings against whichever assembly `assembly` is set to, since every a5 or a6 position beyond the a1/a2/a4 tables' shorter ends is read as past the chosen assembly's length.
+
 The script also prints each given assembly's maximum position per chromosome, to sanity-check against `constants.py`'s chromosome-length tables.
 
 ## KASP export conversion: `scripts/kasp_to_wide.py`

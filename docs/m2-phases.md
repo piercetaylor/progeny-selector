@@ -41,6 +41,8 @@ The maintainer delegated questions 1-9 and 11-17 to research ("ask fable"), with
 9. The KASP converter accepts both shapes: long, detected by the headers `SubjectID`, `SNPID`, `Call` (unverified against a primary source), and grid (SNPviewer's export), detected by matching row or column ids against `--markers` in either orientation. Calls match `^[ACGT][:\-.]?[ACGT]$`; `?` and the listed tokens are missing.
 11-17. As recommended.
 
+Corrected 2026-09-21, end of milestone: decision 3 above records a5 and a6 chromosome-length tables computed from the SoyBase Data Store `genome_main.fna.gz` files. They did not ship. `docs/adr/0015` leaves `Wm82.a5` and `Wm82.a6` out of the `assembly` enum because no published SoyBase length table exists for them and the figures circulated with this decision were never checked against the Data Store files as decision 3's own spot-check required; `constants.py`, `model/criteria.py` and `tests/test_chrom_assembly.py` all exclude them deliberately (`assembly` accepts only `Wm82.a1`, `Wm82.a2`, `Wm82.a4` and `none`). The decision above stands as the historical record of what was decided; what shipped differs.
+
 Spec corrections applied by the decisions: ADRs are numbered 0015-0019 (0014 is contract 1.4.0). Phase 10 takes `marker_id` from `Name=` (the `ID=` is `glyma.Wm82.gnmN.ss...`); allele attributes are `alleles=` (gnm1/2 50K and all 6K) or `ref_allele=` (gnm4/5/6 50K); gnm5 seqids are `Chr01`-`Chr20`. Phase 1: `min_markers: 2.0` and whole-float locus positions are accepted by skipping `_check_int` for whole floats at the locus call sites and converting in `_normalise_locus`. Phase 3's `chrom_length_bp` docstring cites contract 1.4.0.
 
 ## Order, dependencies and parallelism

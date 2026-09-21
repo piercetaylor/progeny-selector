@@ -6,11 +6,11 @@ Read this, then `PLAN.md`. Everything below is the working agreement; `PLAN.md` 
 
 Ranks and selects progeny in marker-assisted backcross programs: foreground status at target loci, negative selection at avoid loci, recurrent-parent genome recovery overall and on carrier versus non-carrier chromosomes, donor-segment bounds with recombinant flags, similarity to each parent, QC flags, and a weighted composite score applied after hard filters. The compute core is a pure Python package; the UI is Shiny for Python, run locally or exported with Shinylive so genotype data stays in the browser tab.
 
-Open a session **inside this repo**, never in the parent directory. The siblings `backcross` (TypeScript) and `field-capture-android` (Gradle) have their own toolchains and their own `PLAN.md`.
+Open a session **inside this repo**, never in the parent directory. The siblings `backcross` (TypeScript; GitHub repo piercetaylor/backcross, but the folder on disk is still named `isoline-browser`, so `../isoline-browser` is the working path until it is renamed) and `field-capture-android` (Gradle) have their own toolchains and their own `PLAN.md`.
 
 ## State
 
-**M1 is complete, M2 next.** M1 shipped the Navigate tree driving the Rank filter, the Validate screen, status chips and per-locus columns in the Rank grid, the Compare screen, criteria editable and downloadable in the UI, and a Shinylive export that stages the package and is smoke-tested in CI. See PLAN.md, "Verification status", for the M1 verification block.
+**M2 is complete, M3 next.** M2 shipped the weighted background model as the default with an `assembly` criteria key (Wm82.a1, a2, a4 or none) and map/beyond-length warnings surfaced in the UI, per-target foreground windows, editable notes persisted in selected.csv, `select --per-selected N` so next_samples.csv loads unchanged as the next generation's samples.csv, the advisory `possible_duplicate` QC flag and duplicate pairs on the Validate screen, a documented keyboard walkthrough, and results.csv/selected.csv columns frozen under `results_schema` (contract token profiles from 1.4.0 also landed in this milestone). See PLAN.md, "Verification status", for the M1 and M2 verification blocks.
 
 ## Gates: all must pass before every commit
 
@@ -18,7 +18,7 @@ Open a session **inside this repo**, never in the parent directory. The siblings
 ruff check . && ruff format --check .
 mypy
 pytest -q
-python3 scripts/check_contract.py            # contract/ manifest; add ../backcross to byte-compare with the canonical copy
+python3 scripts/check_contract.py            # contract/ manifest; add ../isoline-browser to byte-compare with the canonical copy
 ```
 
 Plus regenerating the fixture with `python3 scripts/make_fixture.py` and confirming `git diff --exit-code -- tests/fixtures` is clean: the generator is deterministic.
@@ -27,7 +27,7 @@ Per milestone, and in the CI `e2e` job: `pytest -m e2e`, which drives the screen
 
 Per milestone, and in the CI `export` job: `python3 scripts/build_shinylive.py && PS_SITE_DIR=site pytest -m e2e tests/e2e/test_shinylive_export.py`, which stages the package, runs `shinylive export`, and drives the exported static site in a real browser to prove the pipeline runs under Pyodide and that no request leaves the page's origin.
 
-CI job `r-reader` (R and readr) reads the fixture's results.csv; not a per-commit gate.
+CI job `r-reader` (R and readr) reads the fixture's results.csv with `scripts/read_results.R`, and an empty results.csv the job writes itself; not a per-commit gate.
 
 ## Rules that are not negotiable
 
