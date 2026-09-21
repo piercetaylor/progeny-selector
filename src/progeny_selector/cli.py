@@ -72,7 +72,11 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def _positive_int(value: str) -> int:
-    """argparse type for a count of at least 1; anything else is a usage error (exit 2)."""
+    """argparse type for a count of at least 1; anything else is a usage error (exit 2).
+
+    The rule itself lives in ``io.export.check_per_selected``, which every manifest writer runs;
+    this is the CLI's earlier, exit-code-shaped report of the same rule.
+    """
     try:
         n = int(value)
     except ValueError:

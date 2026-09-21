@@ -15,6 +15,7 @@ All notable changes to this project are documented in this file. The format foll
 - Weighted RPP: a chromosome whose markers run past the assembly length now weighs its terminal markers like a chromosome with no recorded length at all, instead of giving the terminal marker zero outer weight (docs/adr/0015, amendment 2026-09-21).
 - `scripts/kasp_to_wide.py` accepts `A:G` and `G:A` for the same sample and SNP as one call instead of a conflict.
 - Clearing a numeric field no longer breaks the screen: Export still downloads next_samples.csv and the Selection list's "Add top N per family" adds nothing instead of failing.
+- The next-round manifest refuses a placeholder-row count below 1 in `io.export` rather than only in the CLI, so the Export screen shows the refusal and writes no file where it previously downloaded a manifest holding the two parents and no progeny.
 
 ### Added
 

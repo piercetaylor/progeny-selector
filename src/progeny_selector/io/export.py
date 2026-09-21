@@ -23,7 +23,8 @@ results.csv is schema 1.0.0 (docs/adr/0016): a missing value is written ``NA`` a
 text (``exclusion_reason``, ``qc_flags``, ``notes``) stays an empty cell; with no rows the
 header is exactly ``FIXED_COLUMNS``. selected.csv carries ``results_schema`` too;
 next_samples.csv does not, and keeps empty cells, because it is the input contract's
-samples.csv.
+samples.csv. A placeholder-row count below 1 is refused with ``DataContractError``: a manifest
+holding the two parents and no progeny is a silently truncated file rather than a smaller one.
 """
 
 from __future__ import annotations
@@ -34,7 +35,7 @@ from pathlib import Path
 from typing import TextIO
 
 from progeny_selector.constants import RESULTS_SCHEMA
-from progeny_selector.model.dataset import Sample
+from progeny_selector.model.dataset import DataContractError, Sample
 
 __all__ = [
     "FIXED_COLUMNS",
@@ -43,6 +44,7 @@ __all__ = [
     "NA",
     "RESULTS_SCHEMA",
     "SELECTION_COLUMNS",
+    "check_per_selected",
     "next_round_manifest_text",
     "results_csv_text",
     "selection_csv_text",
@@ -194,9 +196,22 @@ def selection_csv_text(rows: list[dict], notes: dict[str, str] | None = None) ->
     return buf.getvalue()
 
 
+def check_per_selected(n_per_selected: int) -> None:
+    """Every manifest writer's check on the placeholder-row count: below 1 there is nothing to write.
+
+    Zero or less would emit the two parent rows and no progeny — a manifest that looks written and
+    carries no next generation — so it is refused here, where both the CLI and the Export screen
+    reach it, rather than in either caller. The CLI also rejects it at the argparse level, which is
+    what gives ``--per-selected 0`` a usage exit code.
+    """
+    if n_per_selected < 1:
+        raise DataContractError(f"placeholder rows per selected individual must be 1 or more, got {n_per_selected}")
+
+
 def _write_next_round_manifest(
     fh: TextIO, rows: list[dict], next_generation: str, rp: Sample, donor: Sample, n_per_selected: int = 1
 ) -> None:
+    check_per_selected(n_per_selected)
     writer = csv.writer(fh)
     writer.writerow(MANIFEST_COLUMNS)
     writer.writerow([rp.sample_id, rp.line_name, "recurrent_parent", "", "", rp.notes or ""])

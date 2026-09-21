@@ -16,6 +16,7 @@ from progeny_selector.io.export import (
     write_results_csv,
     write_selection_csv,
 )
+from progeny_selector.model.dataset import DataContractError
 
 
 @pytest.fixture(scope="module")
@@ -75,3 +76,19 @@ def test_next_round_manifest_text_empty_matches_file(loaded, tmp_path: Path) -> 
     text = next_round_manifest_text([], "BC3F1", dataset.recurrent_parent, dataset.donor_parent)
     assert text.encode("utf-8") == out.read_bytes()
     assert text.count("\r\n") == 3  # header and both parents
+
+
+def test_manifest_refuses_fewer_than_one_row_per_selected_and_writes_no_file(loaded, tmp_path: Path) -> None:
+    """The rule the CLI's --per-selected reports as a usage error, enforced for every caller in io/export."""
+    dataset, result = loaded
+    rows = [result.row("BC2F1-F1-001")]
+    rp, donor = dataset.recurrent_parent, dataset.donor_parent
+    for n in (0, -1, -999):
+        with pytest.raises(DataContractError, match="must be 1 or more"):
+            next_round_manifest_text(rows, "BC3F1", rp, donor, n_per_selected=n)
+        out = tmp_path / f"next_samples_{n}.csv"
+        with pytest.raises(DataContractError, match="must be 1 or more"):
+            write_next_round_manifest(rows, out, "BC3F1", rp, donor, n)
+        assert not out.exists() or out.read_bytes() == b""  # never a parents-only manifest
+    # 1 is the smallest count that writes anything: the two parents and one placeholder row.
+    assert next_round_manifest_text(rows, "BC3F1", rp, donor, n_per_selected=1).count("\r\n") == 4
