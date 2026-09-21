@@ -330,18 +330,22 @@ Acceptance: the verification block exists with the browser figures; the reviewer
 
 ## M2 acceptance checklist
 
-- [ ] Validate and Rank agree on QC exclusion under `exclude_qc_flagged: true` and `false` (`tests/test_qc_table.py::test_qc_excluded_follows_filters`).
-- [ ] criteria.yaml rejects aliases, oversized documents, NaN/inf, fractional positions; numeric ids read as text (`tests/test_criteria_hardening.py`).
-- [ ] Remaining deferred findings closed: Load accept list and error catch, `export` extra without `build`, versioned shinylive cache key, context-level request recording, "(no family)" browser test, second Compare drag assertion.
-- [ ] `ranking: {mode: staged}` orders exactly as ADR 0007's amendment states; `composite_score` and `rank_mode` written (`tests/test_ranking_staged.py`, fixture staged columns).
-- [ ] `assembly` selects the chromosome-length table; cM fallbacks, missing lengths and positions beyond the assembly are warnings shown on Load and Validate (`tests/test_map_warnings.py`, e2e summary).
-- [ ] results.csv schema 1.0.0: `NA` for missing cells, header with no rows, `background_model`, `background_unit`, `rank_mode`, `assembly`, `results_schema`; no literal `nan` (`tests/test_results_schema.py`); selected.csv carries `results_schema`.
-- [ ] `scripts/read_results.R` reads the fixture's results.csv and the empty file in the CI `r-reader` job with explicit col_types and `na = "NA"`.
-- [ ] Weighted RPP and staged ranks on the fixture match the generator's independent implementation; `possible_duplicate` detected in the pipeline and shown on Validate and in `validate` (`tests/test_duplicates.py`).
-- [ ] Per-target windows covered by a hand-built test and documented.
-- [ ] Notes edited on the Selection screen appear in selected.csv on the right `sample_id` after sorting (`tests/e2e/test_selection_notes.py`).
-- [ ] next_samples.csv written from the BC2F1 selection with `--per-selected 10` equals the BC3F1 fixture's samples.csv and loads unchanged; BC3F1 results match expected (`tests/test_round_trip.py`).
-- [ ] Keyboard walkthrough in `docs/keyboard-walkthrough.md` with a browser test asserting what it states.
-- [ ] Soybean input scripts with hand-built tests: position table, Song 2016 converter with Marey interpolation, KASP converter; nothing under `data/` committed.
-- [ ] Real segregating data taken to selected.csv in the browser locally and on the Pages site, recorded in PLAN.md; two-generation real-data step recorded or marked blocked.
-- [ ] ADRs 0015-0019 present; CHANGELOG entries under `[Unreleased]`; end-of-milestone reviewer pass done; PLAN.md Handoff updated.
+Every box checked 2026-09-21 at 6b1d3a4, CI run 35666253372 green on all six jobs. Evidence, in the order of the boxes: each named test was run on its own and passes; the six deferred findings are closed in the code (`accept` lists `.bgz`, `.tsv` and `.hapmap`; the shinylive cache key carries the resolved version; the export smoke test records on `page.context`; the `(no family)` crumb and the `BC2F1-F2-015` drag value are both asserted; the `export` extra is `shinylive` alone); `docs/keyboard-walkthrough.md` is 72 lines with `tests/e2e/test_keyboard_walkthrough.py` behind it; ADRs 0015 to 0019 are present; `git ls-files data` returns nothing; the CHANGELOG carries Added, Changed and Fixed under `[Unreleased]`; and the M2 verification block in PLAN.md records the local and Pages runs on the Clark x PI86024 NILs. The two-generation real-data step is recorded as not run, with the reason, which is what its box asks for.
+
+The end-of-milestone reviewer pass found no high or medium finding. Its six lows are closed except one that is recorded rather than fixed: `io/export.py` does not validate `next_generation`, so an empty label writes ids like `BC2F1-F1-001--001` and a blank `generation` column, on both the CLI and the screen. It is the same two-callers-one-rule shape as the placeholder-row count closed in 6b1d3a4 and is carried to M3 in the PLAN.md handoff.
+
+- [x] Validate and Rank agree on QC exclusion under `exclude_qc_flagged: true` and `false` (`tests/test_qc_table.py::test_qc_excluded_follows_filters`).
+- [x] criteria.yaml rejects aliases, oversized documents, NaN/inf, fractional positions; numeric ids read as text (`tests/test_criteria_hardening.py`).
+- [x] Remaining deferred findings closed: Load accept list and error catch, `export` extra without `build`, versioned shinylive cache key, context-level request recording, "(no family)" browser test, second Compare drag assertion.
+- [x] `ranking: {mode: staged}` orders exactly as ADR 0007's amendment states; `composite_score` and `rank_mode` written (`tests/test_ranking_staged.py`, fixture staged columns).
+- [x] `assembly` selects the chromosome-length table; cM fallbacks, missing lengths and positions beyond the assembly are warnings shown on Load and Validate (`tests/test_map_warnings.py`, e2e summary).
+- [x] results.csv schema 1.0.0: `NA` for missing cells, header with no rows, `background_model`, `background_unit`, `rank_mode`, `assembly`, `results_schema`; no literal `nan` (`tests/test_results_schema.py`); selected.csv carries `results_schema`.
+- [x] `scripts/read_results.R` reads the fixture's results.csv and the empty file in the CI `r-reader` job with explicit col_types and `na = "NA"`.
+- [x] Weighted RPP and staged ranks on the fixture match the generator's independent implementation; `possible_duplicate` detected in the pipeline and shown on Validate and in `validate` (`tests/test_duplicates.py`).
+- [x] Per-target windows covered by a hand-built test and documented.
+- [x] Notes edited on the Selection screen appear in selected.csv on the right `sample_id` after sorting (`tests/e2e/test_selection_notes.py`).
+- [x] next_samples.csv written from the BC2F1 selection with `--per-selected 10` equals the BC3F1 fixture's samples.csv and loads unchanged; BC3F1 results match expected (`tests/test_round_trip.py`).
+- [x] Keyboard walkthrough in `docs/keyboard-walkthrough.md` with a browser test asserting what it states.
+- [x] Soybean input scripts with hand-built tests: position table, Song 2016 converter with Marey interpolation, KASP converter; nothing under `data/` committed.
+- [x] Real segregating data taken to selected.csv in the browser locally and on the Pages site, recorded in PLAN.md; two-generation real-data step recorded or marked blocked.
+- [x] ADRs 0015-0019 present; CHANGELOG entries under `[Unreleased]`; end-of-milestone reviewer pass done; PLAN.md Handoff updated.
