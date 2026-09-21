@@ -56,6 +56,7 @@ FLANK_CM = 6.0
 MAX_COVERAGE_CM = 10.0  # weighted model: each marker covers at most 10 cM, half to each side
 DUPLICATE_THRESHOLD = 0.995  # docs/adr/0017
 MIN_DUPLICATE_OVERLAP_FRAC = 0.5  # a pair needs calls in common at this fraction of the markers used
+MAX_IBS_MARKERS = 2000  # core/similarity.py subsamples above this; the generator does not (see duplicate_flags)
 WEIGHTS = {"rpp_noncarrier": 0.5, "rpp_carrier": 0.2, "drag": 0.2, "recombinant": 0.1}
 TOP_PER_FAMILY = 2  # BC3F1 parents: the generator's own top 2 per family by rank_in_family
 BC3F1_PER_PARENT = 10  # placeholder progeny per selected parent, matching --per-selected 10
@@ -253,6 +254,12 @@ def duplicate_flags(markers: list[dict], ids: list[str], states: dict[str, list[
     not reported, however high its IBS (docs/adr/0017, amendment 2026-09-21).
     """
     inf = [i for i, m in enumerate(markers) if m["informative"]]
+    assert len(inf) <= MAX_IBS_MARKERS, (
+        f"{len(inf)} informative markers exceeds MAX_IBS_MARKERS={MAX_IBS_MARKERS}: core/qc.py computes the overlap "
+        "floor as ceil(frac * min(n_pool, MAX_IBS_MARKERS)) over a seed-0 subsample of that size, so this "
+        "unsubsampled floor over the whole pool would no longer be the production rule. Subsample here the same "
+        "way, or keep the fixture below the limit."
+    )
     floor = max(1, math.ceil(MIN_DUPLICATE_OVERLAP_FRAC * len(inf)))
     flagged: set[str] = set()
     for a in range(len(ids)):

@@ -10,6 +10,12 @@ All notable changes to this project are documented in this file. The format foll
 - Contract 1.3.0 mirrored (docs/adr/0013): a blank line before the header is skipped in HapMap, wide CSV, samples.csv and markers.csv; the delimiter is sniffed from the first non-blank line; a blank line holds only spaces and tabs; a quoted field left open at the end of a delimited file, a `#` line after a VCF `#CHROM` line and an unparseable markers.csv `cm` are errors naming the line; line breaks inside quoted fields are read as LF; error kinds `genotypes.column_count` and `delimited.unterminated_quote`.
 - Data contract 1.2.1 (wording only): the sibling browser tool is now called Backcross.
 
+### Fixed
+
+- Weighted RPP: a chromosome whose markers run past the assembly length now weighs its terminal markers like a chromosome with no recorded length at all, instead of giving the terminal marker zero outer weight (docs/adr/0015, amendment 2026-09-21).
+- `scripts/kasp_to_wide.py` accepts `A:G` and `G:A` for the same sample and SNP as one call instead of a conflict.
+- Clearing a numeric field no longer breaks the screen: Export still downloads next_samples.csv and the Selection list's "Add top N per family" adds nothing instead of failing.
+
 ### Added
 
 - `scripts/soysnp_positions.py` builds a SoySNP50K/6K position table across Wm82 assemblies from SoyBase GFF3s; `scripts/kasp_to_wide.py` converts an LGC long-format KASP export to the wide CSV contract.

@@ -5,6 +5,7 @@ from __future__ import annotations
 import dataclasses
 
 import numpy as np
+import pytest
 
 from progeny_selector import run_analysis
 from progeny_selector.core.background import rpp
@@ -103,6 +104,30 @@ def test_beyond_length_warnings_are_capped_the_same_way():
     listed = [w for w in result.warnings if "marker positions reach" in w]
     assert len(listed) == 5
     assert "... and 1 more chromosomes with marker positions beyond the Wm82.a4 length" in result.warnings
+
+
+def test_terminal_marker_keeps_the_cap_weight_on_a_chromosome_beyond_its_assembly_length():
+    """A beyond-length chromosome weighs its terminal markers like an unknown-length one (docs/adr/0015, amendment 2026-09-21).
+
+    Six markers at 10..60 Mb on Gm01, whose Wm82.a4 length is 57,932,356: the last marker is past the
+    end. Ending the chromosome at that marker gives it outer weight min(length - p[-1], cap) = 0, so
+    its donor call would weigh half of the others (RPP 20/22) while the same data under ``assembly:
+    none`` weighs it in full (RPP 5/6). The recorded length is not usable either way, so both give 5/6.
+    """
+    gm = without_cm(make_matrix(["A", "A", "A", "A", "A", "B"], spacing_bp=10_000_000))
+    criteria = dataclasses.replace(
+        criteria_cm(),
+        targets=[TargetSpec("T1", marker_id="m1", required_state="either")],
+        flank_unit="bp",
+        background=BackgroundOptions(model="weighted", map_unit="bp"),
+        filters=Filters(max_hom_donor_rate_bcf1=1.0, het_rate_tolerance=1.0, max_nonparental_rate=1.0),
+    )
+    result = run_analysis(make_dataset(gm), criteria)
+    # The warning is how the breeder learns the assembly looks wrong, and it still fires.
+    assert any("beyond the Wm82.a4 length 57932356; check the assembly setting" in w for w in result.warnings)
+    unknown = run_analysis(make_dataset(gm), dataclasses.replace(criteria, assembly="none"))
+    assert result.row("P1")["rpp_total"] == pytest.approx(5 / 6)  # not 20/22, which the zero outer weight gives
+    assert result.row("P1")["rpp_total"] == unknown.row("P1")["rpp_total"]
 
 
 def test_terminal_marker_keeps_the_cap_weight_on_a_chromosome_without_a_length():

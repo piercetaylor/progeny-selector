@@ -74,9 +74,10 @@ def _chrom_lengths(gm: GenotypeMatrix, assembly: str) -> tuple[dict[str, float],
     """Chromosome ends, the chromosomes the assembly does not place, and the warnings for both.
 
     A chromosome the assembly gives no length for (every chromosome under ``assembly: none``) ends at
-    its last marker, and so does a chromosome whose markers run past the assembly length. The names
-    without a length are returned as well: their terminal marker weights use the coverage cap instead
-    of the last-marker end, so a terminal marker keeps its weight in the weighted RPP (docs/adr/0015).
+    its last marker, and so does a chromosome whose markers run past the assembly length. Both kinds
+    are returned in the second set, as chromosomes with no usable recorded length: their terminal
+    marker weights use the coverage cap instead of the last-marker end, so a terminal marker keeps
+    its weight in the weighted RPP (docs/adr/0015, amendment 2026-09-21).
     """
     chroms = gm.chroms()
     pos = gm.positions("bp")
@@ -94,6 +95,7 @@ def _chrom_lengths(gm: GenotypeMatrix, assembly: str) -> tuple[dict[str, float],
             missing.append(c)
         elif max_pos > length:
             lengths[c] = max_pos
+            unplaced.add(c)
             beyond.append(c)
             if len(beyond) <= _MAX_LISTED_WARNINGS:
                 warnings.append(
@@ -165,8 +167,9 @@ def run_analysis(dataset: Dataset, criteria: Criteria) -> AnalysisResult:
             cap = criteria.background.max_marker_coverage
             cap = DEFAULT_MAX_COVERAGE["bp"] if cap is None else cap
             warnings.append(f"weighted RPP in bp: no cM map, weights capped at {cap:.0f} bp per marker")
-        # A chromosome without an assembly length is left out, so its terminal markers weigh the cap's
-        # half rather than nothing (docs/adr/0015); drag bounds still end at the last marker.
+        # A chromosome with no usable recorded length is left out — no length at all, or markers past
+        # the recorded one — so its terminal markers weigh the cap's half rather than nothing
+        # (docs/adr/0015, amendment 2026-09-21); drag bounds still end at the last marker.
         placed = {c: length for c, length in chrom_lengths.items() if c not in unplaced}
         weights = marker_weights(gm, cls.informative, unit, criteria.background.max_marker_coverage, placed if unit == "bp" else None)
     cmask = carrier_mask(gm, carrier)

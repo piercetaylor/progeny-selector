@@ -45,9 +45,13 @@ def server_(input, output, session, state) -> None:
     @reactive.event(input.apply_top_n)
     def _top_n() -> None:
         result = state.result()
-        if result is None:
+        # A cleared numeric field reads as None — the min on the widget is client-side only. There is
+        # no default N anywhere (the CLI's --top is required), so an absent N adds nothing, exactly as
+        # an absent result does; the screen invents no count.
+        top_n = input.top_n()
+        if result is None or top_n is None:
             return
-        chosen = select_top_n(result.rows, int(input.top_n()), per_family=True)
+        chosen = select_top_n(result.rows, int(top_n), per_family=True)
         state.selected_ids.set(sorted(set(state.selected_ids()) | {r["sample_id"] for r in chosen}))
 
     @render.data_frame

@@ -67,6 +67,11 @@ def detect_shape(header: list[str]) -> str:
     return "grid"
 
 
+def _unordered(value: tuple[str, str] | None) -> tuple[str, ...] | None:
+    """A call as an allele multiset: ``A:G`` and ``G:A`` are one genotype (decision 9 makes order insignificant)."""
+    return None if value is None else tuple(sorted(value))
+
+
 def _record(
     calls: dict[tuple[str, str], tuple[tuple[str, str] | None, int]],
     sample: str,
@@ -77,7 +82,7 @@ def _record(
     key = (sample, marker)
     if key in calls:
         prev_value, prev_line = calls[key]
-        if prev_value != value:
+        if _unordered(prev_value) != _unordered(value):
             raise DataContractError(
                 f"conflicting calls for sample {sample!r} x marker {marker!r}: line {prev_line} says "
                 f"{prev_value or 'N'!r}, line {line_no} says {value or 'N'!r}"

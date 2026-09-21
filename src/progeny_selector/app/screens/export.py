@@ -52,9 +52,14 @@ def server_(input, output, session, state) -> None:
         result, dataset = state.result(), state.dataset()
         rows = [result.row(s) for s in state.selected_ids()] if result else []
         if dataset:
-            yield next_round_manifest_text(
-                rows, input.next_gen(), dataset.recurrent_parent, dataset.donor_parent, n_per_selected=int(input.per_selected())
-            )
+            # A cleared numeric field reads as None — the min/max on the widget are client-side only.
+            # The writer's own default then applies; no count is decided in the screen.
+            per_selected = input.per_selected()
+            rp, donor = dataset.recurrent_parent, dataset.donor_parent
+            if per_selected is None:
+                yield next_round_manifest_text(rows, input.next_gen(), rp, donor)
+            else:
+                yield next_round_manifest_text(rows, input.next_gen(), rp, donor, n_per_selected=int(per_selected))
         else:
             # No parents yet: the header row alone, with the writers' CRLF line ending.
             yield ",".join(MANIFEST_COLUMNS) + "\r\n"

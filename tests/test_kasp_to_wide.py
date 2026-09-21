@@ -88,7 +88,7 @@ def test_long_format_loads_and_classifies(tmp_path, capsys):
     assert labels[marker_index["snp.1"], sample_index["PROGENY2"]] == "N"
 
 
-def test_conflicting_duplicate_rows_raise(tmp_path):
+def test_conflicting_duplicate_rows_raise(tmp_path, capsys):
     markers = _write(tmp_path, "markers.csv", MARKERS_CSV)
     conflicting = LONG_KASP + "PROGENY1,snp.1,G:G\n"  # PROGENY1 x snp.1 was A:G above, now G:G
     kasp = _write(tmp_path, "export_conflict.csv", conflicting)
@@ -96,6 +96,23 @@ def test_conflicting_duplicate_rows_raise(tmp_path):
 
     rc = kasp_to_wide.main(["--kasp", str(kasp), "--markers", str(markers), "--out", str(out)])
     assert rc == 2
+    # A genuine conflict still names both rows, so the technician can find them in the export.
+    stderr = capsys.readouterr().err
+    assert "line 6 says" in stderr and "line 12 says" in stderr
+
+
+def test_duplicate_rows_with_the_alleles_in_the_other_order_are_one_call(tmp_path):
+    """``A:G`` and ``G:A`` are one heterozygote: decision 9 makes allele order insignificant, so this is no conflict."""
+    markers = _write(tmp_path, "markers.csv", MARKERS_CSV)
+    repeated = LONG_KASP + "PROGENY1,snp.1,G:A\n"  # PROGENY1 x snp.1 was A:G above: same genotype, other order
+    kasp = _write(tmp_path, "export_reordered.csv", repeated)
+    out = tmp_path / "genotypes.csv"
+
+    rc = kasp_to_wide.main(["--kasp", str(kasp), "--markers", str(markers), "--out", str(out)])
+    assert rc == 0
+    lines = {line.split(",")[0]: line for line in out.read_text(encoding="utf-8").splitlines()}
+    header = lines["marker_id"].split(",")
+    assert lines["snp.1"].split(",")[header.index("PROGENY1")] in ("AG", "GA")
 
 
 def test_unplaced_snp_raises_without_drop_unplaced_and_is_dropped_with_it(tmp_path):
@@ -149,4 +166,7 @@ def test_grid_markers_as_rows(tmp_path):
     assert rc == 0
     text = out.read_text(encoding="utf-8")
     lines = {line.split(",")[0]: line for line in text.splitlines()}
-    assert lines["snp.2"].split(",")[3:][-1] == "N"
+    assert lines["marker_id"].split(",")[3:] == ["RP", "DONOR", "PROGENY1"]
+    # Every cell of both rows: a transposed sample assignment would move the het and the missing call.
+    assert lines["snp.1"].split(",")[3:] in (["AA", "GG", "AG"], ["AA", "GG", "GA"])
+    assert lines["snp.2"].split(",")[3:] == ["AA", "GG", "N"]
