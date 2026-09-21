@@ -203,6 +203,8 @@ Reviewer: no. Acceptance: the `r-reader` job is green on both files on the first
 
 ## Phase 6: weighted and staged expectations, duplicate detection, per-target windows
 
+Corrected 2026-09-21, before dispatch: the table below says the duplicate IBS is computed over all 500 markers, but decision 5 says informative markers called in both members, and the decisions override this section. The shipped rule is decision 5's, and it needs one change the table does not list. `core/similarity.py` `pairwise_ibs` gains `marker_idx: np.ndarray | None = None`, defaulting to all markers so no other caller changes, and subsamples at most `max_markers` from `marker_idx` with the existing seed-0 generator; `core/qc.py` `duplicate_pairs` gains the same parameter and passes it through; `core/pipeline.py` passes `np.flatnonzero(classification.informative)`, which is already computed before `sample_qc`. The generator computes the same way over the fixture's 475 informative markers, so no subsampling happens there and the expectation is exact. `tests/test_duplicates.py` must build all 30 markers informative (RP and DONOR both called, both homozygous, different alleles) or the restricted denominator is zero and nothing is flagged at all. ADR 0017 says "at most 2,000 informative markers" and carries decision 5's sentence about the threshold being stricter than PLINK and KING practice on purpose. The ADR number stays 0017: 0018 is the sibling's number for a backcross-side decision, not a gap here.
+
 Goal: the fixture pins the weighted model and staged order from the generator's independent implementation; duplicates are detected in the pipeline; per-target windows have a hand-built test.
 
 Precondition: Q5, Q11, Q12 answered.
