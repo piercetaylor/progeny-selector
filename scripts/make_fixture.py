@@ -18,6 +18,10 @@ Deterministic (seed 20260904). Design:
   - expected_results.csv holds the count-model metrics computed here with the
     formulas in PLAN.md, independently of the package (only the chromosome-length
     table is imported), including the advisory family_donor_outlier flag (docs/adr/0012).
+    It also holds the weighted-model RPP columns (rpp_*_weighted, cM, 10 cM cap),
+    the staged rank columns (rank_*_staged, docs/adr/0007 amendment) and the advisory
+    possible_duplicate flag (docs/adr/0017), each computed here by the same independent
+    route, so a test compares two implementations rather than a function against itself.
 
 Usage: python scripts/make_fixture.py
 """
@@ -41,6 +45,9 @@ RP_ID, DONOR_ID = "RP_Williams82", "DONOR_PI_synthetic"
 TARGET = "syn_Gm06_13"
 AVOID = "syn_Gm13_10"
 FLANK_CM = 6.0
+MAX_COVERAGE_CM = 10.0  # weighted model: each marker covers at most 10 cM, half to each side
+DUPLICATE_THRESHOLD = 0.995  # docs/adr/0017
+MIN_DUPLICATE_OVERLAP_FRAC = 0.5  # a pair needs calls in common at this fraction of the markers used
 WEIGHTS = {"rpp_noncarrier": 0.5, "rpp_carrier": 0.2, "drag": 0.2, "recombinant": 0.1}
 NUC = "ACGT"
 
@@ -176,6 +183,81 @@ def simulate(markers: list[dict]) -> tuple[list[str], dict[str, list[int]], dict
     return ids, states, family, generation
 
 
+def marker_weights_cm(markers: list[dict]) -> list[float]:
+    """Map-interval weight in cM per informative marker; 0 for uninformative markers.
+
+    Half the gap to each neighbouring informative marker on the same chromosome, each side capped
+    at half of MAX_COVERAGE_CM; the outer side of the first and last informative marker is the cap's
+    half, because no genetic length is known for a chromosome (the pipeline passes no cM lengths).
+    """
+    half = MAX_COVERAGE_CM / 2
+    by_chrom: dict[str, list[int]] = {}
+    for i, m in enumerate(markers):
+        if m["informative"]:
+            by_chrom.setdefault(m["chrom"], []).append(i)
+    weights = [0.0] * len(markers)
+    for idx in by_chrom.values():
+        idx = sorted(idx, key=lambda i: markers[i]["cm"])
+        for k, i in enumerate(idx):
+            left = half if k == 0 else min((markers[i]["cm"] - markers[idx[k - 1]]["cm"]) / 2, half)
+            right = half if k == len(idx) - 1 else min((markers[idx[k + 1]]["cm"] - markers[i]["cm"]) / 2, half)
+            weights[i] = left + right
+    return weights
+
+
+def progeny_call(marker: dict, state: int) -> tuple[str, str] | None:
+    """The diploid call written to the VCF for this state: 0=A, 1=H, 2=B, 4=missing."""
+    rp, donor = marker["rp"], marker["donor"]
+    return None if state == 4 else {0: (rp, rp), 1: (rp, donor), 2: (donor, donor)}[state]
+
+
+def shared_alleles(a: tuple[str, str], b: tuple[str, str]) -> int:
+    """Size of the multiset intersection of two diploid calls (0, 1 or 2)."""
+    rest = list(b)
+    n = 0
+    for allele in a:
+        if allele in rest:
+            rest.remove(allele)
+            n += 1
+    return n
+
+
+def duplicate_flags(markers: list[dict], ids: list[str], states: dict[str, list[int]]) -> set[str]:
+    """Ids in any progeny pair whose IBS over informative markers called in both is >= the threshold.
+
+    IBS per pair: mean over those markers of shared alleles / 2 (docs/adr/0017). The fixture has
+    475 informative markers, below the 2,000-marker subsampling limit, so no subsampling applies.
+    A pair whose members share calls at fewer than MIN_DUPLICATE_OVERLAP_FRAC of those markers is
+    not reported, however high its IBS (docs/adr/0017, amendment 2026-09-21).
+    """
+    inf = [i for i, m in enumerate(markers) if m["informative"]]
+    floor = max(1, math.ceil(MIN_DUPLICATE_OVERLAP_FRAC * len(inf)))
+    flagged: set[str] = set()
+    for a in range(len(ids)):
+        for b in range(a + 1, len(ids)):
+            sa, sb = states[ids[a]], states[ids[b]]
+            total, n = 0.0, 0
+            for i in inf:
+                ca, cb = progeny_call(markers[i], sa[i]), progeny_call(markers[i], sb[i])
+                if ca is None or cb is None:
+                    continue
+                total += shared_alleles(ca, cb) / 2
+                n += 1
+            if n >= floor and total / n >= DUPLICATE_THRESHOLD:
+                flagged.update((ids[a], ids[b]))
+    return flagged
+
+
+def _desc(value: float) -> float:
+    """Sort key for a descending numeric key, with NaN last."""
+    return float("inf") if math.isnan(value) else -value
+
+
+def _asc(value: float) -> float:
+    """Sort key for an ascending numeric key, with NaN last."""
+    return float("inf") if math.isnan(value) else value
+
+
 def expected_metrics(markers: list[dict], ids: list[str], states: dict[str, list[int]], family: dict[str, str]) -> list[dict]:
     n = len(markers)
     t_idx = next(i for i, m in enumerate(markers) if m["id"] == TARGET)
@@ -186,6 +268,8 @@ def expected_metrics(markers: list[dict], ids: list[str], states: dict[str, list
     t_bp = markers[t_idx]["pos"]
     left = [i for i in range(n) if markers[i]["chrom"] == carrier_chrom and i < t_idx and markers[i]["informative"]][::-1]
     right = [i for i in range(n) if markers[i]["chrom"] == carrier_chrom and i > t_idx and markers[i]["informative"]]
+    weights_cm = marker_weights_cm(markers)
+    duplicates = duplicate_flags(markers, ids, states)
     rows = []
     for sid in ids:
         st = states[sid]
@@ -204,6 +288,13 @@ def expected_metrics(markers: list[dict], ids: list[str], states: dict[str, list
         car = [i for i in called if markers[i]["chrom"] == carrier_chrom]
         non = [i for i in called if markers[i]["chrom"] != carrier_chrom]
         rpp_car, rpp_non = rpp(car), rpp(non)
+
+        def wrpp(sub: list[int], st: list[int] = st) -> float:
+            den = sum(weights_cm[i] for i in sub)
+            if den == 0:
+                return float("nan")
+            return sum(weights_cm[i] * (1.0 if st[i] == 0 else 0.5 if st[i] == 1 else 0.0) for i in sub) / den
+
         target_state = st[t_idx]
         target_status = "unknown" if target_state == 4 else ("pass" if target_state in (1, 2) else "fail")
         avoid_state = st[a_idx]
@@ -260,6 +351,9 @@ def expected_metrics(markers: list[dict], ids: list[str], states: dict[str, list
                 "rpp_total": rpp_total,
                 "rpp_carrier": rpp_car,
                 "rpp_noncarrier": rpp_non,
+                "rpp_total_weighted": wrpp(called),
+                "rpp_carrier_weighted": wrpp(car),
+                "rpp_noncarrier_weighted": wrpp(non),
                 "drag_total_max_cm": drag_max_cm,
                 "drag_total_est_cm": drag_est_cm,
                 "recomb_left": rec_left,
@@ -269,6 +363,7 @@ def expected_metrics(markers: list[dict], ids: list[str], states: dict[str, list
                 "het_rate": het_rate,
                 "het_rate_deviates": qc_het,
                 "family_donor_outlier": False,  # set below, once every family member's fraction is known
+                "possible_duplicate": sid in duplicates,
                 "donor_fraction": 1 - rpp_total,  # count model: the non-recurrent share of called informative markers
                 "passes_filters": not reasons,
                 "exclusion_reason": ";".join(reasons),
@@ -297,9 +392,30 @@ def expected_metrics(markers: list[dict], ids: list[str], states: dict[str, list
         r["rank_overall"] = rank
         fam_counter[r["family_id"]] = fam_counter.get(r["family_id"], 0) + 1
         r["rank_in_family"] = fam_counter[r["family_id"]]
+    # staged ranking (docs/adr/0007 amendment): hard filters first, then recombinant flanks (count)
+    # descending, rpp_carrier descending, rpp_noncarrier descending, drag estimate ascending,
+    # missing rate ascending, sample_id ascending. sample_id breaks every tie, so ranks are 1..k.
+    staged = sorted(
+        passing,
+        key=lambda r: (
+            -(r["recomb_left"] + r["recomb_right"]),
+            _desc(r["rpp_carrier"]),
+            _desc(r["rpp_noncarrier"]),
+            _asc(r["drag_total_est_cm"]),
+            _asc(r["missing_rate"]),
+            r["sample_id"],
+        ),
+    )
+    fam_counter = {}
+    for rank, r in enumerate(staged, start=1):
+        r["rank_overall_staged"] = rank
+        fam_counter[r["family_id"]] = fam_counter.get(r["family_id"], 0) + 1
+        r["rank_in_family_staged"] = fam_counter[r["family_id"]]
     for r in rows:
         r.setdefault("rank_overall", "")
         r.setdefault("rank_in_family", "")
+        r.setdefault("rank_overall_staged", "")
+        r.setdefault("rank_in_family_staged", "")
     design = {r["sample_id"]: r for r in rows}
     assert design["BC2F1-F1-001"]["rank_overall"] == 1, "planted best individual must rank first"
     assert design["BC2F1-F1-002"]["exclusion_reason"].startswith("target:"), "planted foreground failure"
@@ -308,6 +424,7 @@ def expected_metrics(markers: list[dict], ids: list[str], states: dict[str, list
     assert "missing_rate" in design["BC2F1-F1-003"]["exclusion_reason"], "planted high-missing individual"
     outliers = {r["sample_id"] for r in rows if r["family_donor_outlier"]}
     assert outliers == {"BC2F1-F2-002"}, f"family donor outliers {sorted(outliers)}"
+    assert not duplicates, f"fixture progeny at or above IBS {DUPLICATE_THRESHOLD}: {sorted(duplicates)}"
     return rows
 
 

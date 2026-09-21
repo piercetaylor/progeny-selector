@@ -99,6 +99,9 @@ def cmd_validate(args: argparse.Namespace) -> int:
         print(f"QC-flagged individuals: {len(flagged)}")
         for q in flagged[:20]:
             print(f"  {q.sample_id}: {'|'.join(q.flags)}")
+        print(f"duplicate pairs: {len(res.duplicates)}")
+        for a, b, ibs in res.duplicates[:20]:
+            print(f"  {a}, {b}: ibs {ibs:.3f}")
     return 0
 
 

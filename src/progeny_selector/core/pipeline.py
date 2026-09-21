@@ -9,7 +9,7 @@ No file I/O; the UI and CLI call ``run_analysis`` and hand the rows to
 Interface:
     run_analysis(dataset: Dataset, criteria: Criteria) -> AnalysisResult
     AnalysisResult.rows: list[dict]   (column names listed in docs/data-formats.md, "results.csv")
-    AnalysisResult.states, .classification, .warnings, .carrier_chroms, .unit
+    AnalysisResult.states, .classification, .warnings, .carrier_chroms, .unit, .duplicates
 """
 
 from __future__ import annotations
@@ -32,7 +32,7 @@ from progeny_selector.core.chrom import chrom_length_bp, chrom_sort_key
 from progeny_selector.core.classify import Classification, classify
 from progeny_selector.core.drag import DragResult, donor_segment
 from progeny_selector.core.foreground import ResolvedLocus, foreground_status, resolve_locus
-from progeny_selector.core.qc import SampleQC, parent_qc, sample_qc
+from progeny_selector.core.qc import SampleQC, duplicate_pairs, parent_qc, sample_qc
 from progeny_selector.core.score import composite_score, hard_filters, rank_rows, rank_rows_staged
 from progeny_selector.core.similarity import ibs_to_sample
 from progeny_selector.model.criteria import Criteria
@@ -50,6 +50,7 @@ class AnalysisResult:
     carrier_chroms: set[str]
     unit: str
     warnings: list[str] = field(default_factory=list)
+    duplicates: list[tuple[str, str, float]] = field(default_factory=list)
 
     def row(self, sample_id: str) -> dict:
         return next(r for r in self.rows if r["sample_id"] == sample_id)
@@ -66,6 +67,7 @@ def _pick_unit(dataset: Dataset, requested: str, what: str) -> tuple[str, str | 
 
 
 _MAX_LISTED_WARNINGS = 5
+_MAX_DUPLICATE_SAMPLES = 2000  # above this the pairwise scan is skipped (docs/adr/0017)
 
 
 def _chrom_lengths(gm: GenotypeMatrix, assembly: str) -> tuple[dict[str, float], set[str], list[str]]:
@@ -191,6 +193,16 @@ def run_analysis(dataset: Dataset, criteria: Criteria) -> AnalysisResult:
     ibs_rp_all = ibs_to_sample(gm, rp_id)[pidx]
     ibs_dp_all = ibs_to_sample(gm, donor_id)[pidx]
     qc = sample_qc(gm, dataset, cls, criteria.filters)
+    # Duplicate detection over the informative markers only: the uninformative ones are shared by
+    # construction, so on a panel with a small informative fraction backcross siblings reach the
+    # threshold over all markers (docs/adr/0017). Advisory, so it never changes the hard filters.
+    if len(sample_ids) > _MAX_DUPLICATE_SAMPLES:
+        warnings.append(f"duplicate detection skipped above {_MAX_DUPLICATE_SAMPLES} individuals")
+    dups = duplicate_pairs(gm, sample_ids, max_samples=_MAX_DUPLICATE_SAMPLES, marker_idx=np.flatnonzero(cls.informative))
+    duplicated = {s for a, b, _ in dups for s in (a, b)}
+    for q in qc:
+        if q.sample_id in duplicated:
+            q.flags.append("possible_duplicate")
     missing_rate = np.array([q.missing_rate for q in qc])
     qc_flags = [q.flags for q in qc]
 
@@ -303,6 +315,7 @@ def run_analysis(dataset: Dataset, criteria: Criteria) -> AnalysisResult:
         carrier_chroms=carrier,
         unit=unit,
         warnings=warnings,
+        duplicates=dups,
     )
 
 

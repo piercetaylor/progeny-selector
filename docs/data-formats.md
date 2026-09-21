@@ -29,7 +29,7 @@ Targets on a region locus also accept `rule: run` (docs/adr/0011), with `min_run
 | key | values | meaning |
 |---|---|---|
 | required_state | `hom_donor`, `het`, `either` (default) | donor state each counted marker must show; `either` = H or B |
-| flank_left, flank_right | number in flank_unit | recombinant window per side; default `flank_window` |
+| flank_left, flank_right | number in flank_unit | recombinant window per side; default `flank_window`; per target; overrides `flank_window` on that side only |
 
 ### avoid
 

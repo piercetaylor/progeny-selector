@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import dataclasses
 import math
 import subprocess
 import sys
@@ -13,12 +14,18 @@ from progeny_selector.core.pipeline import run_analysis
 from progeny_selector.core.selection import project_next_generation, select_top_n
 from progeny_selector.io import load_dataset, read_criteria
 from progeny_selector.io.export import write_results_csv
+from progeny_selector.model.criteria import BackgroundOptions, RankingOptions
 
 
 @pytest.fixture(scope="module")
-def result(fixture_dir: Path):
+def loaded(fixture_dir: Path):
     dataset = load_dataset(fixture_dir / "genotypes.vcf", fixture_dir / "samples.csv", fixture_dir / "markers.csv")
-    criteria = read_criteria(fixture_dir / "criteria.yaml")
+    return dataset, read_criteria(fixture_dir / "criteria.yaml")
+
+
+@pytest.fixture(scope="module")
+def result(loaded):
+    dataset, criteria = loaded
     return run_analysis(dataset, criteria)
 
 
@@ -84,6 +91,43 @@ def test_qc_advisory_flags(result, expected_rows):
         exp = expected_rows[row["sample_id"]]
         assert ("het_rate_deviates" in row["qc_flags"]) == (exp["het_rate_deviates"] == "True"), row["sample_id"]
         assert ("family_donor_outlier" in row["qc_flags"]) == (exp["family_donor_outlier"] == "True"), row["sample_id"]
+
+
+def test_weighted_matches_expected(loaded, expected_rows):
+    """The weighted background model against the generator's independent cM weights (10 cM cap)."""
+    dataset, criteria = loaded
+    weighted = run_analysis(dataset, dataclasses.replace(criteria, background=BackgroundOptions(model="weighted", map_unit="cm")))
+    for row in weighted.rows:
+        exp = expected_rows[row["sample_id"]]
+        assert row["background_model"] == "weighted"
+        assert _close(row["rpp_total"], exp["rpp_total_weighted"]), row["sample_id"]
+        assert _close(row["rpp_carrier"], exp["rpp_carrier_weighted"]), row["sample_id"]
+        assert _close(row["rpp_noncarrier"], exp["rpp_noncarrier_weighted"]), row["sample_id"]
+
+
+def test_staged_ranks_match_expected(loaded, result, expected_rows):
+    """Staged ranking against the generator's independent lexicographic order; the score is still written."""
+    dataset, criteria = loaded
+    staged = run_analysis(dataset, dataclasses.replace(criteria, ranking=RankingOptions(mode="staged")))
+    default_scores = {r["sample_id"]: r["composite_score"] for r in result.rows}
+    for row in staged.rows:
+        exp = expected_rows[row["sample_id"]]
+        assert row["rank_mode"] == "staged"
+        if exp["rank_overall_staged"]:
+            assert row["rank_overall"] == float(exp["rank_overall_staged"]), row["sample_id"]
+            assert row["rank_in_family"] == float(exp["rank_in_family_staged"]), row["sample_id"]
+        else:
+            assert row["rank_overall"] is None, row["sample_id"]
+        assert row["composite_score"] == default_scores[row["sample_id"]], row["sample_id"]
+
+
+def test_no_duplicates_in_fixture(result, expected_rows):
+    """No pair of the 40 progeny reaches IBS 0.995 over the informative markers (docs/adr/0017)."""
+    assert result.duplicates == []
+    for row in result.rows:
+        exp = expected_rows[row["sample_id"]]
+        assert ("possible_duplicate" in row["qc_flags"]) == (exp["possible_duplicate"] == "True"), row["sample_id"]
+        assert "possible_duplicate" not in row["qc_flags"], row["sample_id"]
 
 
 def test_selection_and_projection(result):

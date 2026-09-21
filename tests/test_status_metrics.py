@@ -13,10 +13,11 @@ from progeny_selector.core.background import marker_weights, rpp
 from progeny_selector.core.classify import classify
 from progeny_selector.core.drag import donor_segment
 from progeny_selector.core.foreground import foreground_status, resolve_locus
+from progeny_selector.core.pipeline import run_analysis
 from progeny_selector.core.score import composite_score, rank_rows
 from progeny_selector.core.similarity import ibs_to_sample
-from progeny_selector.model.criteria import AvoidSpec, CriteriaError, TargetSpec, Weights
-from tests.conftest import make_matrix
+from progeny_selector.model.criteria import AvoidSpec, Criteria, CriteriaError, TargetSpec, Weights
+from tests.conftest import make_dataset, make_matrix
 
 # Ten markers on Gm01 at 1..10 Mb; progeny P1 states below.
 STATES = ["A", "A", "H", "H", "H", "N", "H", "A", "A", "B"]
@@ -97,6 +98,28 @@ def test_ibs_to_parents(case):
     # P1 vs RP: A=1 (4), H=0.5 (4), B=0 (1), X=(0,1) vs (0,0) shares one allele -> none here; N excluded -> (4 + 2) / 9
     assert ibs_rp[2] == pytest.approx(6 / 9)
     assert ibs_rp[0] == 1.0 and ibs_rp[1] == 0.0
+
+
+def test_per_target_windows():
+    """flank_left/flank_right override flank_window on that side only, per target."""
+    dataset = make_dataset(make_matrix(STATES))
+    criteria = Criteria(
+        targets=[
+            TargetSpec("TW", marker_id="m4", flank_left=1.0, flank_right=20.0),
+            TargetSpec("TD", marker_id="m4"),  # defaults: flank_window 5.0 cM on both sides
+        ],
+        flank_window=5.0,
+        flank_unit="cm",
+    )
+    row = run_analysis(dataset, criteria).row("P1")
+    # Hand-computed on STATES: target m4 at 10 cM; the nearest A is m2 at 5 cM on the left
+    # (left_max 5.0 cM) and m8 at 20 cM on the right (right_max 10.0 cM, m6 missing is skipped).
+    assert row["drag_TW_left_max"] == pytest.approx(5.0) and row["drag_TW_right_max"] == pytest.approx(10.0)
+    assert row["drag_TD_left_max"] == pytest.approx(5.0) and row["drag_TD_right_max"] == pytest.approx(10.0)
+    assert row["recomb_TW_left"] is False  # 5.0 > flank_left 1.0
+    assert row["recomb_TW_right"] is True  # 10.0 <= flank_right 20.0
+    assert row["recomb_TD_left"] is True  # 5.0 <= flank_window 5.0
+    assert row["recomb_TD_right"] is False  # 10.0 > flank_window 5.0
 
 
 def test_composite_and_ranking():

@@ -6,11 +6,15 @@ heterozygosity; heuristic flags for possible selfs, outcrosses, sample swaps
 and duplicates (PLAN.md, algorithm 8); a within-family donor-fraction outlier
 flag (docs/adr/0012). Flags are advisory strings; the
 ranking step decides whether flagged individuals are excluded.
+``possible_duplicate`` (docs/adr/0017) is advisory and never excluding: the
+pipeline appends it to both members of every pair ``duplicate_pairs`` reports,
+and ``QC_EXCLUDING_FLAGS`` does not list it.
 
 Interface:
     sample_qc(gm, dataset, classification, filters) -> list[SampleQC]
     parent_qc(gm, dataset, classification, filters) -> list[str] warnings
-    duplicate_pairs(gm, sample_ids, threshold=0.995) -> list[tuple[str, str, float]]
+    duplicate_pairs(gm, sample_ids, threshold=0.995, max_samples=2000, marker_idx=None, min_overlap_frac=0.5)
+        -> list[tuple[str, str, float]]
     uninformative_summary(classification) -> list[tuple[str, int]]   (reason, count), count desc then reason
     qc_table_rows(qc, dataset, filters) -> list[dict]   one flat row per SampleQC for the Validate screen
 """
@@ -28,7 +32,7 @@ from progeny_selector.constants import STATE_A, STATE_B, STATE_H, STATE_N, STATE
 from progeny_selector.core.classify import Classification
 from progeny_selector.core.generation import expected_fractions, parse_generation
 from progeny_selector.core.score import qc_excluding_hits
-from progeny_selector.core.similarity import ibs_to_sample, pairwise_ibs
+from progeny_selector.core.similarity import MAX_IBS_MARKERS, ibs_to_sample, pairwise_ibs
 from progeny_selector.model.criteria import Filters
 from progeny_selector.model.dataset import Dataset, GenotypeMatrix
 
@@ -36,6 +40,10 @@ from progeny_selector.model.dataset import Dataset, GenotypeMatrix
 FAMILY_OUTLIER_MIN_N = 6
 FAMILY_OUTLIER_MIN_SCALE = 0.01
 FAMILY_OUTLIER_Z = 2.5
+
+# possible_duplicate (docs/adr/0017, amendment 2026-09-21): a pair must be called in common at this
+# fraction of the markers used for the comparison. Not a criteria key: it is a floor nobody tunes.
+MIN_DUPLICATE_OVERLAP_FRAC = 0.5
 
 
 @dataclass
@@ -170,17 +178,35 @@ def parent_qc(gm: GenotypeMatrix, dataset: Dataset, classification: Classificati
 
 
 def duplicate_pairs(
-    gm: GenotypeMatrix, sample_ids: list[str], threshold: float = 0.995, max_samples: int = 2000
+    gm: GenotypeMatrix,
+    sample_ids: list[str],
+    threshold: float = 0.995,
+    max_samples: int = 2000,
+    marker_idx: np.ndarray | None = None,
+    min_overlap_frac: float = MIN_DUPLICATE_OVERLAP_FRAC,
 ) -> list[tuple[str, str, float]]:
-    """Pairs of samples with IBS above ``threshold`` (marker-subsampled); empty when too many samples."""
+    """Pairs of samples with IBS above ``threshold`` (marker-subsampled); empty when too many samples.
+
+    ``marker_idx`` restricts the markers IBS is measured on; the pipeline passes the informative
+    markers, since on a panel with a small informative fraction the markers shared by construction
+    push backcross siblings over the threshold when all markers count (docs/adr/0017).
+
+    A pair is reported only when the two members are called in common at ``min_overlap_frac`` of
+    the markers actually used for the comparison — after the ``marker_idx`` restriction and after
+    subsampling — and never fewer than one. Without the floor a sample with almost no calls reaches
+    IBS 1.0 against everyone it happens to agree with on its handful of markers
+    (docs/adr/0017, amendment 2026-09-21).
+    """
     if len(sample_ids) < 2 or len(sample_ids) > max_samples:
         return []
     idx = np.array([gm.sample_index(s) for s in sample_ids])
-    ibs = pairwise_ibs(gm, idx)
+    ibs, overlap = pairwise_ibs(gm, idx, marker_idx=marker_idx, return_counts=True)
+    n_pool = gm.n_markers if marker_idx is None else len(np.unique(np.asarray(marker_idx)))
+    floor = max(1, math.ceil(min_overlap_frac * min(n_pool, MAX_IBS_MARKERS)))
     pairs: list[tuple[str, str, float]] = []
     for a in range(len(idx)):
         for b in range(a + 1, len(idx)):
-            if ibs[a, b] >= threshold:
+            if overlap[a, b] >= floor and ibs[a, b] >= threshold:
                 pairs.append((sample_ids[a], sample_ids[b], float(ibs[a, b])))
     return pairs
 
