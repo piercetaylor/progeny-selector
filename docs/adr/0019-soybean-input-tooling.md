@@ -28,3 +28,21 @@ This record covers `scripts/song2016_map.py` and `src/progeny_selector/core/gene
 Good: markers.csv built this way is reproducible from a public CC BY 4.0 table and one command; every dropped marker is counted; interpolation is monotone by construction.
 
 Bad: Table S1 carries a1 and a2 positions only, so data on Wm82.a4 or later must first be placed on a2 (or a1); markers dropped as non-monotone lose their published cM and receive an interpolated one when they are in `--markers-in`; the hand export is a manual step, and a change in the exported header names stops the script with the missing column named.
+
+## Addendum: SoySNP position table and KASP converter (Phase 10)
+
+This section records `scripts/soysnp_positions.py` and `scripts/kasp_to_wide.py`, added under decisions 7 and 9 (docs/m2-phases.md).
+
+- **Download, verified.** `--download` (never run in CI, never exercised by the test suite) fetches the SoyBase Data Store GFF3s named in `SOYBASE_URLS` (`https://data.soybase.org/Glycine/max/markers/Wm82.gnm{1,2,4,5,6}.mrk.SoySNP{50K,6K}/glyma.<dir>.gff3.gz`, licence Open) with a browser User-Agent, and verifies each directory's `CHECKSUM.*.md5` before use. There are no `##sequence-region` pragmas.
+- **`marker_id` from `Name=`, not `ID=`.** The GFF3 `ID=` attribute is `glyma.Wm82.gnmN.ss...`, an assembly-specific id; `Name=` is the marker id shared across assemblies, which is what the joined table keys on.
+- **Chromosome by stripping, then normalising.** The `seqid`'s `glyma.Wm82.gnmN.` prefix is stripped the way `scripts/soysnp50k_nils.py::strip_chrom` does (text after the last `.`), then passed through `core.chrom.normalize_chrom`; this needs no gnm5-specific code, because gnm5's raw seqids are `Chr01`..`Chr20` and `normalize_chrom` already accepts a `Chr` prefix. Scaffolds keep their stripped name.
+- **Panel from the file name.** The phase names a `--panel` option "per file via name" without defining its syntax; since SoyBase's own directory names carry SoySNP50K/SoySNP6K, the panel is read directly from each `--gff3` path instead of a separate flag.
+- **No allele column.** Decision 9's correction that allele attributes are `alleles=` (gnm1/2 50K and all 6K) or `ref_allele=` (gnm4/5/6 50K) is noted, but Phase 10's output table has no allele column to apply it to, so nothing reads those attributes yet.
+- **KASP: two shapes.** `kasp_to_wide.py` accepts long (`SubjectID`/`SNPID`/`Call` headers, case-insensitive; unverified against a primary source) and grid (SNPviewer's export, orientation detected by matching `--markers` ids against the header row or the first column). A call matches `^[ACGT][:\-.]?[ACGT]$`; the phase table's narrower `^[ACGT]:[ACGT]$` for the long shape is superseded by this decision-9 pattern for both shapes, so a call with no separator (`AG`) or a `-`/`.` separator is also accepted. `Uncallable`, `Missing`, `?`, `Bad`, `Dupe`, `NTC`, empty and any other non-matching text become `N`, counted per reason.
+- **Conflicts and controls.** Two rows for the same sample x marker with different resulting calls raise, naming both source lines; identical repeats do not. `--controls` (default `NTC`) drops sample rows/columns before conversion, in both shapes.
+
+### Consequences
+
+Good: one converter handles both a QC lab's long export and SNPviewer's grid export; every missing call is attributed to a reason instead of being silently coalesced.
+
+Bad: the long-format header names are not confirmed against a KASP/LGC primary source (decision 9's own caveat); grid-orientation detection can be ambiguous when `--markers` matches equally well (or not at all) on both axes, which the phase table does not define a tie-break for beyond "in either orientation" (this implementation prefers markers-as-columns on a tie and errors when neither axis matches).

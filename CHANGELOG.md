@@ -12,6 +12,7 @@ All notable changes to this project are documented in this file. The format foll
 
 ### Added
 
+- `scripts/soysnp_positions.py` builds a SoySNP50K/6K position table across Wm82 assemblies from SoyBase GFF3s; `scripts/kasp_to_wide.py` converts an LGC long-format KASP export to the wide CSV contract.
 - Selection list: editable notes written to selected.csv. Validate: background model, units, assembly, rank mode and duplicate pairs. Export: placeholder rows per selected individual. docs/keyboard-walkthrough.md.
 - `select --per-selected N`; a synthetic BC3F1 fixture generated from the BC2F1 selection proves next_samples.csv loads unchanged as the next generation (docs/adr/0018).
 - Advisory QC flag `possible_duplicate` and duplicate pairs in `validate` (docs/adr/0017). IBS is measured over the informative markers called in both individuals, and a pair is reported only when they share calls at half or more of the markers used, so a sample with almost no calls is no longer a duplicate of everyone it overlaps. The fixture pins weighted RPP and staged ranks computed independently.

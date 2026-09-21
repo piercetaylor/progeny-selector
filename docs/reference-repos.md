@@ -50,6 +50,10 @@ URL: https://github.com/posit-dev/py-shiny (fetched). Licence: MIT. Language: Py
 
 URLs: https://github.com/ThinkR-open/golem (fetched; MIT; R package framework for Shiny with R/, inst/app/www, dev/ scripts, tests/), https://github.com/Appsilon/rhino (fetched; LGPL-3; app/logic and app/view separation, Cypress e2e, renv). Evaluated as the R Shiny alternatives in docs/adr/0001; borrowed the logic/view separation as the core/app split. Not used.
 
+## SoyBase Data Store (data.soybase.org)
+
+URL: `https://data.soybase.org/Glycine/max/markers/` (referenced 2026-09-21). `Wm82.gnm{1,2,4,5,6}.mrk.SoySNP{50K,6K}` directory paths per docs/m2-phases.md decision 7. Fetched and verified 2026-09-21: `glyma.Wm82.gnm1.mrk.SoySNP50K.gff3.gz` (60,800 rows), `glyma.Wm82.gnm2.mrk.SoySNP50K.gff3.gz` (60,556 rows), `glyma.Wm82.gnm4.mrk.SoySNP50K.gff3.gz` (58,394 rows) all returned HTTP 200 at `https://data.soybase.org/Glycine/max/markers/<dir>/<file>`; attributes confirmed `alleles=` on gnm1 and gnm2, `ref_allele=` on gnm4, matching decision 9's correction. `CHECKSUM.*.md5` verification and gnm5/gnm6 were not fetched this session. Used by `scripts/soysnp_positions.py --download` to fetch GFF3 marker files and their `CHECKSUM.*.md5`.
+
 ## Searches that found no reusable MABC tool
 
 Searches for open marker-assisted backcrossing or background-selection packages ("marker assisted backcrossing R package github", "background selection software recurrent parent genome") returned PLABSIM (simulation software described in a 2000 article, no maintained repository found), Flapjack, and journal articles describing analyses done in Flapjack or spreadsheets. No maintained open-source repository implementing foreground/background/recombinant selection lists other than Flapjack was found.

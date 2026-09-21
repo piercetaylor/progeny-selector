@@ -22,3 +22,40 @@ Output: `marker_id,chrom,pos_bp,cm`, sorted by chromosome, position and cM, and 
 Cleaning: rows on scaffolds or without a coordinate are dropped; rows whose linkage group (a number such as `1` or `1.0`, equal to the chromosome number in Table S1) is not the chromosome number are dropped; within a chromosome, with markers ordered by position and then cM, only the longest run of markers whose cM never decreases along bp is kept, so a marker placed out of order on the map is dropped instead of bending the curve.
 
 Assembly caveat: Table S1 has a1 and a2 positions only. Genotype data on Wm82.a4 or later must be placed on a2 (or a1) first, and `--markers-in` positions must be on the assembly passed with `--assembly`; a marker found in both files at different positions stops the script. Set `assembly` in criteria.yaml to the same assembly when you run the analysis.
+
+## SoySNP marker positions: `scripts/soysnp_positions.py`
+
+Source: SoyBase Data Store, `https://data.soybase.org/Glycine/max/markers/<dir>/glyma.<dir>.gff3.gz` with `<dir>` in `Wm82.gnm{1,2,4,5,6}.mrk.SoySNP50K` and `Wm82.gnm{1,2,4,5,6}.mrk.SoySNP6K` (licence Open, per each directory's `README.*.yml`). Each GFF3 row is `seqid source type start end score strand phase attributes`; `marker_id` is the `Name=` attribute, not `ID=` (`ID=` is `glyma.Wm82.gnmN.ss...`). The chromosome is `seqid` with the `glyma.Wm82.gnmN.` prefix stripped (the text after the last `.`, as `scripts/soysnp50k_nils.py::strip_chrom` does) and then normalised; scaffolds keep their stripped name. There are no `##sequence-region` pragmas.
+
+```
+python3 scripts/soysnp_positions.py --gff3 Wm82.a2=data/soybase/glyma.Wm82.gnm2.mrk.SoySNP50K.gff3.gz \
+    --gff3 Wm82.a2=data/soybase/glyma.Wm82.gnm2.mrk.SoySNP6K.gff3.gz \
+    --out data/soybase/soysnp_positions.csv
+python3 scripts/soysnp_positions.py --gff3 Wm82.a4=data/soybase/glyma.Wm82.gnm4.mrk.SoySNP50K.gff3.gz \
+    --out data/soybase/soysnp_positions.csv --emit-markers-csv Wm82.a4 --markers-out data/soybase/markers.csv
+```
+
+- `--gff3 ASSEMBLY=PATH` (repeatable): `ASSEMBLY` is one of `Wm82.a1`, `Wm82.a2`, `Wm82.a4`, `Wm82.a5`, `Wm82.a6`. The panel (SoySNP50K or SoySNP6K) is read from the file name, since SoyBase's directory names carry it and there is no separate `--panel` flag.
+- `--out`: the joined wide table `marker_id, in_SoySNP50K, in_SoySNP6K, chrom_Wm82.a1, pos_bp_Wm82.a1, chrom_Wm82.a2, pos_bp_Wm82.a2, chrom_Wm82.a4, pos_bp_Wm82.a4, chrom_Wm82.a5, pos_bp_Wm82.a5, chrom_Wm82.a6, pos_bp_Wm82.a6`, one row per `marker_id`, blank where an assembly's file was not given or does not carry the marker; booleans are `TRUE`/`FALSE`.
+- `--emit-markers-csv ASSEMBLY --markers-out PATH`: a `marker_id,chrom,pos_bp` file for one assembly, Gm01..Gm20 only (scaffolds excluded), sorted by chromosome then position; loads directly through `io.manifest.read_markers`.
+- `--download`: fetches every file in `SOYBASE_URLS` into `data/soybase/` with a browser User-Agent and verifies each directory's `CHECKSUM.*.md5`; never run in CI or by the test suite.
+
+The script also prints each given assembly's maximum position per chromosome, to sanity-check against `constants.py`'s chromosome-length tables.
+
+## KASP export conversion: `scripts/kasp_to_wide.py`
+
+Converts an LGC KASP export to the wide-CSV genotype contract. Two input shapes are accepted (docs/adr/0019, decision 9):
+
+- **long**: one row per (sample, marker) call, detected case-insensitively by the headers `SubjectID`, `SNPID`, `Call`. This shape is unverified against a primary source.
+- **grid**: SNPviewer's export, one row per sample or one row per marker; detected by matching the header row or the first column against the marker ids in `--markers`, in either orientation.
+
+```
+python3 scripts/kasp_to_wide.py --kasp export.csv --markers markers.csv --out genotypes.csv
+python3 scripts/kasp_to_wide.py --kasp export.csv --markers markers.csv --out genotypes.csv --drop-unplaced --controls NTC,H2O
+```
+
+- A call matches `^[ACGT][:\-.]?[ACGT]$` (case-insensitive; separator `:`, `-`, `.` or none) and becomes the nucleotide pair of its first and last character (`A:G` -> `AG`). `Uncallable`, `Missing`, `?`, `Bad`, `Dupe`, `NTC`, empty, and any call that does not match the pattern become `N`, counted per reason and printed to stderr.
+- `--controls` (default `NTC`): sample ids dropped before conversion.
+- Two rows for the same sample x marker with different resulting calls are an error naming both source lines; identical repeats are not a conflict.
+- A marker id absent from `--markers` is an error listing the ids, unless `--drop-unplaced` (counted and dropped).
+- Output: `marker_id,chrom,pos_bp,<samples...>`, chrom/pos from `--markers`; sample columns in first-seen order, marker rows sorted by chromosome then position. The output loads through `io.load_genotypes`/`io.load_dataset` with nucleotide coding auto-detected.
