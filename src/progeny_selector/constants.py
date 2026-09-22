@@ -117,7 +117,8 @@ SOYBEAN_CHROM_LENGTHS_BP_WM82A2: dict[str, int] = {
 }
 
 
-# The criteria.yaml ``assembly`` default; ``model.criteria`` re-exports it, and ``core`` reads it from here
+# The table an unset criteria.yaml ``assembly`` resolves to under the soybean scheme (every other crop
+# resolves to "none"; core.pipeline.resolve_assembly); ``model.criteria`` re-exports it, and ``core`` reads it from here
 # because ``model`` imports ``core.chrom``.
 DEFAULT_ASSEMBLY: str = "Wm82.a4"
 

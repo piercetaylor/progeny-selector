@@ -26,7 +26,6 @@ from pathlib import Path
 import yaml
 
 from progeny_selector.model.criteria import (
-    DEFAULT_ASSEMBLY,
     AvoidSpec,
     BackgroundOptions,
     Criteria,
@@ -114,7 +113,7 @@ def _check_types(doc: dict) -> None:
         for key in _BOOL_KEYS.get(section, ()):
             if key in sub:
                 _check_bool(f"{section}.", key, sub[key])
-    if "assembly" in doc and not isinstance(doc["assembly"], str):
+    if doc.get("assembly") is not None and not isinstance(doc["assembly"], str):
         raise CriteriaError(f"assembly must be text, got {doc['assembly']!r}")
     background = doc.get("background") or {}
     if "max_marker_coverage" in background:
@@ -187,7 +186,7 @@ def criteria_from_dict(doc: dict) -> Criteria:
         filters=_build(Filters, doc.get("filters") or {}, "filters"),
         background=_build(BackgroundOptions, doc.get("background") or {}, "background"),
         ranking=_build(RankingOptions, doc.get("ranking") or {}, "ranking"),
-        assembly=str(doc.get("assembly", DEFAULT_ASSEMBLY)),
+        assembly=None if doc.get("assembly") is None else str(doc["assembly"]),
         flank_window=float(doc.get("flank_window", 5.0)),
         flank_unit=str(doc.get("flank_unit", "cm")),
     )
@@ -283,7 +282,7 @@ def criteria_to_dict(criteria: Criteria) -> dict:
     doc["avoid"] = [_locus_to_dict(a) for a in criteria.avoid]
     doc["flank_window"] = criteria.flank_window
     doc["flank_unit"] = criteria.flank_unit
-    doc["assembly"] = criteria.assembly
+    doc["assembly"] = criteria.assembly  # None (unset: the crop decides) is written as null and read back as None
     doc["background"] = {
         "model": criteria.background.model,
         "map_unit": criteria.background.map_unit,

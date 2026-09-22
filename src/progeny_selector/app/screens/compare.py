@@ -254,7 +254,7 @@ def server_(input, output, session, state) -> None:
         for sid in shown:
             row = by_id[sid]
             j = gm.sample_index(sid)
-            strips = chromosome_strips(states[:, j], gm, criteria.assembly, dataset.scheme)
+            strips = chromosome_strips(states[:, j], gm, result.assembly, dataset.scheme)
             ticks = locus_ticks(result.resolved_targets, result.resolved_avoid, strips)
             geometry = strip_rects(strips, ticks, row_px=ROW_PX, label_px=LABEL_PX)
             zero_width = [[seg.start == seg.end for seg in strip.segments] for strip in strips]

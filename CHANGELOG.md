@@ -4,6 +4,11 @@ All notable changes to this project are documented in this file. The format foll
 
 ## [Unreleased]
 
+### Fixed
+
+- results.csv and the Validate screen record the chromosome-length table the run used, and not the criteria.yaml text. A maize run with an unset `assembly` recorded `Wm82.a4` while using no length table at all, and now records `none` (docs/adr/0015, amendment 2026-09-22).
+- An unset criteria.yaml `assembly` means whatever the crop implies: `Wm82.a4` under soybean, `none` under every other crop. An explicit `Wm82.*` under a non-soybean crop is refused naming the key, and an explicit `none` is accepted under any crop. A downloaded criteria.yaml writes an unset key as `assembly: null` and stays reusable across crops.
+
 ### Added
 
 - Crop selector (contract 1.5.0, docs/adr/0020): soybean (default), maize, rice, sorghum, wheat, barley, oat, common bean and cotton chromosome schemes; a chosen crop normalizes and orders chromosome names, resolves target regions and selects chromosome lengths by that crop's convention, so a maize `chr1` is no longer read as `Gm01` and a maize target `chr7` resolves. `--crop ID` on the CLI and a Crop select on the Load screen.

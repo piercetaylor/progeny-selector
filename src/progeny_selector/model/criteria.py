@@ -187,7 +187,10 @@ class Criteria:
     filters: Filters = field(default_factory=Filters)
     background: BackgroundOptions = field(default_factory=BackgroundOptions)
     ranking: RankingOptions = field(default_factory=RankingOptions)
-    assembly: str = DEFAULT_ASSEMBLY  # chromosome-length table for RPP weights, drag bounds and strips
+    # Chromosome-length table for RPP weights, drag bounds and strips. None (an unset key) means
+    # "whatever the crop implies"; the pipeline resolves it against the dataset's scheme, since only
+    # there is the crop known (docs/adr/0015, amendment 2026-09-22).
+    assembly: str | None = None
     flank_window: float = 5.0  # default recombinant window on each side of a target
     flank_unit: str = "cm"  # "cm" or "bp"; falls back to bp when the map has no cM
     name: str | None = None
@@ -206,7 +209,7 @@ class Criteria:
         self.filters.validate()
         self.background.validate()
         self.ranking.validate()
-        if self.assembly not in ASSEMBLIES:
+        if self.assembly is not None and self.assembly not in ASSEMBLIES:
             raise CriteriaError(f"assembly must be one of {ASSEMBLIES}")
         if self.flank_unit not in ("cm", "bp"):
             raise CriteriaError("flank_unit must be 'cm' or 'bp'")

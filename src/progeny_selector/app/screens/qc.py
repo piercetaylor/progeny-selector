@@ -89,7 +89,7 @@ def server_(input, output, session, state) -> None:
             ui.tags.dt("drag unit"),
             ui.tags.dd(drag_unit),
             ui.tags.dt("assembly"),
-            ui.tags.dd(criteria.assembly),
+            ui.tags.dd(result.assembly),
             ui.tags.dt("rank mode"),
             ui.tags.dd(criteria.ranking.mode),
             ui.tags.dt("duplicate pairs"),

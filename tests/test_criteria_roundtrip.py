@@ -76,7 +76,7 @@ def test_canonical_form():
     assert list(doc["avoid"][0]) == ["locus_id", "left_marker", "right_marker", "rule", "min_markers", "notes", "allow_het"]
     assert doc["background"] == {"model": "weighted", "map_unit": "auto", "max_marker_coverage": 8}
     assert doc["ranking"] == {"mode": "weighted"}
-    assert doc["assembly"] == "Wm82.a4"
+    assert doc["assembly"] is None  # unset: the crop decides (core.pipeline.resolve_assembly)
     assert criteria_to_dict(Criteria(targets=[TargetSpec("T", marker_id="m")]))["background"]["max_marker_coverage"] is None
     text = dump_criteria_yaml(hand_built())
     assert "region" not in text
@@ -156,7 +156,9 @@ def test_read_criteria_text_rejects_non_mappings():
 def test_ranking_and_assembly_round_trip(fixture_criteria):
     text = dump_criteria_yaml(fixture_criteria)
     assert "ranking:\n  mode: weighted" in text
-    assert "assembly: Wm82.a4" in text
+    assert "assembly: null" in text  # unset in the fixture, so it round-trips as unset and not as the resolved value
+    assert read_criteria_text(text).assembly is None
+    assert read_criteria_text(T1 + "assembly: Wm82.a2\n").assembly == "Wm82.a2"
     assert read_criteria_text(text).ranking.mode == "weighted"
     assert read_criteria_text(T1 + "ranking: {mode: staged}\nassembly: none\n").ranking.mode == "staged"
 

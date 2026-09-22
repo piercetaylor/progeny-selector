@@ -8,8 +8,9 @@ No file I/O; the UI and CLI call ``run_analysis`` and hand the rows to
 
 Interface:
     run_analysis(dataset: Dataset, criteria: Criteria) -> AnalysisResult
+    resolve_assembly(criteria: Criteria, scheme: CompiledScheme) -> str   (the chromosome-length table the run uses)
     AnalysisResult.rows: list[dict]   (column names listed in docs/data-formats.md, "results.csv")
-    AnalysisResult.states, .classification, .warnings, .carrier_chroms, .unit, .duplicates
+    AnalysisResult.states, .classification, .warnings, .carrier_chroms, .unit, .assembly, .duplicates
 """
 
 from __future__ import annotations
@@ -18,7 +19,7 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
-from progeny_selector.constants import RESULTS_SCHEMA, STATE_A, STATE_B, STATE_H, STATE_N, STATUS_LABELS
+from progeny_selector.constants import DEFAULT_ASSEMBLY, RESULTS_SCHEMA, STATE_A, STATE_B, STATE_H, STATE_N, STATUS_LABELS
 from progeny_selector.core.avoid import avoid_status
 from progeny_selector.core.background import (
     DEFAULT_MAX_COVERAGE,
@@ -35,7 +36,7 @@ from progeny_selector.core.foreground import ResolvedLocus, foreground_status, r
 from progeny_selector.core.qc import SampleQC, duplicate_pairs, parent_qc, sample_qc
 from progeny_selector.core.score import composite_score, hard_filters, rank_rows, rank_rows_staged
 from progeny_selector.core.similarity import ibs_to_sample
-from progeny_selector.model.criteria import Criteria
+from progeny_selector.model.criteria import Criteria, CriteriaError
 from progeny_selector.model.dataset import DataContractError, Dataset, GenotypeMatrix
 
 
@@ -49,6 +50,7 @@ class AnalysisResult:
     qc: list[SampleQC]
     carrier_chroms: set[str]
     unit: str
+    assembly: str  # the resolved chromosome-length table (``resolve_assembly``), as written to results.csv
     warnings: list[str] = field(default_factory=list)
     duplicates: list[tuple[str, str, float]] = field(default_factory=list)
 
@@ -64,6 +66,28 @@ def _pick_unit(dataset: Dataset, requested: str, what: str) -> tuple[str, str | 
         did = "RPP weights computed" if what == "background.map_unit" else "windows interpreted"
         return "bp", f"{what} is cm but the map has no cM; {did} in bp"
     return "bp", None
+
+
+def resolve_assembly(criteria: Criteria, scheme: CompiledScheme = SOYBEAN) -> str:
+    """The chromosome-length table the run actually uses, given the dataset's crop scheme.
+
+    An unset key (``None``) means "whatever the crop implies": the default soybean table under the
+    soybean scheme, and ``none`` under every other scheme, since ``chrom_length_bp`` has no table for
+    them and falls back to the last marker. The test is the same identity test ``chrom_length_bp``
+    makes, so the resolved value states what that function did rather than what the file said. An
+    explicitly written Wm82 table under a non-soybean crop cannot be true and is refused
+    (docs/adr/0015, amendment 2026-09-22).
+    """
+    if scheme is SOYBEAN:
+        return DEFAULT_ASSEMBLY if criteria.assembly is None else criteria.assembly
+    if criteria.assembly is None:
+        return "none"
+    if criteria.assembly != "none":
+        raise CriteriaError(
+            f"assembly {criteria.assembly!r} is a soybean chromosome-length table, but the crop is "
+            f"{scheme.id!r}; write assembly: none or leave the key unset"
+        )
+    return "none"
 
 
 _MAX_LISTED_WARNINGS = 5
@@ -117,6 +141,7 @@ def _chrom_lengths(gm: GenotypeMatrix, assembly: str, scheme: CompiledScheme = S
 def run_analysis(dataset: Dataset, criteria: Criteria) -> AnalysisResult:
     criteria.validate()
     scheme = dataset.scheme
+    assembly = resolve_assembly(criteria, scheme)
     gm = dataset.genotypes.sorted_by_position(scheme)
     dataset = Dataset(
         genotypes=gm,
@@ -140,7 +165,7 @@ def run_analysis(dataset: Dataset, criteria: Criteria) -> AnalysisResult:
     unit, unit_warning = _pick_unit(dataset, criteria.background.map_unit, "background.map_unit")
     flank_unit, flank_warning = _pick_unit(dataset, criteria.flank_unit, "flank_unit")
     warnings += [w for w in (unit_warning, flank_warning) if w is not None]
-    chrom_lengths, unplaced, length_warnings = _chrom_lengths(gm, criteria.assembly, scheme)
+    chrom_lengths, unplaced, length_warnings = _chrom_lengths(gm, assembly, scheme)
     warnings += length_warnings
 
     # Foreground
@@ -285,7 +310,7 @@ def run_analysis(dataset: Dataset, criteria: Criteria) -> AnalysisResult:
             "background_model": criteria.background.model,
             "background_unit": unit,
             "rank_mode": criteria.ranking.mode,
-            "assembly": criteria.assembly,
+            "assembly": assembly,
             "results_schema": RESULTS_SCHEMA,
             "qc_flags": "|".join(qc[i].flags),
         }
@@ -323,6 +348,7 @@ def run_analysis(dataset: Dataset, criteria: Criteria) -> AnalysisResult:
         qc=qc,
         carrier_chroms=carrier,
         unit=unit,
+        assembly=assembly,
         warnings=warnings,
         duplicates=dups,
     )
