@@ -13,7 +13,7 @@ call stays visible. Pixel geometry lives in
 
 Interface:
     Segment, ChromStrip, LocusTick (frozen dataclasses)
-    chromosome_strips(states: int8 (n_markers,), gm, assembly) -> list[ChromStrip]
+    chromosome_strips(states: int8 (n_markers,), gm, assembly, scheme) -> list[ChromStrip]
     locus_ticks(targets, avoid, strips) -> list[LocusTick]
 """
 
@@ -24,7 +24,7 @@ from dataclasses import dataclass
 import numpy as np
 
 from progeny_selector.constants import DEFAULT_ASSEMBLY
-from progeny_selector.core.chrom import chrom_length_bp, chrom_sort_key
+from progeny_selector.core.chrom import SOYBEAN, CompiledScheme, chrom_length_bp, chrom_sort_key
 from progeny_selector.core.foreground import ResolvedLocus
 from progeny_selector.model.dataset import GenotypeMatrix
 
@@ -53,18 +53,20 @@ class LocusTick:
     end: float
 
 
-def chromosome_strips(states: np.ndarray, gm: GenotypeMatrix, assembly: str = DEFAULT_ASSEMBLY) -> list[ChromStrip]:
-    """One strip per chromosome, in ``chrom_sort_key`` order; ``assembly`` names the chromosome-length table."""
+def chromosome_strips(
+    states: np.ndarray, gm: GenotypeMatrix, assembly: str = DEFAULT_ASSEMBLY, scheme: CompiledScheme = SOYBEAN
+) -> list[ChromStrip]:
+    """One strip per chromosome, in ``chrom_sort_key`` order under ``scheme``; ``assembly`` names the chromosome-length table."""
     chroms = gm.chroms()
     pos = gm.positions("bp")
     strips: list[ChromStrip] = []
-    for chrom in sorted(set(chroms.tolist()), key=chrom_sort_key):
+    for chrom in sorted(set(chroms.tolist()), key=lambda c: chrom_sort_key(c, scheme)):
         idx = np.where(chroms == chrom)[0]
         idx = idx[np.argsort(pos[idx], kind="stable")]
         p = pos[idx]
         s = states[idx]
         # A marker beyond the assembly length (or an unknown chromosome) stretches the strip to that marker.
-        length = max(float(chrom_length_bp(chrom, None, assembly) or 0), float(p.max()))
+        length = max(float(chrom_length_bp(chrom, None, assembly, scheme) or 0), float(p.max()))
         if length <= 0:
             length = 1.0
         segments: list[Segment] = []

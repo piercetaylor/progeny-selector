@@ -17,7 +17,7 @@ Column facts [web]
 https://statgen-esalq.github.io/Hapmap-and-VCF-formats-and-its-integration-with-onemap/.
 
 Interface:
-    read_hapmap(path: str | Path, coding: str = 'auto', profile: TokenProfile | None = None) -> GenotypeMatrix
+    read_hapmap(path, coding='auto', profile=None, scheme=SOYBEAN) -> GenotypeMatrix
 """
 
 from __future__ import annotations
@@ -27,7 +27,7 @@ from pathlib import Path
 import numpy as np
 
 from progeny_selector.constants import HAPMAP_MISSING
-from progeny_selector.core.chrom import normalize_chrom
+from progeny_selector.core.chrom import SOYBEAN, CompiledScheme, normalize_chrom
 from progeny_selector.io.calls import encode_marker, parse_nucleotide_call
 from progeny_selector.io.delimited import is_blank, open_text
 from progeny_selector.io.position import parse_position
@@ -37,7 +37,9 @@ from progeny_selector.model.dataset import DataContractError, GenotypeMatrix, Ma
 N_FIXED = 11
 
 
-def read_hapmap(path: str | Path, coding: str = "auto", profile: TokenProfile | None = None) -> GenotypeMatrix:
+def read_hapmap(
+    path: str | Path, coding: str = "auto", profile: TokenProfile | None = None, scheme: CompiledScheme = SOYBEAN
+) -> GenotypeMatrix:
     path = Path(path)
     if profile is not None and coding == "abh":
         raise DataContractError(
@@ -74,7 +76,7 @@ def read_hapmap(path: str | Path, coding: str = "auto", profile: TokenProfile | 
                 pos_bp = parse_position(fields[3])
             except ValueError as exc:
                 raise DataContractError(f"line {line_no}: {exc}") from exc
-            markers.append(Marker(marker_id=fields[0], chrom=normalize_chrom(fields[2]), pos_bp=pos_bp))
+            markers.append(Marker(marker_id=fields[0], chrom=normalize_chrom(fields[2], scheme), pos_bp=pos_bp))
             alleles.append(allele_list)
             rows.append(pairs)
     if not markers:

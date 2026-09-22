@@ -10,7 +10,7 @@ Format facts: VCF 4.2 specification [web]
 https://samtools.github.io/hts-specs/VCFv4.2.pdf.
 
 Interface:
-    read_vcf(path: str | Path) -> GenotypeMatrix
+    read_vcf(path: str | Path, scheme: CompiledScheme = SOYBEAN) -> GenotypeMatrix
 """
 
 from __future__ import annotations
@@ -19,7 +19,7 @@ from pathlib import Path
 
 import numpy as np
 
-from progeny_selector.core.chrom import normalize_chrom
+from progeny_selector.core.chrom import SOYBEAN, CompiledScheme, normalize_chrom
 from progeny_selector.io.delimited import is_blank, open_text
 from progeny_selector.io.position import parse_position
 from progeny_selector.model.dataset import DataContractError, GenotypeMatrix, Marker
@@ -37,7 +37,7 @@ def _parse_gt(token: str) -> tuple[int, int]:
     return (a, b)
 
 
-def read_vcf(path: str | Path) -> GenotypeMatrix:
+def read_vcf(path: str | Path, scheme: CompiledScheme = SOYBEAN) -> GenotypeMatrix:
     path = Path(path)
     sample_ids: list[str] = []
     markers: list[Marker] = []
@@ -82,7 +82,7 @@ def read_vcf(path: str | Path) -> GenotypeMatrix:
             pairs = np.array([_parse_gt(t) for t in tokens], dtype=np.int8)
             if pairs.max() >= len(allele_list):
                 raise DataContractError(f"line {line_no}: GT allele index exceeds ALT count")
-            markers.append(Marker(marker_id=marker_id, chrom=normalize_chrom(chrom), pos_bp=pos_bp))
+            markers.append(Marker(marker_id=marker_id, chrom=normalize_chrom(chrom, scheme), pos_bp=pos_bp))
             alleles.append(allele_list)
             rows.append(pairs)
     if not markers:

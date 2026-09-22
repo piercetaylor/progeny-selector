@@ -1,0 +1,41 @@
+{
+  "id": "rice",
+  "name": "Rice",
+  "species": "Oryza sativa",
+  "ploidy": 2,
+  "assembly": "IRGSP-1.0 / MSU7",
+  "chromosomes": [
+    "Chr1",
+    "Chr2",
+    "Chr3",
+    "Chr4",
+    "Chr5",
+    "Chr6",
+    "Chr7",
+    "Chr8",
+    "Chr9",
+    "Chr10",
+    "Chr11",
+    "Chr12"
+  ],
+  "keys": [
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6",
+    "7",
+    "8",
+    "9",
+    "10",
+    "11",
+    "12"
+  ],
+  "pattern": "^(?:chr|chromosome)?[_\\s-]?0*([1-9]|1[0-2])$",
+  "sources": [
+    "https://rice.uga.edu/annotation_pseudo_current.shtml",
+    "https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/001/433/935/GCF_001433935.1_IRGSP-1.0/GCF_001433935.1_IRGSP-1.0_assembly_report.txt",
+    "https://rest.ensembl.org/info/assembly/oryza_sativa"
+  ]
+}

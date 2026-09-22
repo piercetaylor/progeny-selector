@@ -6,8 +6,8 @@ error), 2 (usage). Useful for batch runs on an HPC node and for wiring
 outputs into the R reader ``scripts/read_results.R``.
 
 Interface (subcommands):
-    progeny-selector validate --genotypes G --samples S [--markers M] [--criteria C] [--profile ID_OR_FILE]
-    progeny-selector rank     --genotypes G --samples S --criteria C [--markers M] [--profile ID_OR_FILE] --out results.csv
+    progeny-selector validate --genotypes G --samples S [--markers M] [--criteria C] [--profile ID_OR_FILE] [--crop ID]
+    progeny-selector rank     --genotypes G --samples S --criteria C [--markers M] [--profile ID_OR_FILE] [--crop ID] --out results.csv
     progeny-selector select   --results results.csv --top N [--overall] --out selected.csv
                               [--next-manifest next_samples.csv --next-generation BC3F1 --samples S
                                --per-selected N]
@@ -23,6 +23,7 @@ import sys
 from progeny_selector.core.pipeline import run_analysis
 from progeny_selector.core.selection import project_next_generation, select_top_n
 from progeny_selector.io import load_dataset, read_criteria, read_samples
+from progeny_selector.io.crops import BUILTIN_CROPS, DEFAULT_CROP_ID
 from progeny_selector.io.export import write_next_round_manifest, write_results_csv, write_selection_csv
 from progeny_selector.model.criteria import CriteriaError
 from progeny_selector.model.dataset import DataContractError
@@ -38,6 +39,13 @@ def _add_data_args(p: argparse.ArgumentParser, criteria_required: bool) -> None:
         "--profile",
         metavar="ID_OR_FILE",
         help="token profile for HapMap and wide CSV cells: a built-in id (tassel, soybase-report, dart, axiom, kasp) or a JSON file",
+    )
+    p.add_argument(
+        "--crop",
+        metavar="ID",
+        default=DEFAULT_CROP_ID,
+        choices=tuple(BUILTIN_CROPS),
+        help="crop chromosome scheme for chromosome names: " + ", ".join(BUILTIN_CROPS) + " (default: %(default)s)",
     )
 
 
@@ -101,7 +109,9 @@ def _profile_ref(ref: str | None) -> str | dict | None:
 
 
 def _load(args: argparse.Namespace):
-    dataset = load_dataset(args.genotypes, args.samples, args.markers, coding=args.coding, profile=_profile_ref(args.profile))
+    dataset = load_dataset(
+        args.genotypes, args.samples, args.markers, coding=args.coding, profile=_profile_ref(args.profile), crop=args.crop
+    )
     criteria = read_criteria(args.criteria) if args.criteria else None
     return dataset, criteria
 

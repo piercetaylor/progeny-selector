@@ -17,9 +17,11 @@ The ``*_text`` wrappers return exactly what the path writers put in the file
 (``csv.writer`` line endings, CRLF), so a download encoded as UTF-8 is
 byte-identical to the CLI's output. Both results.csv and selected.csv end with the
 ``token_profile`` column (contract 1.4.0): results rows carry it as their last key, so
-``_columns`` puts it last; selected.csv appends it after ``results_schema``.
+``_columns`` puts it last; selected.csv appends it after ``results_schema``. ``crop``
+(contract 1.5.0) is a fixed column between ``results_schema`` and ``token_profile`` in both
+files: docs/adr/0016 line 29 puts a new fixed column there, never after ``token_profile``.
 
-results.csv is schema 1.0.0 (docs/adr/0016): a missing value is written ``NA`` and empty
+results.csv is schema 1.1.0 (docs/adr/0016): a missing value is written ``NA`` and empty
 text (``exclusion_reason``, ``qc_flags``, ``notes``) stays an empty cell; with no rows the
 header is exactly ``FIXED_COLUMNS``. selected.csv carries ``results_schema`` too;
 next_samples.csv does not, and keeps empty cells, because it is the input contract's
@@ -84,8 +86,9 @@ LEADING_COLUMNS = (
 )
 
 # The fixed prefix of results.csv: the leading columns, the composition columns, then the metadata
-# columns of schema 1.0.0 (docs/adr/0016), and last ``token_profile`` (contract 1.4.0), which the
-# dynamic per-locus and per-chromosome columns are written before.
+# columns of schema 1.1.0 (docs/adr/0016), including ``crop`` after ``results_schema`` (contract
+# 1.5.0), and last ``token_profile`` (contract 1.4.0), which the dynamic per-locus and
+# per-chromosome columns are written before.
 FIXED_COLUMNS = (
     *LEADING_COLUMNS,
     "role",
@@ -98,6 +101,7 @@ FIXED_COLUMNS = (
     "rank_mode",
     "assembly",
     "results_schema",
+    "crop",
     "token_profile",
 )
 
@@ -112,6 +116,7 @@ SELECTION_COLUMNS = (
     "rpp_total",
     "notes",
     "results_schema",
+    "crop",
     "token_profile",
 )
 
@@ -180,6 +185,7 @@ def _write_selection_csv(fh: TextIO, rows: list[dict], notes: dict[str, str] | N
                 _fmt(r.get("rpp_total")),
                 notes.get(r["sample_id"], ""),
                 RESULTS_SCHEMA,
+                r.get("crop", ""),
                 r.get("token_profile", ""),
             ]
         )

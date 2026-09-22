@@ -7,7 +7,7 @@ each side, and heterozygous calls contribute half [web]
 https://flapjack.hutton.ac.uk/en/latest/mabc.html.
 
 Interface:
-    marker_weights(gm, informative, unit, max_coverage, chrom_lengths) -> float (n_markers,)
+    marker_weights(gm, informative, unit, max_coverage, chrom_lengths, scheme) -> float (n_markers,)
     rpp(states, weights=None, marker_mask=None) -> float (n_samples,)
     rpp_per_chromosome(states, gm, weights=None) -> dict[chrom, float (n_samples,)]
     carrier_mask(gm, carrier_chroms) -> bool (n_markers,)
@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from progeny_selector.core.chrom import chrom_sort_key
+from progeny_selector.core.chrom import SOYBEAN, CompiledScheme, chrom_sort_key
 from progeny_selector.core.classify import is_called_informative, rpp_contribution
 from progeny_selector.model.dataset import GenotypeMatrix
 
@@ -30,6 +30,7 @@ def marker_weights(
     unit: str = "bp",
     max_coverage: float | None = None,
     chrom_lengths: dict[str, float] | None = None,
+    scheme: CompiledScheme = SOYBEAN,
 ) -> np.ndarray:
     """Map-interval weight per informative marker; zero for uninformative markers.
 
@@ -42,7 +43,7 @@ def marker_weights(
     pos = gm.positions(unit)
     chroms = gm.chroms()
     weights = np.zeros(gm.n_markers, dtype=float)
-    for chrom in sorted(set(chroms.tolist()), key=chrom_sort_key):
+    for chrom in sorted(set(chroms.tolist()), key=lambda c: chrom_sort_key(c, scheme)):
         idx = np.where((chroms == chrom) & informative & ~np.isnan(pos))[0]
         if idx.size == 0:
             continue
@@ -83,9 +84,11 @@ def rpp(states: np.ndarray, weights: np.ndarray | None = None, marker_mask: np.n
     return out
 
 
-def rpp_per_chromosome(states: np.ndarray, gm: GenotypeMatrix, weights: np.ndarray | None = None) -> dict[str, np.ndarray]:
+def rpp_per_chromosome(
+    states: np.ndarray, gm: GenotypeMatrix, weights: np.ndarray | None = None, scheme: CompiledScheme = SOYBEAN
+) -> dict[str, np.ndarray]:
     chroms = gm.chroms()
-    return {c: rpp(states, weights, chroms == c) for c in sorted(set(chroms.tolist()), key=chrom_sort_key)}
+    return {c: rpp(states, weights, chroms == c) for c in sorted(set(chroms.tolist()), key=lambda c: chrom_sort_key(c, scheme))}
 
 
 def carrier_mask(gm: GenotypeMatrix, carrier_chroms: set[str]) -> np.ndarray:

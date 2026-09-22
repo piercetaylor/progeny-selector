@@ -28,7 +28,7 @@ from progeny_selector.core.background import (
     rpp,
     rpp_per_chromosome,
 )
-from progeny_selector.core.chrom import chrom_length_bp, chrom_sort_key
+from progeny_selector.core.chrom import SOYBEAN, CompiledScheme, chrom_length_bp, chrom_sort_key
 from progeny_selector.core.classify import Classification, classify
 from progeny_selector.core.drag import DragResult, donor_segment
 from progeny_selector.core.foreground import ResolvedLocus, foreground_status, resolve_locus
@@ -70,7 +70,7 @@ _MAX_LISTED_WARNINGS = 5
 _MAX_DUPLICATE_SAMPLES = 2000  # above this the pairwise scan is skipped (docs/adr/0017)
 
 
-def _chrom_lengths(gm: GenotypeMatrix, assembly: str) -> tuple[dict[str, float], set[str], list[str]]:
+def _chrom_lengths(gm: GenotypeMatrix, assembly: str, scheme: CompiledScheme = SOYBEAN) -> tuple[dict[str, float], set[str], list[str]]:
     """Chromosome ends, the chromosomes the assembly does not place, and the warnings for both.
 
     A chromosome the assembly gives no length for (every chromosome under ``assembly: none``) ends at
@@ -86,9 +86,9 @@ def _chrom_lengths(gm: GenotypeMatrix, assembly: str) -> tuple[dict[str, float],
     missing: list[str] = []
     beyond: list[str] = []
     warnings: list[str] = []
-    for c in sorted(set(chroms.tolist()), key=chrom_sort_key):
+    for c in sorted(set(chroms.tolist()), key=lambda name: chrom_sort_key(name, scheme)):
         max_pos = float(pos[chroms == c].max())
-        length = chrom_length_bp(c, None, assembly)
+        length = chrom_length_bp(c, None, assembly, scheme)
         if length is None:
             lengths[c] = max_pos
             unplaced.add(c)
@@ -116,13 +116,15 @@ def _chrom_lengths(gm: GenotypeMatrix, assembly: str) -> tuple[dict[str, float],
 
 def run_analysis(dataset: Dataset, criteria: Criteria) -> AnalysisResult:
     criteria.validate()
-    gm = dataset.genotypes.sorted_by_position()
+    scheme = dataset.scheme
+    gm = dataset.genotypes.sorted_by_position(scheme)
     dataset = Dataset(
         genotypes=gm,
         samples=dataset.samples,
         warnings=list(dataset.warnings),
         synthetic_sample_ids=dataset.synthetic_sample_ids,
         token_profile=dataset.token_profile,
+        scheme=scheme,
     )
     warnings = list(dataset.warnings)
     rp_id, donor_id = dataset.recurrent_parent.sample_id, dataset.donor_parent.sample_id
@@ -138,11 +140,11 @@ def run_analysis(dataset: Dataset, criteria: Criteria) -> AnalysisResult:
     unit, unit_warning = _pick_unit(dataset, criteria.background.map_unit, "background.map_unit")
     flank_unit, flank_warning = _pick_unit(dataset, criteria.flank_unit, "flank_unit")
     warnings += [w for w in (unit_warning, flank_warning) if w is not None]
-    chrom_lengths, unplaced, length_warnings = _chrom_lengths(gm, criteria.assembly)
+    chrom_lengths, unplaced, length_warnings = _chrom_lengths(gm, criteria.assembly, scheme)
     warnings += length_warnings
 
     # Foreground
-    resolved_t = {t.locus_id: resolve_locus(t, gm) for t in criteria.targets}
+    resolved_t = {t.locus_id: resolve_locus(t, gm, scheme) for t in criteria.targets}
     positions_bp = gm.positions("bp")
     target_status = {
         t.locus_id: foreground_status(
@@ -171,12 +173,14 @@ def run_analysis(dataset: Dataset, criteria: Criteria) -> AnalysisResult:
         # the recorded one — so its terminal markers weigh the cap's half rather than nothing
         # (docs/adr/0015, amendment 2026-09-21); drag bounds still end at the last marker.
         placed = {c: length for c, length in chrom_lengths.items() if c not in unplaced}
-        weights = marker_weights(gm, cls.informative, unit, criteria.background.max_marker_coverage, placed if unit == "bp" else None)
+        weights = marker_weights(
+            gm, cls.informative, unit, criteria.background.max_marker_coverage, placed if unit == "bp" else None, scheme
+        )
     cmask = carrier_mask(gm, carrier)
     rpp_total = rpp(states, weights)
     rpp_carrier = rpp(states, weights, cmask)
     rpp_noncarrier = rpp(states, weights, ~cmask)
-    rpp_chrom = rpp_per_chromosome(states, gm, weights)
+    rpp_chrom = rpp_per_chromosome(states, gm, weights, scheme)
     n_inf_called = n_called_informative(states)
 
     # Linkage drag and recombinants
@@ -189,7 +193,7 @@ def run_analysis(dataset: Dataset, criteria: Criteria) -> AnalysisResult:
         drag[t.locus_id] = donor_segment(states, gm, r, flank_unit, clen, wl, wr)
 
     # Avoid
-    resolved_a = {a.locus_id: resolve_locus(a, gm) for a in criteria.avoid}
+    resolved_a = {a.locus_id: resolve_locus(a, gm, scheme) for a in criteria.avoid}
     avoid_st = {a.locus_id: avoid_status(states, resolved_a[a.locus_id], a.allow_het, a.rule, a.min_markers) for a in criteria.avoid}
 
     # Similarity and QC
@@ -304,7 +308,9 @@ def run_analysis(dataset: Dataset, criteria: Criteria) -> AnalysisResult:
                     "rename the chromosome in markers.csv or the genotype file"
                 )
             row[key] = _num(values[i])
-        # Last key, so results.csv carries it as its last column (contract 1.4.0).
+        # ``crop`` is a fixed column after ``results_schema`` (contract 1.5.0, docs/adr/0016 line 29) and
+        # ``token_profile`` the last key, so results.csv carries it as its last column (contract 1.4.0).
+        row["crop"] = dataset.crop
         row["token_profile"] = dataset.token_profile
         rows.append(row)
     rows.sort(key=lambda r: (r["rank_overall"] if r["rank_overall"] is not None else float("inf"), r["sample_id"]))

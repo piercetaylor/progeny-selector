@@ -6,7 +6,7 @@ progeny-selector ranks and selects progeny in marker-assisted backcross (MABC) p
 
 ## What exists now
 
-Parsers for all input formats and the criteria file, with an `assembly` selector (Wm82.a1, a2, a4 or none) for chromosome lengths and beyond-length warnings; classification, foreground (including per-target windows), avoid, background (count and weighted RPP, weighted the default), drag, similarity, QC (including the advisory `possible_duplicate` flag and duplicate pairs), scoring, ranking (weighted or staged), selection and projection; results/selection/manifest writers with results.csv and selected.csv columns frozen under `results_schema` and `NA` for missing cells; a CLI (`validate`, `rank`, `select --per-selected N`); a Shiny app with all seven screens running the real pipeline — Load, Validate/QC (background model, units, assembly, rank mode and duplicate pairs shown), Navigate (tree and breadcrumbs), Rank (status chips, filters, multi-select), Compare (side-by-side cards and chromosome strips), Selection list (editable notes) and Export; a documented keyboard walkthrough; a Shinylive static export that stages the package into the bundle and is smoke-tested in a real browser; a synthetic BC2F1 fixture, a BC3F1 fixture proving next_samples.csv round-trips unchanged as the next generation's samples.csv, and a passing unit and browser test suite. See PLAN.md, "Milestones" and "Verification status".
+Parsers for all input formats and the criteria file, with an `assembly` selector (Wm82.a1, a2, a4 or none) for chromosome lengths and beyond-length warnings; classification, foreground (including per-target windows), avoid, background (count and weighted RPP, weighted the default), drag, similarity, QC (including the advisory `possible_duplicate` flag and duplicate pairs), scoring, ranking (weighted or staged), selection and projection; results/selection/manifest writers with results.csv and selected.csv columns frozen under `results_schema` and `NA` for missing cells; a CLI (`validate`, `rank`, `select --per-selected N`, each taking `--crop ID` for one of nine crop chromosome schemes); a Shiny app with all seven screens running the real pipeline — Load, Validate/QC (background model, units, assembly, rank mode and duplicate pairs shown), Navigate (tree and breadcrumbs), Rank (status chips, filters, multi-select), Compare (side-by-side cards and chromosome strips), Selection list (editable notes) and Export; a documented keyboard walkthrough; a Shinylive static export that stages the package into the bundle and is smoke-tested in a real browser; a synthetic BC2F1 fixture, a BC3F1 fixture proving next_samples.csv round-trips unchanged as the next generation's samples.csv, and a passing unit and browser test suite. See PLAN.md, "Milestones" and "Verification status".
 
 ## Quickstart
 
@@ -24,6 +24,8 @@ progeny-selector rank --genotypes tests/fixtures/synthetic_bc2f1/genotypes.vcf \
   --samples tests/fixtures/synthetic_bc2f1/samples.csv \
   --markers tests/fixtures/synthetic_bc2f1/markers.csv \
   --criteria tests/fixtures/synthetic_bc2f1/criteria.yaml --out results.csv
+# --crop maize, rice, sorghum, wheat, barley, oat, common-bean or cotton reads chromosome
+# names under that crop's convention; soybean is the default.
 progeny-selector select --results results.csv --top 3 --out selected.csv \
   --next-manifest next_samples.csv --next-generation BC3F1 \
   --samples tests/fixtures/synthetic_bc2f1/samples.csv

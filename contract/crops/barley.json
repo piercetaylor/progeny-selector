@@ -1,0 +1,29 @@
+{
+  "id": "barley",
+  "name": "Barley",
+  "species": "Hordeum vulgare",
+  "ploidy": 2,
+  "assembly": "MorexV3",
+  "chromosomes": [
+    "chr1H",
+    "chr2H",
+    "chr3H",
+    "chr4H",
+    "chr5H",
+    "chr6H",
+    "chr7H"
+  ],
+  "keys": [
+    "1H",
+    "2H",
+    "3H",
+    "4H",
+    "5H",
+    "6H",
+    "7H"
+  ],
+  "pattern": "^(?:chr|chromosome)?[_\\s-]?0*([1-7])[_-]?(H)$",
+  "sources": [
+    "https://rest.ensembl.org/info/assembly/hordeum_vulgare"
+  ]
+}

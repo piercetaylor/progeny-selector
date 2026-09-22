@@ -1,0 +1,96 @@
+{
+  "contractVersion": "1.5.0",
+  "coded": false,
+  "chromosomeOrder": [
+    "Chr1A",
+    "Chr7D",
+    "chrUn"
+  ],
+  "markers": [
+    {
+      "id": "r1",
+      "chrom": "Chr1A",
+      "posBp": 1000,
+      "cm": null
+    },
+    {
+      "id": "r3",
+      "chrom": "Chr1A",
+      "posBp": 3000,
+      "cm": null
+    },
+    {
+      "id": "r2",
+      "chrom": "Chr7D",
+      "posBp": 2000,
+      "cm": null
+    },
+    {
+      "id": "r4",
+      "chrom": "chrUn",
+      "posBp": 4000,
+      "cm": null
+    }
+  ],
+  "sampleIds": [
+    "RP",
+    "DONOR",
+    "L1"
+  ],
+  "calls": {
+    "RP": [
+      [
+        "A",
+        "A"
+      ],
+      [
+        "A",
+        "A"
+      ],
+      [
+        "A",
+        "A"
+      ],
+      [
+        "A",
+        "A"
+      ]
+    ],
+    "DONOR": [
+      [
+        "G",
+        "G"
+      ],
+      [
+        "G",
+        "G"
+      ],
+      [
+        "G",
+        "G"
+      ],
+      [
+        "G",
+        "G"
+      ]
+    ],
+    "L1": [
+      [
+        "A",
+        "G"
+      ],
+      [
+        "A",
+        "G"
+      ],
+      [
+        "A",
+        "G"
+      ],
+      [
+        "A",
+        "G"
+      ]
+    ]
+  }
+}

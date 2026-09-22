@@ -1,4 +1,4 @@
-"""results.csv schema 1.0.0: the fixed column list, NA for missing values, a header with no rows (docs/adr/0016).
+"""results.csv schema 1.1.0: the fixed column list, NA for missing values, a header with no rows (docs/adr/0016).
 
 The column list is written out here rather than imported, so a change to ``FIXED_COLUMNS`` has to be
 made twice, deliberately, and the schema version bumped with it.
@@ -28,8 +28,9 @@ from progeny_selector.model.dataset import DataContractError, GenotypeMatrix, Ma
 from tests.conftest import make_dataset, make_matrix
 from tests.test_map_warnings import without_cm
 
-# The fixed prefix of results.csv: 34 names, then the dynamic per-locus and per-chromosome
-# columns, then ``token_profile`` (contract 1.4.0), which is the 35th name of the empty header.
+# The fixed prefix of results.csv: 35 names, ``crop`` (contract 1.5.0) last of them, then the
+# dynamic per-locus and per-chromosome columns, then ``token_profile`` (contract 1.4.0), which is
+# the 36th name of the empty header.
 FIXED_PREFIX = [
     "rank_overall",
     "rank_in_family",
@@ -65,6 +66,7 @@ FIXED_PREFIX = [
     "rank_mode",
     "assembly",
     "results_schema",
+    "crop",
 ]
 EMPTY_HEADER = [*FIXED_PREFIX, "token_profile"]
 
@@ -75,8 +77,8 @@ def result(fixture_dir: Path):
     return run_analysis(dataset, read_criteria(fixture_dir / "criteria.yaml"))
 
 
-def test_fixed_prefix_is_34_names() -> None:
-    assert len(FIXED_PREFIX) == 34
+def test_fixed_prefix_is_35_names() -> None:
+    assert len(FIXED_PREFIX) == 35
     assert len(set(EMPTY_HEADER)) == len(EMPTY_HEADER)
 
 
@@ -92,7 +94,7 @@ def test_fixture_header_prefix_and_trailing_token_profile(result) -> None:
 
 def test_metadata_columns_on_every_row(result) -> None:
     for row in result.rows:
-        assert row["results_schema"] == "1.0.0"
+        assert row["results_schema"] == "1.1.0"
         assert row["background_model"] == "count"
         assert row["background_unit"] == "cm"
         assert row["rank_mode"] == "weighted"
@@ -124,7 +126,7 @@ def test_selection_csv_header_and_na(result) -> None:
     assert cells[SELECTION_COLUMNS.index("family_id")] == "NA"
     assert cells[SELECTION_COLUMNS.index("generation")] == "NA"
     assert cells[SELECTION_COLUMNS.index("notes")] == ""
-    assert cells[SELECTION_COLUMNS.index("results_schema")] == "1.0.0"
+    assert cells[SELECTION_COLUMNS.index("results_schema")] == "1.1.0"
 
 
 def test_missing_qc_numbers_are_na_not_nan() -> None:

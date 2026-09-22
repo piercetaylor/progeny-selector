@@ -8,7 +8,8 @@ Interface:
     Marker, Sample, GenotypeMatrix, Dataset (dataclasses)
     GenotypeMatrix.sample_index(sample_id) -> int
     GenotypeMatrix.marker_index(marker_id) -> int
-    GenotypeMatrix.sorted_by_position() -> GenotypeMatrix
+    GenotypeMatrix.sorted_by_position(scheme=SOYBEAN) -> GenotypeMatrix
+    Dataset.scheme: CompiledScheme (the crop scheme; Dataset.crop is its id)
     GenotypeMatrix.positions(unit) -> np.ndarray
     GenotypeMatrix.select_samples(sample_ids) -> GenotypeMatrix
     Dataset.recurrent_parent / donor_parent / progeny -> Sample(s)
@@ -21,7 +22,7 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
-from progeny_selector.core.chrom import chrom_sort_key
+from progeny_selector.core.chrom import SOYBEAN, CompiledScheme, chrom_sort_key
 
 
 class DataContractError(ValueError):
@@ -111,8 +112,8 @@ class GenotypeMatrix:
     def has_cm(self) -> bool:
         return all(m.cm is not None for m in self.markers)
 
-    def sorted_by_position(self) -> GenotypeMatrix:
-        order = sorted(range(self.n_markers), key=lambda i: (chrom_sort_key(self.markers[i].chrom), self.markers[i].pos_bp))
+    def sorted_by_position(self, scheme: CompiledScheme = SOYBEAN) -> GenotypeMatrix:
+        order = sorted(range(self.n_markers), key=lambda i: (chrom_sort_key(self.markers[i].chrom, scheme), self.markers[i].pos_bp))
         if order == list(range(self.n_markers)):
             return self
         return GenotypeMatrix(
@@ -154,6 +155,10 @@ class Dataset:
     build_dataset; they are not part of the loaded sample list the contract describes.
     token_profile: the token profile the genotype file was read with (contract 1.4.0): "default",
     a built-in id, or "custom:<id>".
+    scheme: the compiled crop chromosome scheme the names were read under (contract 1.5.0),
+    which every later normalisation, ordering and chromosome-length lookup uses; ``SOYBEAN`` is
+    the default and reproduces contract 1.2.0. ``crop`` is its id, derived so the two cannot
+    disagree.
     """
 
     genotypes: GenotypeMatrix
@@ -161,6 +166,12 @@ class Dataset:
     warnings: list[str] = field(default_factory=list)
     synthetic_sample_ids: tuple[str, ...] = ()
     token_profile: str = "default"
+    scheme: CompiledScheme = SOYBEAN
+
+    @property
+    def crop(self) -> str:
+        """The id of the crop chromosome scheme (contract 1.5.0)."""
+        return self.scheme.id
 
     def __post_init__(self) -> None:
         roles = [s.role for s in self.samples]

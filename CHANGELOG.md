@@ -4,6 +4,14 @@ All notable changes to this project are documented in this file. The format foll
 
 ## [Unreleased]
 
+### Added
+
+- Crop selector (contract 1.5.0, docs/adr/0020): soybean (default), maize, rice, sorghum, wheat, barley, oat, common bean and cotton chromosome schemes; a chosen crop normalizes and orders chromosome names, resolves target regions and selects chromosome lengths by that crop's convention, so a maize `chr1` is no longer read as `Gm01` and a maize target `chr7` resolves. `--crop ID` on the CLI and a Crop select on the Load screen.
+
+### Changed
+
+- results.csv schema 1.1.0: a fixed `crop` column after `results_schema` and before `token_profile`, which stays last (docs/adr/0016); selected.csv gains it in the same position and `scripts/read_results.R` reads it. Under any crop but soybean a chromosome ends at its last marker, because the chromosome length tables are Williams 82's; the per-chromosome "assembly gives no length" warning says so.
+
 ### Changed
 
 - **BREAKING CHANGE:** results.csv schema 1.0.0: missing cells are `NA`, the header is written with no results, new columns `background_model`, `background_unit`, `rank_mode`, `assembly`, `results_schema`; `het_rate`, `expected_het` and `expected_rpp` never print `nan`. selected.csv gains `results_schema` and writes `NA` for missing family or generation (docs/adr/0016). next_samples.csv is unchanged: empty cells, no schema column. A chromosome whose name would collide with `rpp_total`, `rpp_carrier` or `rpp_noncarrier` is now an error naming the chromosome.

@@ -5,7 +5,7 @@ indices, then decide pass/fail/unknown per individual for the required donor
 state. Pure functions over the classification matrix (PLAN.md, algorithm 2).
 
 Interface:
-    resolve_locus(spec, gm) -> ResolvedLocus
+    resolve_locus(spec, gm, scheme=SOYBEAN) -> ResolvedLocus   (the crop scheme a region's CHROM is read under)
     marker_predicate(states, required_state) -> bool array (True where the call meets the state)
     locus_status(states, resolved, predicate, rule, min_markers, *, positions, min_run, anchor_bp, tolerate_isolated)
         -> int8 status per sample
@@ -20,7 +20,7 @@ from dataclasses import dataclass
 import numpy as np
 
 from progeny_selector.constants import STATE_A, STATE_B, STATE_H, STATUS_FAIL, STATUS_PASS, STATUS_UNKNOWN
-from progeny_selector.core.chrom import normalize_chrom
+from progeny_selector.core.chrom import SOYBEAN, CompiledScheme, normalize_chrom
 from progeny_selector.core.classify import is_called_informative
 from progeny_selector.model.criteria import CriteriaError, LocusSpec
 from progeny_selector.model.dataset import GenotypeMatrix
@@ -40,7 +40,7 @@ class ResolvedLocus:
         return (self.start_bp + self.end_bp) / 2.0
 
 
-def resolve_locus(spec: LocusSpec, gm: GenotypeMatrix) -> ResolvedLocus:
+def resolve_locus(spec: LocusSpec, gm: GenotypeMatrix, scheme: CompiledScheme = SOYBEAN) -> ResolvedLocus:
     """Resolve a locus definition to marker indices; raise CriteriaError when nothing matches."""
     kind = spec.kind()
     if kind == "marker":
@@ -56,7 +56,7 @@ def resolve_locus(spec: LocusSpec, gm: GenotypeMatrix) -> ResolvedLocus:
         if mi.pos_bp > mj.pos_bp:
             i, j, mi, mj = j, i, mj, mi
         return ResolvedLocus(spec.locus_id, kind, mi.chrom, mi.pos_bp, mj.pos_bp, np.array([i, j]))
-    chrom = normalize_chrom(spec.chrom)  # type: ignore[arg-type]
+    chrom = normalize_chrom(spec.chrom, scheme)  # type: ignore[arg-type]
     idx = [
         k
         for k, m in enumerate(gm.markers)

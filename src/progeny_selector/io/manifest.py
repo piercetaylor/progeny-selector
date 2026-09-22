@@ -8,7 +8,7 @@ issues are returned as warning strings.
 
 Interface:
     read_samples(path) -> list[Sample]
-    read_markers(path) -> dict[marker_id, Marker]
+    read_markers(path, scheme=SOYBEAN) -> dict[marker_id, Marker]
     apply_marker_map(gm, marker_map) -> (GenotypeMatrix, warnings)
     build_dataset(gm, samples) -> Dataset
 """
@@ -18,7 +18,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from progeny_selector.constants import SAMPLE_ROLES
-from progeny_selector.core.chrom import normalize_chrom
+from progeny_selector.core.chrom import SOYBEAN, CompiledScheme, normalize_chrom
 from progeny_selector.io.delimited import csv_rows, read_text
 from progeny_selector.io.position import parse_position
 from progeny_selector.io.wide_csv import add_synthetic_parents
@@ -79,7 +79,7 @@ def read_samples(path: str | Path) -> list[Sample]:
     return samples
 
 
-def read_markers(path: str | Path) -> dict[str, Marker]:
+def read_markers(path: str | Path, scheme: CompiledScheme = SOYBEAN) -> dict[str, Marker]:
     rows = _read_rows(path, MARKER_REQUIRED)
     out: dict[str, Marker] = {}
     for line_no, row in rows:
@@ -97,7 +97,7 @@ def read_markers(path: str | Path) -> dict[str, Marker]:
             pos_bp = parse_position(row["pos_bp"])
         except ValueError as exc:
             raise DataContractError(f"{path}: line {line_no}: {exc}") from exc
-        out[mid] = Marker(marker_id=mid, chrom=normalize_chrom(row["chrom"]), pos_bp=pos_bp, cm=cm)
+        out[mid] = Marker(marker_id=mid, chrom=normalize_chrom(row["chrom"], scheme), pos_bp=pos_bp, cm=cm)
     if not out:
         raise DataContractError(f"{path}: no marker rows")
     return out

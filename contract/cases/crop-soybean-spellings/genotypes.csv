@@ -1,0 +1,5 @@
+marker_id,chrom,pos_bp,RP,DONOR,L1
+r1,Gm13,1000,A,G,R
+r2,chr7,2000,A,G,R
+r3,LG_7,3000,A,G,R
+r4,scaffold_22,4000,A,G,R

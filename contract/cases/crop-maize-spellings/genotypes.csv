@@ -1,0 +1,5 @@
+marker_id,chrom,pos_bp,RP,DONOR,L1
+r1,chr10,1000,A,G,R
+r2,Chromosome_1,2000,A,G,R
+r3,01,3000,A,G,R
+r4,scaffold_21,4000,A,G,R

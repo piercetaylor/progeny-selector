@@ -1,0 +1,39 @@
+{
+  "id": "common-bean",
+  "name": "Common bean",
+  "species": "Phaseolus vulgaris",
+  "ploidy": 2,
+  "assembly": "G19833 v2.1",
+  "chromosomes": [
+    "Chr01",
+    "Chr02",
+    "Chr03",
+    "Chr04",
+    "Chr05",
+    "Chr06",
+    "Chr07",
+    "Chr08",
+    "Chr09",
+    "Chr10",
+    "Chr11"
+  ],
+  "keys": [
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6",
+    "7",
+    "8",
+    "9",
+    "10",
+    "11"
+  ],
+  "pattern": "^(?:chr|pv|chromosome)?[_\\s-]?0*([1-9]|1[01])$",
+  "sources": [
+    "https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/000/499/845/GCF_000499845.2_P._vulgaris_v2.0/GCF_000499845.2_P._vulgaris_v2.0_assembly_report.txt",
+    "https://rest.ensembl.org/info/assembly/phaseolus_vulgaris",
+    "https://knowpulse.usask.ca/bio_data/2691095"
+  ]
+}

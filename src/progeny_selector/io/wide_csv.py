@@ -17,7 +17,7 @@ base "nucleotide" profile, and a profile on a file whose coding is "abh", reques
 is an error naming the profile and how the coding was reached (contract 1.4.0).
 
 Interface:
-    read_wide_csv(path, coding='auto', profile=None) -> GenotypeMatrix
+    read_wide_csv(path, coding='auto', profile=None, scheme=SOYBEAN) -> GenotypeMatrix
     add_synthetic_parents(gm, rp_id, donor_id) -> GenotypeMatrix   (coded matrices only)
 """
 
@@ -27,7 +27,7 @@ from pathlib import Path
 
 import numpy as np
 
-from progeny_selector.core.chrom import normalize_chrom
+from progeny_selector.core.chrom import SOYBEAN, CompiledScheme, normalize_chrom
 from progeny_selector.io.calls import detect_coding, encode_marker, parse_coded_call, parse_nucleotide_call
 from progeny_selector.io.delimited import csv_rows, read_text
 from progeny_selector.io.position import parse_position
@@ -37,7 +37,9 @@ from progeny_selector.model.dataset import DataContractError, GenotypeMatrix, Ma
 FIXED = ("marker_id", "chrom", "pos_bp")
 
 
-def read_wide_csv(path: str | Path, coding: str = "auto", profile: TokenProfile | None = None) -> GenotypeMatrix:
+def read_wide_csv(
+    path: str | Path, coding: str = "auto", profile: TokenProfile | None = None, scheme: CompiledScheme = SOYBEAN
+) -> GenotypeMatrix:
     path = Path(path)
     requested = coding
     compiled = compile_profile(profile) if profile is not None else None
@@ -72,7 +74,7 @@ def read_wide_csv(path: str | Path, coding: str = "auto", profile: TokenProfile 
         if not marker_id:
             raise DataContractError(f"line {line_no}: empty marker_id")
         try:
-            markers.append(Marker(marker_id=marker_id, chrom=normalize_chrom(row[1]), pos_bp=parse_position(row[2])))
+            markers.append(Marker(marker_id=marker_id, chrom=normalize_chrom(row[1], scheme), pos_bp=parse_position(row[2])))
             if coding == "abh":
                 pairs = np.array([parse_coded_call(c) for c in row[3:]], dtype=np.int8)
                 alleles.append(["A", "B"])

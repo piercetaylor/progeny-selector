@@ -1,7 +1,7 @@
 """The shared data contract (contract/README.md), checked against this repository's loaders.
 
 Every directory under contract/cases/ is loaded through load_dataset (genotypes.<ext>,
-samples.csv, optional markers.csv, and the token profile of an optional options.json), normalised to the language-neutral shape of
+samples.csv, optional markers.csv, and the token profile and crop of an optional options.json), normalised to the language-neutral shape of
 expected.json and compared; an error case must raise DataContractError matching the
 pattern its kind maps to below. The kind-to-pattern table lives here, not in the
 contract, so rewording a message is a change to this test. The manifest and the
@@ -17,8 +17,9 @@ from pathlib import Path
 
 import pytest
 
-from progeny_selector.core.chrom import chrom_sort_key
+from progeny_selector.core.chrom import CompiledScheme, chrom_sort_key
 from progeny_selector.io import load_dataset
+from progeny_selector.io.crops import DEFAULT_CROP_ID, resolve_crop
 from progeny_selector.io.profiles import profile_label, resolve_profile
 from progeny_selector.model.dataset import DataContractError, Dataset
 
@@ -49,10 +50,10 @@ ERROR_KIND_PATTERNS: dict[str, str] = {
 CASE_NAMES = sorted(p.name for p in CASES.iterdir() if p.is_dir())
 
 
-def normalise_dataset(ds: Dataset, version: str) -> dict:
+def normalise_dataset(ds: Dataset, version: str, scheme: CompiledScheme) -> dict:
     """expected.json shape: markers in (chromosome order, position), cm None when absent; sampleIds in
     manifest order excluding synthetic parents; calls as sorted allele symbols or None."""
-    gm = ds.genotypes.sorted_by_position()
+    gm = ds.genotypes.sorted_by_position(scheme)
     sample_ids = [s for s in gm.sample_ids if s not in ds.synthetic_sample_ids]
     calls: dict[str, list[list[str] | None]] = {}
     for sid in sample_ids:
@@ -65,7 +66,7 @@ def normalise_dataset(ds: Dataset, version: str) -> dict:
     return {
         "contractVersion": version,
         "coded": gm.coded,
-        "chromosomeOrder": sorted({m.chrom for m in gm.markers}, key=chrom_sort_key),
+        "chromosomeOrder": sorted({m.chrom for m in gm.markers}, key=lambda c: chrom_sort_key(c, scheme)),
         "markers": [{"id": m.marker_id, "chrom": m.chrom, "posBp": m.pos_bp, "cm": m.cm} for m in gm.markers],
         "sampleIds": sample_ids,
         "calls": calls,
@@ -78,14 +79,18 @@ def _genotype_file(case_dir: Path) -> Path:
     return names[0]
 
 
-def _load(case_dir: Path) -> Dataset:
+def _load(case_dir: Path) -> tuple[Dataset, CompiledScheme]:
     markers = case_dir / "markers.csv"
     options_path = case_dir / "options.json"
     options = json.loads(options_path.read_bytes().decode("utf-8")) if options_path.exists() else {}
     profile = resolve_profile(options.get("profile"))
-    dataset = load_dataset(_genotype_file(case_dir), case_dir / "samples.csv", markers if markers.exists() else None, profile=profile)
+    crop = options.get("crop", DEFAULT_CROP_ID)
+    dataset = load_dataset(
+        _genotype_file(case_dir), case_dir / "samples.csv", markers if markers.exists() else None, profile=profile, crop=crop
+    )
     assert dataset.token_profile == profile_label(profile)
-    return dataset
+    assert dataset.crop == crop
+    return dataset, resolve_crop(crop)
 
 
 def test_cases_exist_with_one_expectation_each() -> None:
@@ -101,7 +106,8 @@ def test_case(name: str) -> None:
     expected_path = case_dir / "expected.json"
     if expected_path.exists():
         expected = json.loads(expected_path.read_bytes().decode("utf-8"))
-        assert normalise_dataset(_load(case_dir), VERSION) == expected
+        dataset, scheme = _load(case_dir)
+        assert normalise_dataset(dataset, VERSION, scheme) == expected
     else:
         err = json.loads((case_dir / "expected-error.json").read_bytes().decode("utf-8"))
         assert err["contractVersion"] == VERSION

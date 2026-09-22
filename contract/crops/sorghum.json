@@ -1,0 +1,35 @@
+{
+  "id": "sorghum",
+  "name": "Sorghum",
+  "species": "Sorghum bicolor",
+  "ploidy": 2,
+  "assembly": "BTx623 v3.1.1 (NCBIv3)",
+  "chromosomes": [
+    "Chr01",
+    "Chr02",
+    "Chr03",
+    "Chr04",
+    "Chr05",
+    "Chr06",
+    "Chr07",
+    "Chr08",
+    "Chr09",
+    "Chr10"
+  ],
+  "keys": [
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6",
+    "7",
+    "8",
+    "9",
+    "10"
+  ],
+  "pattern": "^(?:chr|chromosome)?[_\\s-]?0*([1-9]|10)$",
+  "sources": [
+    "https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/000/003/195/GCF_000003195.3_Sorghum_bicolor_NCBIv3/GCF_000003195.3_Sorghum_bicolor_NCBIv3_assembly_report.txt"
+  ]
+}

@@ -12,7 +12,9 @@ shown verbatim; a failed Apply leaves AppState untouched. A "Token profile" sele
 (JSON, optional)" file input choose how HapMap and wide-CSV cells are read; a custom file,
 when given, is used instead of the select, which is disabled while it is set (as backcross's
 Upload screen); "Clear custom token profile" forgets it and resets the file input; an
-unreadable or invalid file is a load error.
+unreadable or invalid file is a load error. A "Crop" select (contract 1.5.0: the nine built-in
+chromosome schemes, soybean the default) chooses the scheme chromosome names are normalised and
+ordered under; positions are not converted between assemblies.
 
 Interface:
     read_profile_json(path) -> dict   (a custom token profile file; DataContractError when unreadable
@@ -36,6 +38,7 @@ from progeny_selector.core.navigation import build_tree
 from progeny_selector.core.pipeline import run_analysis
 from progeny_selector.io import load_dataset, read_criteria
 from progeny_selector.io.criteria import dump_criteria_yaml, read_criteria_text
+from progeny_selector.io.crops import BUILTIN_CROPS, DEFAULT_CROP_ID
 from progeny_selector.io.profiles import BUILTIN_PROFILES, DEFAULT_PROFILE_ID
 from progeny_selector.model.criteria import CriteriaError
 from progeny_selector.model.dataset import DataContractError
@@ -57,6 +60,7 @@ def ui_(id: str = "") -> ui.Tag:
                 ui.output_ui("profile_select"),
                 ui.output_ui("profile_file_input"),
                 ui.input_action_button("profile_clear", "Clear custom token profile"),
+                ui.input_select("crop", "Crop", CROP_CHOICES, selected=DEFAULT_CROP_ID),
                 ui.input_file("criteria", "criteria.yaml", accept=[".yaml", ".yml"]),
                 ui.input_action_button("run", "Load and analyse", class_="btn-primary"),
             ),
@@ -83,6 +87,10 @@ PROFILE_CHOICES: dict[str, str] = {
     DEFAULT_PROFILE_ID: "Contract default (by format)",
     **{pid: p.name for pid, p in BUILTIN_PROFILES.items()},
 }
+
+
+# The crop chromosome schemes (contract 1.5.0), in file order with soybean first and selected.
+CROP_CHOICES: dict[str, str] = {cid: scheme.name for cid, scheme in BUILTIN_CROPS.items()}
 
 
 def _disable_select(node: TagChild) -> None:
@@ -162,7 +170,8 @@ def server_(input, output, session, state) -> None:
             profile: str | dict = input.profile() or DEFAULT_PROFILE_ID
             if pf is not None:
                 profile = read_profile_json(pf)
-            dataset = load_dataset(g[0]["datapath"], s[0]["datapath"], m[0]["datapath"] if m else None, profile=profile)
+            crop = input.crop() or DEFAULT_CROP_ID
+            dataset = load_dataset(g[0]["datapath"], s[0]["datapath"], m[0]["datapath"] if m else None, profile=profile, crop=crop)
             criteria = read_criteria(c[0]["datapath"])
             result = run_analysis(dataset, criteria)
             state.dataset.set(dataset)

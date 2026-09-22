@@ -244,7 +244,7 @@ def server_(input, output, session, state) -> None:
         notice = ui.p(f"{missing} selected individuals are not in the current results") if missing else None
         if not present:
             return ui.TagList(notice, ui.p("Select rows on the Rank screen."))
-        gm = dataset.genotypes.sorted_by_position()  # run_analysis sorted its own copy the same way
+        gm = dataset.genotypes.sorted_by_position(dataset.scheme)  # run_analysis sorted its own copy the same way
         states = result.classification.states
         drag_ok = all(len(d.left_max) == len(progeny_ids) for d in result.drag.values())
         if states.shape != (gm.n_markers, gm.n_samples) or not drag_ok:
@@ -254,7 +254,7 @@ def server_(input, output, session, state) -> None:
         for sid in shown:
             row = by_id[sid]
             j = gm.sample_index(sid)
-            strips = chromosome_strips(states[:, j], gm, criteria.assembly)
+            strips = chromosome_strips(states[:, j], gm, criteria.assembly, dataset.scheme)
             ticks = locus_ticks(result.resolved_targets, result.resolved_avoid, strips)
             geometry = strip_rects(strips, ticks, row_px=ROW_PX, label_px=LABEL_PX)
             zero_width = [[seg.start == seg.end for seg in strip.segments] for strip in strips]

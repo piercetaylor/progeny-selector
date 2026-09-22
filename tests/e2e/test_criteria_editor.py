@@ -107,9 +107,9 @@ def test_results_before_load_is_header_only(page: Page, app: ShinyAppProc) -> No
     controller.PageNavbar(page, "screen").set("export")
     name, body = _download(page, "export-results")
     assert name == "results.csv"
-    # results.csv schema 1.0.0: with no results the header is exactly the fixed columns (docs/adr/0016).
+    # results.csv schema 1.1.0: with no results the header is exactly the fixed columns (docs/adr/0016).
     assert body == (",".join(FIXED_COLUMNS) + "\r\n").encode("utf-8")
-    assert len(FIXED_COLUMNS) == 35
+    assert len(FIXED_COLUMNS) == 36
 
 
 def test_export_downloads(page: Page, app: ShinyAppProc) -> None:
