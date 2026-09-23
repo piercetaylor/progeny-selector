@@ -9,15 +9,20 @@ every reader normalises and orders names under. "soybean" is the default and rep
 1.2.0 exactly; ``load_dataset`` resolves it and puts the compiled scheme on Dataset.scheme, from
 which Dataset.crop is derived.
 
+A BrAPI variant set (brapi.py, docs/adr/0024) is a fourth genotype source outside the shared
+contract; samples.csv and markers.csv apply as for a file.
+
 Interface:
     load_genotypes(path, coding='auto', profile=None, crop='soybean') -> GenotypeMatrix
     load_dataset(genotype_path, samples_path, markers_path=None, coding='auto', profile=None, crop='soybean') -> Dataset
+    load_brapi_dataset(source: BrapiSource, samples_path, markers_path=None, crop='soybean', fetch_json=None) -> Dataset
 """
 
 from __future__ import annotations
 
 from pathlib import Path
 
+from progeny_selector.io.brapi import BrapiSource, load_brapi_dataset
 from progeny_selector.io.criteria import read_criteria
 from progeny_selector.io.crops import DEFAULT_CROP_ID, resolve_crop
 from progeny_selector.io.hapmap import read_hapmap
@@ -72,4 +77,15 @@ def load_dataset(
     return dataset
 
 
-__all__ = ["load_dataset", "load_genotypes", "read_criteria", "read_hapmap", "read_markers", "read_samples", "read_vcf", "read_wide_csv"]
+__all__ = [
+    "BrapiSource",
+    "load_brapi_dataset",
+    "load_dataset",
+    "load_genotypes",
+    "read_criteria",
+    "read_hapmap",
+    "read_markers",
+    "read_samples",
+    "read_vcf",
+    "read_wide_csv",
+]

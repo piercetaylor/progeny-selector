@@ -1,0 +1,197 @@
+{
+ "metadata": {
+  "pagination": {
+   "currentPage": 0,
+   "nextPageToken": "",
+   "pageSize": 13,
+   "totalCount": 25,
+   "totalPages": 2
+  }
+ },
+ "result": {
+  "data": [
+   {
+    "alternateBases": [
+     "T"
+    ],
+    "end": 1018917,
+    "referenceBases": "G",
+    "referenceName": "Gm06",
+    "start": 1018916,
+    "variantDbId": "var0",
+    "variantNames": [
+     "syn_Gm06_01"
+    ],
+    "variantSetDbId": "vs1"
+   },
+   {
+    "alternateBases": [
+     "G"
+    ],
+    "end": 3056752,
+    "referenceBases": "T",
+    "referenceName": "Gm06",
+    "start": 3056751,
+    "variantDbId": "var1",
+    "variantNames": [
+     "syn_Gm06_02"
+    ],
+    "variantSetDbId": "vs1"
+   },
+   {
+    "alternateBases": [
+     "G"
+    ],
+    "end": 5094586,
+    "referenceBases": "T",
+    "referenceName": "Gm06",
+    "start": 5094585,
+    "variantDbId": "var2",
+    "variantNames": [
+     "syn_Gm06_03"
+    ],
+    "variantSetDbId": "vs1"
+   },
+   {
+    "alternateBases": [
+     "A"
+    ],
+    "end": 7132421,
+    "referenceBases": "G",
+    "referenceName": "Gm06",
+    "start": 7132420,
+    "variantDbId": "var3",
+    "variantNames": [
+     "syn_Gm06_04"
+    ],
+    "variantSetDbId": "vs1"
+   },
+   {
+    "alternateBases": [
+     "A"
+    ],
+    "end": 9170256,
+    "referenceBases": "C",
+    "referenceName": "Gm06",
+    "start": 9170255,
+    "variantDbId": "var4",
+    "variantNames": [
+     "syn_Gm06_05"
+    ],
+    "variantSetDbId": "vs1"
+   },
+   {
+    "alternateBases": [
+     "C"
+    ],
+    "end": 11208090,
+    "referenceBases": "G",
+    "referenceName": "Gm06",
+    "start": 11208089,
+    "variantDbId": "var5",
+    "variantNames": [
+     "syn_Gm06_06"
+    ],
+    "variantSetDbId": "vs1"
+   },
+   {
+    "alternateBases": [
+     "G"
+    ],
+    "end": 13245925,
+    "referenceBases": "T",
+    "referenceName": "Gm06",
+    "start": 13245924,
+    "variantDbId": "var6",
+    "variantNames": [
+     "syn_Gm06_07"
+    ],
+    "variantSetDbId": "vs1"
+   },
+   {
+    "alternateBases": [
+     "A"
+    ],
+    "end": 15283760,
+    "referenceBases": "T",
+    "referenceName": "Gm06",
+    "start": 15283759,
+    "variantDbId": "var7",
+    "variantNames": [
+     "syn_Gm06_08"
+    ],
+    "variantSetDbId": "vs1"
+   },
+   {
+    "alternateBases": [
+     "G"
+    ],
+    "end": 17321594,
+    "referenceBases": "C",
+    "referenceName": "Gm06",
+    "start": 17321593,
+    "variantDbId": "var8",
+    "variantNames": [
+     "syn_Gm06_09"
+    ],
+    "variantSetDbId": "vs1"
+   },
+   {
+    "alternateBases": [
+     "A"
+    ],
+    "end": 19359429,
+    "referenceBases": "T",
+    "referenceName": "Gm06",
+    "start": 19359428,
+    "variantDbId": "var9",
+    "variantNames": [
+     "syn_Gm06_10"
+    ],
+    "variantSetDbId": "vs1"
+   },
+   {
+    "alternateBases": [
+     "C"
+    ],
+    "end": 21397263,
+    "referenceBases": "A",
+    "referenceName": "Gm06",
+    "start": 21397262,
+    "variantDbId": "var10",
+    "variantNames": [
+     "syn_Gm06_11"
+    ],
+    "variantSetDbId": "vs1"
+   },
+   {
+    "alternateBases": [
+     "T"
+    ],
+    "end": 23435098,
+    "referenceBases": "A",
+    "referenceName": "Gm06",
+    "start": 23435097,
+    "variantDbId": "var11",
+    "variantNames": [
+     "syn_Gm06_12"
+    ],
+    "variantSetDbId": "vs1"
+   },
+   {
+    "alternateBases": [
+     "C"
+    ],
+    "end": 25472932,
+    "referenceBases": "G",
+    "referenceName": "Gm06",
+    "start": 25472931,
+    "variantDbId": "var12",
+    "variantNames": [
+     "syn_Gm06_13"
+    ],
+    "variantSetDbId": "vs1"
+   }
+  ]
+ }
+}

@@ -1,0 +1,41 @@
+{
+ "metadata": {
+  "pagination": {
+   "currentPage": 1,
+   "pageSize": 5,
+   "totalCount": 8,
+   "totalPages": 2
+  }
+ },
+ "result": {
+  "data": [
+   {
+    "callSetDbId": "cs5",
+    "callSetName": "BC2F1-F2-001",
+    "sampleDbId": "smp5",
+    "studyDbId": "study1",
+    "variantSetDbIds": [
+     "vs1"
+    ]
+   },
+   {
+    "callSetDbId": "cs6",
+    "callSetName": "BC2F1-F2-002",
+    "sampleDbId": "smp6",
+    "studyDbId": "study1",
+    "variantSetDbIds": [
+     "vs1"
+    ]
+   },
+   {
+    "callSetDbId": "cs7",
+    "callSetName": "BC2F1-F2-003",
+    "sampleDbId": "smp7",
+    "studyDbId": "study1",
+    "variantSetDbIds": [
+     "vs1"
+    ]
+   }
+  ]
+ }
+}

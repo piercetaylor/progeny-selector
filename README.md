@@ -17,6 +17,7 @@ Python 3.11 or newer is required.
 ```sh
 python -m pip install -e ".[dev]"
 progeny-selector rank --genotypes tests/fixtures/synthetic_bc2f1/genotypes.vcf --samples tests/fixtures/synthetic_bc2f1/samples.csv --markers tests/fixtures/synthetic_bc2f1/markers.csv --criteria tests/fixtures/synthetic_bc2f1/criteria.yaml --out results.csv
+progeny-selector rank --brapi-url https://host/brapi/v2 --variant-set VS1 --samples samples.csv --criteria criteria.yaml --out results.csv
 progeny-selector select --results results.csv --top 3 --out selected.csv --next-manifest next_samples.csv --next-generation BC3F1 --samples tests/fixtures/synthetic_bc2f1/samples.csv
 ```
 

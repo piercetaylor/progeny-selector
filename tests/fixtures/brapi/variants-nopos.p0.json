@@ -1,0 +1,315 @@
+{
+ "metadata": {
+  "pagination": {
+   "currentPage": 0,
+   "nextPageToken": "",
+   "pageSize": 25,
+   "totalCount": 25,
+   "totalPages": 1
+  }
+ },
+ "result": {
+  "data": [
+   {
+    "alternateBases": [],
+    "end": null,
+    "referenceBases": null,
+    "referenceName": null,
+    "start": null,
+    "variantDbId": "var0",
+    "variantNames": [
+     "syn_Gm06_01"
+    ],
+    "variantSetDbId": "vs1"
+   },
+   {
+    "alternateBases": [],
+    "end": null,
+    "referenceBases": null,
+    "referenceName": null,
+    "start": null,
+    "variantDbId": "var1",
+    "variantNames": [
+     "syn_Gm06_02"
+    ],
+    "variantSetDbId": "vs1"
+   },
+   {
+    "alternateBases": [],
+    "end": null,
+    "referenceBases": null,
+    "referenceName": null,
+    "start": null,
+    "variantDbId": "var2",
+    "variantNames": [
+     "syn_Gm06_03"
+    ],
+    "variantSetDbId": "vs1"
+   },
+   {
+    "alternateBases": [],
+    "end": null,
+    "referenceBases": null,
+    "referenceName": null,
+    "start": null,
+    "variantDbId": "var3",
+    "variantNames": [
+     "syn_Gm06_04"
+    ],
+    "variantSetDbId": "vs1"
+   },
+   {
+    "alternateBases": [],
+    "end": null,
+    "referenceBases": null,
+    "referenceName": null,
+    "start": null,
+    "variantDbId": "var4",
+    "variantNames": [
+     "syn_Gm06_05"
+    ],
+    "variantSetDbId": "vs1"
+   },
+   {
+    "alternateBases": [],
+    "end": null,
+    "referenceBases": null,
+    "referenceName": null,
+    "start": null,
+    "variantDbId": "var5",
+    "variantNames": [
+     "syn_Gm06_06"
+    ],
+    "variantSetDbId": "vs1"
+   },
+   {
+    "alternateBases": [],
+    "end": null,
+    "referenceBases": null,
+    "referenceName": null,
+    "start": null,
+    "variantDbId": "var6",
+    "variantNames": [
+     "syn_Gm06_07"
+    ],
+    "variantSetDbId": "vs1"
+   },
+   {
+    "alternateBases": [],
+    "end": null,
+    "referenceBases": null,
+    "referenceName": null,
+    "start": null,
+    "variantDbId": "var7",
+    "variantNames": [
+     "syn_Gm06_08"
+    ],
+    "variantSetDbId": "vs1"
+   },
+   {
+    "alternateBases": [],
+    "end": null,
+    "referenceBases": null,
+    "referenceName": null,
+    "start": null,
+    "variantDbId": "var8",
+    "variantNames": [
+     "syn_Gm06_09"
+    ],
+    "variantSetDbId": "vs1"
+   },
+   {
+    "alternateBases": [],
+    "end": null,
+    "referenceBases": null,
+    "referenceName": null,
+    "start": null,
+    "variantDbId": "var9",
+    "variantNames": [
+     "syn_Gm06_10"
+    ],
+    "variantSetDbId": "vs1"
+   },
+   {
+    "alternateBases": [],
+    "end": null,
+    "referenceBases": null,
+    "referenceName": null,
+    "start": null,
+    "variantDbId": "var10",
+    "variantNames": [
+     "syn_Gm06_11"
+    ],
+    "variantSetDbId": "vs1"
+   },
+   {
+    "alternateBases": [],
+    "end": null,
+    "referenceBases": null,
+    "referenceName": null,
+    "start": null,
+    "variantDbId": "var11",
+    "variantNames": [
+     "syn_Gm06_12"
+    ],
+    "variantSetDbId": "vs1"
+   },
+   {
+    "alternateBases": [],
+    "end": null,
+    "referenceBases": null,
+    "referenceName": null,
+    "start": null,
+    "variantDbId": "var12",
+    "variantNames": [
+     "syn_Gm06_13"
+    ],
+    "variantSetDbId": "vs1"
+   },
+   {
+    "alternateBases": [],
+    "end": null,
+    "referenceBases": null,
+    "referenceName": null,
+    "start": null,
+    "variantDbId": "var13",
+    "variantNames": [
+     "syn_Gm06_14"
+    ],
+    "variantSetDbId": "vs1"
+   },
+   {
+    "alternateBases": [],
+    "end": null,
+    "referenceBases": null,
+    "referenceName": null,
+    "start": null,
+    "variantDbId": "var14",
+    "variantNames": [
+     "syn_Gm06_15"
+    ],
+    "variantSetDbId": "vs1"
+   },
+   {
+    "alternateBases": [],
+    "end": null,
+    "referenceBases": null,
+    "referenceName": null,
+    "start": null,
+    "variantDbId": "var15",
+    "variantNames": [
+     "syn_Gm06_16"
+    ],
+    "variantSetDbId": "vs1"
+   },
+   {
+    "alternateBases": [],
+    "end": null,
+    "referenceBases": null,
+    "referenceName": null,
+    "start": null,
+    "variantDbId": "var16",
+    "variantNames": [
+     "syn_Gm06_17"
+    ],
+    "variantSetDbId": "vs1"
+   },
+   {
+    "alternateBases": [],
+    "end": null,
+    "referenceBases": null,
+    "referenceName": null,
+    "start": null,
+    "variantDbId": "var17",
+    "variantNames": [
+     "syn_Gm06_18"
+    ],
+    "variantSetDbId": "vs1"
+   },
+   {
+    "alternateBases": [],
+    "end": null,
+    "referenceBases": null,
+    "referenceName": null,
+    "start": null,
+    "variantDbId": "var18",
+    "variantNames": [
+     "syn_Gm06_19"
+    ],
+    "variantSetDbId": "vs1"
+   },
+   {
+    "alternateBases": [],
+    "end": null,
+    "referenceBases": null,
+    "referenceName": null,
+    "start": null,
+    "variantDbId": "var19",
+    "variantNames": [
+     "syn_Gm06_20"
+    ],
+    "variantSetDbId": "vs1"
+   },
+   {
+    "alternateBases": [],
+    "end": null,
+    "referenceBases": null,
+    "referenceName": null,
+    "start": null,
+    "variantDbId": "var20",
+    "variantNames": [
+     "syn_Gm06_21"
+    ],
+    "variantSetDbId": "vs1"
+   },
+   {
+    "alternateBases": [],
+    "end": null,
+    "referenceBases": null,
+    "referenceName": null,
+    "start": null,
+    "variantDbId": "var21",
+    "variantNames": [
+     "syn_Gm06_22"
+    ],
+    "variantSetDbId": "vs1"
+   },
+   {
+    "alternateBases": [],
+    "end": null,
+    "referenceBases": null,
+    "referenceName": null,
+    "start": null,
+    "variantDbId": "var22",
+    "variantNames": [
+     "syn_Gm06_23"
+    ],
+    "variantSetDbId": "vs1"
+   },
+   {
+    "alternateBases": [],
+    "end": null,
+    "referenceBases": null,
+    "referenceName": null,
+    "start": null,
+    "variantDbId": "var23",
+    "variantNames": [
+     "syn_Gm06_24"
+    ],
+    "variantSetDbId": "vs1"
+   },
+   {
+    "alternateBases": [],
+    "end": null,
+    "referenceBases": null,
+    "referenceName": null,
+    "start": null,
+    "variantDbId": "var24",
+    "variantNames": [
+     "syn_Gm06_25"
+    ],
+    "variantSetDbId": "vs1"
+   }
+  ]
+ }
+}

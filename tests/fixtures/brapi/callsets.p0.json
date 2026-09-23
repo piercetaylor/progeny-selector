@@ -1,0 +1,59 @@
+{
+ "metadata": {
+  "pagination": {
+   "currentPage": 0,
+   "pageSize": 5,
+   "totalCount": 8,
+   "totalPages": 2
+  }
+ },
+ "result": {
+  "data": [
+   {
+    "callSetDbId": "cs0",
+    "callSetName": "RP_Williams82",
+    "sampleDbId": "smp0",
+    "studyDbId": "study1",
+    "variantSetDbIds": [
+     "vs1"
+    ]
+   },
+   {
+    "callSetDbId": "cs1",
+    "callSetName": "DONOR_PI_synthetic",
+    "sampleDbId": "smp1",
+    "studyDbId": "study1",
+    "variantSetDbIds": [
+     "vs1"
+    ]
+   },
+   {
+    "callSetDbId": "cs2",
+    "callSetName": "BC2F1-F1-001",
+    "sampleDbId": "smp2",
+    "studyDbId": "study1",
+    "variantSetDbIds": [
+     "vs1"
+    ]
+   },
+   {
+    "callSetDbId": "cs3",
+    "callSetName": "BC2F1-F1-002",
+    "sampleDbId": "smp3",
+    "studyDbId": "study1",
+    "variantSetDbIds": [
+     "vs1"
+    ]
+   },
+   {
+    "callSetDbId": "cs4",
+    "callSetName": "BC2F1-F1-003",
+    "sampleDbId": "smp4",
+    "studyDbId": "study1",
+    "variantSetDbIds": [
+     "vs1"
+    ]
+   }
+  ]
+ }
+}

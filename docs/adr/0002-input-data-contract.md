@@ -23,3 +23,5 @@ Option 2, specified in docs/data-formats.md and mirrored in the sibling reposito
 ### Consequences
 
 Good: the program's existing files load; the manifest is a spreadsheet a breeder can write; fixtures and contract tests can be shared with isoline-browser; results.csv and next_samples.csv round-trip into the next generation. Bad: three parsers; content-based detection is not attempted (extension decides), so a mis-named file is an explicit error; coded input hides non-parental alleles that would otherwise flag outcrosses. Deferred: BrAPI loading; `donor_parent_2` for pyramiding.
+
+2026-09-22: BrAPI loading arrived in M3 (docs/adr/0024), outside the shared contract.

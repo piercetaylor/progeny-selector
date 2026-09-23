@@ -5,12 +5,18 @@ Responsibility: thin argparse layer over ``progeny_selector.io`` and
 error), 2 (usage). Useful for batch runs on an HPC node and for wiring
 outputs into the R reader ``scripts/read_results.R``.
 
+Genotypes come either from a file (--genotypes) or from a BrAPI v2.1 variant set
+(--brapi-url with --variant-set; docs/adr/0024); exactly one of the two is required.
+
 Interface (subcommands):
-    progeny-selector validate --genotypes G --samples S [--markers M] [--criteria C] [--profile ID_OR_FILE] [--crop ID]
-    progeny-selector rank     --genotypes G --samples S --criteria C [--markers M] [--profile ID_OR_FILE] [--crop ID] --out results.csv
+    progeny-selector validate (--genotypes G | --brapi-url URL --variant-set ID) --samples S [--markers M]
+                              [--criteria C] [--profile ID_OR_FILE] [--crop ID] [--brapi-token-env VAR]
+    progeny-selector rank     (--genotypes G | --brapi-url URL --variant-set ID) --samples S --criteria C
+                              [--markers M] [--profile ID_OR_FILE] [--crop ID] [--brapi-token-env VAR] --out results.csv
     progeny-selector select   --results results.csv --top N [--overall] --out selected.csv
                               [--next-manifest next_samples.csv --next-generation BC3F1 --samples S
                                --per-selected N]
+    progeny-selector brapi-callsets --brapi-url URL --variant-set ID [--brapi-token-env VAR] --out brapi-callsets.csv
 """
 
 from __future__ import annotations
@@ -18,11 +24,13 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import os
 import sys
 
 from progeny_selector.core.pipeline import run_analysis
 from progeny_selector.core.selection import project_next_generation, select_top_n
-from progeny_selector.io import load_dataset, read_criteria, read_samples
+from progeny_selector.io import brapi, load_dataset, read_criteria, read_samples
+from progeny_selector.io.brapi import BrapiSource, call_sets_csv_text, normalise_base_url
 from progeny_selector.io.crops import BUILTIN_CROPS, DEFAULT_CROP_ID
 from progeny_selector.io.export import write_next_round_manifest, write_results_csv, write_selection_csv
 from progeny_selector.model.criteria import CriteriaError
@@ -30,7 +38,8 @@ from progeny_selector.model.dataset import DataContractError
 
 
 def _add_data_args(p: argparse.ArgumentParser, criteria_required: bool) -> None:
-    p.add_argument("--genotypes", required=True, help="VCF(.gz), HapMap (.hmp.txt) or wide CSV")
+    p.add_argument("--genotypes", required=False, help="VCF(.gz), HapMap (.hmp.txt) or wide CSV")
+    _add_brapi_args(p)
     p.add_argument("--samples", required=True, help="samples.csv manifest")
     p.add_argument("--markers", help="optional markers.csv with chrom, pos_bp, cm")
     p.add_argument("--criteria", required=criteria_required, help="criteria.yaml")
@@ -47,6 +56,32 @@ def _add_data_args(p: argparse.ArgumentParser, criteria_required: bool) -> None:
         choices=tuple(BUILTIN_CROPS),
         help="crop chromosome scheme for chromosome names: " + ", ".join(BUILTIN_CROPS) + " (default: %(default)s)",
     )
+
+
+def _add_brapi_args(p: argparse.ArgumentParser) -> None:
+    p.add_argument("--brapi-url", metavar="URL", help="base URL of a BrAPI v2.1 server, e.g. https://host/brapi/v2")
+    p.add_argument("--variant-set", metavar="ID", help="variantSetDbId to load")
+    p.add_argument(
+        "--brapi-token-env",
+        metavar="VAR",
+        help="name of an environment variable holding the bearer token; the token is never given on the command line",
+    )
+
+
+def _brapi_source(args: argparse.Namespace, parser: argparse.ArgumentParser) -> BrapiSource:
+    """The source described by the BrAPI arguments; a missing variant set or token is a usage error."""
+    if not args.variant_set:
+        parser.error("give --genotypes or --brapi-url with --variant-set")
+    token = None
+    if args.brapi_token_env:
+        token = os.environ.get(args.brapi_token_env)
+        if token is None:
+            parser.error(f"environment variable {args.brapi_token_env} is not set")
+        # Asking for a token and holding a blank one is a mistake worth reporting: sending no
+        # Authorization header instead would fail later as an anonymous request.
+        if not token.strip():
+            parser.error(f"environment variable {args.brapi_token_env} is empty")
+    return BrapiSource(base_url=normalise_base_url(args.brapi_url), variant_set_db_id=args.variant_set.strip(), token=token)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -76,6 +111,10 @@ def build_parser() -> argparse.ArgumentParser:
     )
     s.add_argument("--samples", help="current samples.csv (needed for --next-manifest to copy the parents)")
     s.add_argument("--project", choices=("backcross", "self"), default="backcross")
+
+    b = sub.add_parser("brapi-callsets", help="write the call-set table of a BrAPI variant set, before samples.csv exists")
+    _add_brapi_args(b)
+    b.add_argument("--out", required=True, help="brapi-callsets.csv")
     return parser
 
 
@@ -119,16 +158,23 @@ def _profile_ref(ref: str | None) -> str | dict | None:
     return obj
 
 
-def _load(args: argparse.Namespace):
-    dataset = load_dataset(
-        args.genotypes, args.samples, args.markers, coding=args.coding, profile=_profile_ref(args.profile), crop=args.crop
-    )
+def _load(args: argparse.Namespace, parser: argparse.ArgumentParser):
+    if bool(args.genotypes) == bool(args.brapi_url):
+        parser.error("give --genotypes or --brapi-url with --variant-set")
+    if args.brapi_url:
+        if args.profile:
+            raise DataContractError("token profiles apply to HapMap and wide CSV; the genotype source is a BrAPI server")
+        dataset = brapi.load_brapi_dataset(_brapi_source(args, parser), args.samples, args.markers, crop=args.crop)
+    else:
+        dataset = load_dataset(
+            args.genotypes, args.samples, args.markers, coding=args.coding, profile=_profile_ref(args.profile), crop=args.crop
+        )
     criteria = read_criteria(args.criteria) if args.criteria else None
     return dataset, criteria
 
 
-def cmd_validate(args: argparse.Namespace) -> int:
-    dataset, criteria = _load(args)
+def cmd_validate(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
+    dataset, criteria = _load(args, parser)
     gm = dataset.genotypes
     print(f"genotypes: {gm.n_markers} markers x {gm.n_samples} samples; coded={gm.coded}; cM map={'yes' if gm.has_cm() else 'no'}")
     print(f"samples.csv: {len(dataset.samples)} rows; progeny/candidates={len(dataset.progeny)}")
@@ -149,8 +195,8 @@ def cmd_validate(args: argparse.Namespace) -> int:
     return 0
 
 
-def cmd_rank(args: argparse.Namespace) -> int:
-    dataset, criteria = _load(args)
+def cmd_rank(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
+    dataset, criteria = _load(args, parser)
     res = run_analysis(dataset, criteria)
     write_results_csv(res.rows, args.out)
     n_pass = sum(1 for r in res.rows if r["passes_filters"])
@@ -204,16 +250,30 @@ def cmd_select(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_brapi_callsets(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
+    if not args.brapi_url:
+        parser.error("give --genotypes or --brapi-url with --variant-set")
+    call_sets, warnings = brapi.fetch_call_sets(_brapi_source(args, parser), brapi.urllib_fetch_json)
+    with open(args.out, "w", encoding="utf-8", newline="") as fh:
+        fh.write(call_sets_csv_text(call_sets))
+    print(f"wrote {args.out}: {len(call_sets)} call sets")
+    for w in warnings:
+        print(f"warning: {w}")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
     try:
         if args.command == "validate":
-            return cmd_validate(args)
+            return cmd_validate(args, parser)
         if args.command == "rank":
-            return cmd_rank(args)
+            return cmd_rank(args, parser)
         if args.command == "select":
             return cmd_select(args)
+        if args.command == "brapi-callsets":
+            return cmd_brapi_callsets(args, parser)
     except (DataContractError, CriteriaError, FileNotFoundError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1

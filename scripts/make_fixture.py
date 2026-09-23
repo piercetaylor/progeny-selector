@@ -35,6 +35,7 @@ Usage: python scripts/make_fixture.py
 from __future__ import annotations
 
 import csv
+import json
 import math
 import random
 import sys
@@ -46,6 +47,7 @@ from progeny_selector.constants import SOYBEAN_CHROM_LENGTHS_BP_WM82A4
 FIXTURES = Path(__file__).resolve().parents[1] / "tests" / "fixtures"
 OUT = FIXTURES / "synthetic_bc2f1"
 OUT_BC3F1 = FIXTURES / "synthetic_bc3f1"
+OUT_BRAPI = FIXTURES / "brapi"
 SEED = 20260904
 PER_CHROM = 25
 CM_PER_BP = 2.5 / 1_000_000
@@ -63,6 +65,11 @@ BC3F1_PER_PARENT = 10  # placeholder progeny per selected parent, matching --per
 BC3F1_MISSING_RATE = 0.01
 BC3F1_PARENTS = ("BC2F1-F1-001", "BC2F1-F1-010", "BC2F1-F2-005", "BC2F1-F2-019")
 NUC = "ACGT"
+BRAPI_VARIANT_SET = "vs1"
+BRAPI_PAGE_VARIANTS = 13  # 25 Gm06 variants over two pages, 13 then 12
+BRAPI_PAGE_CALL_SETS = 5  # 8 call sets over two pages, 5 then 3
+BRAPI_PROGENY_PER_FAMILY = 3
+BRAPI_MAX_BYTES = 64 * 1024
 
 rng = random.Random(SEED)
 
@@ -661,6 +668,289 @@ def write_bc3f1_outputs(
     (OUT_BC3F1 / "README.md").write_text(BC3F1_README.format(parents=", ".join(parents)), encoding="utf-8", newline="\n")
 
 
+def vcf_alleles(marker: dict) -> tuple[str, str]:
+    """REF and ALT exactly as ``write_vcf`` writes them, so the BrAPI pages carry the same symbols."""
+    ref, alt = marker["rp"], marker["donor"]
+    if alt == ref:
+        alt = next(x for x in NUC if x != ref)
+    return ref, alt
+
+
+def vcf_token(marker: dict, sample_id: str, states: dict[str, list[int]], index: int) -> str:
+    """The GT the VCF holds for one cell, as a slash-separated diploid token."""
+    ref, alt = vcf_alleles(marker)
+    codes = {ref: "0", alt: "1"}
+    if sample_id in (RP_ID, DONOR_ID):
+        call = marker["rp_call"] if sample_id == RP_ID else marker["donor_call"]
+        return "./." if call is None else "/".join(codes[a] for a in call)
+    return {0: "0/0", 1: "0/1", 2: "1/1", 4: "./."}[states[sample_id][index]]
+
+
+def brapi_token(token: str, v: int, c: int, phased_het_used: list[bool]) -> str:
+    """The same call spelled as one of the forms a BrAPI server may send.
+
+    Page 0,0 collapses homozygotes to a single index and phases the first heterozygote it holds;
+    page 1,1 writes a missing call as the bare unknown string. The allele indices never change,
+    so the loaded matrix equals the VCF's.
+    """
+    if token == "./.":
+        return "." if (v == 1 and c == 1) else "./."
+    left, right = token.split("/")
+    if left == right:
+        return left if (v == 0 and c == 0) else token
+    if v == 0 and c == 0 and not phased_het_used[0]:
+        phased_het_used[0] = True
+        return token.replace("/", "|")
+    return token
+
+
+def brapi_call_set_ids(ids: list[str], family: dict[str, str]) -> list[str]:
+    """Both parents and the first BRAPI_PROGENY_PER_FAMILY progeny of each family, in manifest order."""
+    chosen = [RP_ID, DONOR_ID]
+    counts: dict[str, int] = {}
+    for sid in ids:
+        fam = family[sid]
+        counts[fam] = counts.get(fam, 0) + 1
+        if counts[fam] <= BRAPI_PROGENY_PER_FAMILY:
+            chosen.append(sid)
+    return chosen
+
+
+def _write_json(path: Path, obj: dict) -> None:
+    path.write_text(json.dumps(obj, indent=1, sort_keys=True) + "\n", encoding="utf-8", newline="\n")
+
+
+def _pages(items: list, size: int) -> list[list]:
+    return [items[i : i + size] for i in range(0, len(items), size)]
+
+
+BRAPI_README = """# BrAPI fixture (generated)
+
+`scripts/make_fixture.py` writes these files; do not edit them by hand. They are recorded
+BrAPI v2.1 pages for one variant set, `{variant_set}`, holding exactly the calls the BC2F1
+fixture's `genotypes.vcf` holds for {n_variants} variants on {chrom} and {n_call_sets} call sets
+(both parents and the first {per_family} progeny of each family).
+
+Paging is deliberately small so every path is exercised with no network. `/callsets` returns
+{n_call_sets} call sets over two pages of {page_call_sets}, `/variants` returns {n_variants}
+variants over two pages of {page_variants}, and `/allelematrix` therefore has four pages,
+`allelematrix.v0.c0.json` through `allelematrix.v1.c1.json`, read variant page outermost.
+
+GT tokens are spelled differently per page while denoting the same alleles, which is what makes
+`tests/test_brapi.py` a test of the parser and not of the fixture. Page 0,0 collapses homozygotes
+to a single index (`0`, `1`) and phases one heterozygote (`0|1`); the other pages expand
+homozygotes (`0/0`, `1/1`). A missing call is `.` on page 1,1 and `./.` elsewhere.
+
+`variants-nopos.p0.json` repeats the same {n_variants} variants in one page with `referenceName`,
+`start`, `end` and `referenceBases` null and `alternateBases` empty. It is the D1 fallback case:
+positions then come from markers.csv, and a load without markers.csv fails naming the first marker.
+
+`samples.csv` declares the roles of the {n_call_sets} sample ids the server's `callSetName` values
+produce. `criteria.yaml` is the BC2F1 criteria with the avoid locus dropped, because that locus is
+on Gm13 and this variant set holds {chrom} alone.
+"""
+
+
+def write_brapi_fixture(
+    markers: list[dict], ids: list[str], states: dict[str, list[int]], family: dict[str, str], generation: dict[str, str]
+) -> tuple[int, int]:
+    """Recorded BrAPI v2.1 pages for one variant set carrying the same calls as the BC2F1 VCF.
+
+    Returns the variant and call-set counts for the print line. Nothing here draws on ``rng``, so
+    the BC3F1 simulation that follows in ``main`` is unaffected.
+    """
+    OUT_BRAPI.mkdir(parents=True, exist_ok=True)
+    chrom = next(m["chrom"] for m in markers if m["id"] == TARGET)
+    chosen = [(i, m) for i, m in enumerate(markers) if m["chrom"] == chrom]
+    sample_ids = brapi_call_set_ids(ids, family)
+    variant_db_ids = [f"var{k}" for k in range(len(chosen))]
+    call_set_db_ids = [f"cs{k}" for k in range(len(sample_ids))]
+    variant_pages = _pages(list(range(len(chosen))), BRAPI_PAGE_VARIANTS)
+    call_set_pages = _pages(list(range(len(sample_ids))), BRAPI_PAGE_CALL_SETS)
+
+    for p, page in enumerate(call_set_pages):
+        _write_json(
+            OUT_BRAPI / f"callsets.p{p}.json",
+            {
+                "metadata": {
+                    "pagination": {
+                        "currentPage": p,
+                        "pageSize": BRAPI_PAGE_CALL_SETS,
+                        "totalCount": len(sample_ids),
+                        "totalPages": len(call_set_pages),
+                    }
+                },
+                "result": {
+                    "data": [
+                        {
+                            "callSetDbId": call_set_db_ids[k],
+                            "callSetName": sample_ids[k],
+                            "sampleDbId": f"smp{k}",
+                            "studyDbId": "study1",
+                            "variantSetDbIds": [BRAPI_VARIANT_SET],
+                        }
+                        for k in page
+                    ]
+                },
+            },
+        )
+
+    def variant_record(k: int, with_position: bool) -> dict:
+        marker = chosen[k][1]
+        ref, alt = vcf_alleles(marker)
+        if not with_position:
+            return {
+                "alternateBases": [],
+                "end": None,
+                "referenceBases": None,
+                "referenceName": None,
+                "start": None,
+                "variantDbId": variant_db_ids[k],
+                "variantNames": [marker["id"]],
+                "variantSetDbId": BRAPI_VARIANT_SET,
+            }
+        return {
+            "alternateBases": [alt],
+            "end": marker["pos"],
+            "referenceBases": ref,
+            "referenceName": marker["chrom"],
+            # BrAPI start is 0-based with end exclusive; VCF POS is 1-based (D1).
+            "start": marker["pos"] - 1,
+            "variantDbId": variant_db_ids[k],
+            "variantNames": [marker["id"]],
+            "variantSetDbId": BRAPI_VARIANT_SET,
+        }
+
+    for p, page in enumerate(variant_pages):
+        _write_json(
+            OUT_BRAPI / f"variants.p{p}.json",
+            {
+                "metadata": {
+                    "pagination": {
+                        "currentPage": p,
+                        "nextPageToken": "",
+                        "pageSize": BRAPI_PAGE_VARIANTS,
+                        "totalCount": len(chosen),
+                        "totalPages": len(variant_pages),
+                    }
+                },
+                "result": {"data": [variant_record(k, True) for k in page]},
+            },
+        )
+    _write_json(
+        OUT_BRAPI / "variants-nopos.p0.json",
+        {
+            "metadata": {
+                "pagination": {
+                    "currentPage": 0,
+                    "nextPageToken": "",
+                    "pageSize": len(chosen),
+                    "totalCount": len(chosen),
+                    "totalPages": 1,
+                }
+            },
+            "result": {"data": [variant_record(k, False) for k in range(len(chosen))]},
+        },
+    )
+
+    phased_het_used = [False]
+    for v, vpage in enumerate(variant_pages):
+        for c, cpage in enumerate(call_set_pages):
+            matrix = [
+                [brapi_token(vcf_token(chosen[k][1], sample_ids[j], states, chosen[k][0]), v, c, phased_het_used) for j in cpage]
+                for k in vpage
+            ]
+            _write_json(
+                OUT_BRAPI / f"allelematrix.v{v}.c{c}.json",
+                {
+                    "result": {
+                        "callSetDbIds": [call_set_db_ids[j] for j in cpage],
+                        "dataMatrices": [
+                            {
+                                "dataMatrix": matrix,
+                                "dataMatrixAbbreviation": "GT",
+                                "dataMatrixName": "Genotype",
+                                "dataType": "string",
+                            }
+                        ],
+                        "expandHomozygotes": False,
+                        "pagination": [
+                            {
+                                "dimension": "VARIANTS",
+                                "page": v,
+                                "pageSize": BRAPI_PAGE_VARIANTS,
+                                "totalCount": len(chosen),
+                                "totalPages": len(variant_pages),
+                            },
+                            {
+                                "dimension": "CALLSETS",
+                                "page": c,
+                                "pageSize": BRAPI_PAGE_CALL_SETS,
+                                "totalCount": len(sample_ids),
+                                "totalPages": len(call_set_pages),
+                            },
+                        ],
+                        "sepPhased": "|",
+                        "sepUnphased": "/",
+                        "unknownString": ".",
+                        "variantDbIds": [variant_db_ids[k] for k in vpage],
+                        "variantSetDbIds": [BRAPI_VARIANT_SET],
+                    }
+                },
+            )
+
+    with open(OUT_BRAPI / "samples.csv", "w", newline="") as fh:
+        w = csv.writer(fh, lineterminator="\n")
+        w.writerow(["sample_id", "line_name", "role", "generation", "family_id", "notes"])
+        w.writerow([RP_ID, "Williams 82 (synthetic)", "recurrent_parent", "", "", "synthetic recurrent parent"])
+        w.writerow([DONOR_ID, "PI synthetic donor", "donor_parent", "", "", "synthetic donor"])
+        for sid in sample_ids[2:]:
+            w.writerow([sid, line_name_bc2f1(sid), "progeny", generation[sid], family[sid], ""])
+
+    # The BC2F1 criteria minus the avoid locus: syn_Gm13_10 is not in this variant set.
+    (OUT_BRAPI / "criteria.yaml").write_text(
+        f"""name: synthetic BrAPI fixture ({chrom} only)
+targets:
+  - locus_id: T1
+    marker_id: {TARGET}
+    required_state: either
+flank_window: {FLANK_CM}
+flank_unit: cm
+background:
+  model: count
+  map_unit: cm
+weights:
+  rpp_noncarrier: {WEIGHTS["rpp_noncarrier"]}
+  rpp_carrier: {WEIGHTS["rpp_carrier"]}
+  drag: {WEIGHTS["drag"]}
+  recombinant: {WEIGHTS["recombinant"]}
+filters:
+  max_missing_rate: 0.2
+  unknown_target_is: fail
+  unknown_avoid_is: pass
+  exclude_qc_flagged: true
+""",
+        newline="\n",
+    )
+    (OUT_BRAPI / "README.md").write_text(
+        BRAPI_README.format(
+            variant_set=BRAPI_VARIANT_SET,
+            n_variants=len(chosen),
+            chrom=chrom,
+            n_call_sets=len(sample_ids),
+            per_family=BRAPI_PROGENY_PER_FAMILY,
+            page_call_sets=BRAPI_PAGE_CALL_SETS,
+            page_variants=BRAPI_PAGE_VARIANTS,
+        ),
+        encoding="utf-8",
+        newline="\n",
+    )
+    total = sum(f.stat().st_size for f in OUT_BRAPI.iterdir() if f.is_file())
+    if total >= BRAPI_MAX_BYTES:
+        raise AssertionError(f"{OUT_BRAPI} is {total} bytes, over the {BRAPI_MAX_BYTES}-byte cap")
+    return len(chosen), len(sample_ids)
+
+
 def main() -> None:
     markers = build_markers()
     ids, states, true_states, family, generation = simulate(markers)
@@ -669,6 +959,8 @@ def main() -> None:
     n_pass = sum(1 for r in rows if r["passes_filters"])
     n_inf = sum(m["informative"] for m in markers)
     print(f"wrote fixture to {OUT}: {len(markers)} markers, {len(ids)} progeny, {n_pass} pass; informative {n_inf}")
+    n_variants, n_call_sets = write_brapi_fixture(markers, ids, states, family, generation)
+    print(f"wrote fixture to {OUT_BRAPI}: {n_variants} variants x {n_call_sets} call sets")
     parents = select_bc3f1_parents(rows)
     ids3, states3, family3 = simulate_bc3f1(markers, parents, true_states)
     rows3 = expected_metrics(markers, ids3, states3, family3, expected_het=0.125, design_checks=False)

@@ -1,0 +1,20 @@
+name: synthetic BrAPI fixture (Gm06 only)
+targets:
+  - locus_id: T1
+    marker_id: syn_Gm06_13
+    required_state: either
+flank_window: 6.0
+flank_unit: cm
+background:
+  model: count
+  map_unit: cm
+weights:
+  rpp_noncarrier: 0.5
+  rpp_carrier: 0.2
+  drag: 0.2
+  recombinant: 0.1
+filters:
+  max_missing_rate: 0.2
+  unknown_target_is: fail
+  unknown_avoid_is: pass
+  exclude_qc_flagged: true

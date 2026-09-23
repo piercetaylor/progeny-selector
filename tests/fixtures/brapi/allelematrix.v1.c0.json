@@ -1,0 +1,141 @@
+{
+ "result": {
+  "callSetDbIds": [
+   "cs0",
+   "cs1",
+   "cs2",
+   "cs3",
+   "cs4"
+  ],
+  "dataMatrices": [
+   {
+    "dataMatrix": [
+     [
+      "0/0",
+      "1/1",
+      "0/1",
+      "0/0",
+      "./."
+     ],
+     [
+      "0/0",
+      "1/1",
+      "0/0",
+      "0/1",
+      "0/1"
+     ],
+     [
+      "0/0",
+      "1/1",
+      "0/0",
+      "0/1",
+      "./."
+     ],
+     [
+      "0/0",
+      "1/1",
+      "0/0",
+      "0/1",
+      "0/1"
+     ],
+     [
+      "0/0",
+      "1/1",
+      "0/0",
+      "0/0",
+      "0/1"
+     ],
+     [
+      "0/0",
+      "1/1",
+      "0/0",
+      "0/0",
+      "0/1"
+     ],
+     [
+      "0/0",
+      "1/1",
+      "0/0",
+      "0/0",
+      "./."
+     ],
+     [
+      "0/0",
+      "1/1",
+      "0/0",
+      "0/0",
+      "./."
+     ],
+     [
+      "0/0",
+      "1/1",
+      "0/0",
+      "0/0",
+      "0/0"
+     ],
+     [
+      "0/0",
+      "1/1",
+      "0/0",
+      "0/0",
+      "0/1"
+     ],
+     [
+      "0/0",
+      "1/1",
+      "0/0",
+      "0/0",
+      "0/1"
+     ],
+     [
+      "0/0",
+      "1/1",
+      "0/0",
+      "0/0",
+      "0/1"
+     ]
+    ],
+    "dataMatrixAbbreviation": "GT",
+    "dataMatrixName": "Genotype",
+    "dataType": "string"
+   }
+  ],
+  "expandHomozygotes": false,
+  "pagination": [
+   {
+    "dimension": "VARIANTS",
+    "page": 1,
+    "pageSize": 13,
+    "totalCount": 25,
+    "totalPages": 2
+   },
+   {
+    "dimension": "CALLSETS",
+    "page": 0,
+    "pageSize": 5,
+    "totalCount": 8,
+    "totalPages": 2
+   }
+  ],
+  "sepPhased": "|",
+  "sepUnphased": "/",
+  "unknownString": ".",
+  "variantDbIds": [
+   "var13",
+   "var14",
+   "var15",
+   "var16",
+   "var17",
+   "var18",
+   "var19",
+   "var20",
+   "var21",
+   "var22",
+   "var23",
+   "var24"
+  ],
+  "variantSetDbIds": [
+   "vs1"
+  ]
+ }
+}

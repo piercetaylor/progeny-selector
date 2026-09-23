@@ -5,7 +5,7 @@ numpy arrays. Parsers in ``progeny_selector.io`` construct these; the compute
 core in ``progeny_selector.core`` only reads them.
 
 Interface:
-    Marker, Sample, GenotypeMatrix, Dataset (dataclasses)
+    Marker, Sample, CallSetRef, GenotypeMatrix, Dataset (dataclasses)
     GenotypeMatrix.sample_index(sample_id) -> int
     GenotypeMatrix.marker_index(marker_id) -> int
     GenotypeMatrix.sorted_by_position(scheme=SOYBEAN) -> GenotypeMatrix
@@ -45,6 +45,16 @@ class Sample:
     generation: str | None = None
     family_id: str | None = None
     notes: str | None = None
+
+
+@dataclass(frozen=True)
+class CallSetRef:
+    """One BrAPI call set and the ``sample_id`` it was loaded under (docs/adr/0024)."""
+
+    sample_id: str
+    call_set_name: str
+    call_set_db_id: str
+    sample_db_id: str
 
 
 @dataclass
@@ -159,6 +169,10 @@ class Dataset:
     which every later normalisation, ordering and chromosome-length lookup uses; ``SOYBEAN`` is
     the default and reproduces contract 1.2.0. ``crop`` is its id, derived so the two cannot
     disagree.
+    call_sets: every call set of the BrAPI variant set the dataset came from (docs/adr/0024), in
+    server order; empty for a file. It is not aligned with ``genotypes.sample_ids``, which
+    ``build_dataset`` has already reordered to the manifest and stripped of unlisted call sets;
+    join the two on ``CallSetRef.sample_id``.
     """
 
     genotypes: GenotypeMatrix
@@ -167,6 +181,7 @@ class Dataset:
     synthetic_sample_ids: tuple[str, ...] = ()
     token_profile: str = "default"
     scheme: CompiledScheme = SOYBEAN
+    call_sets: tuple[CallSetRef, ...] = ()
 
     @property
     def crop(self) -> str:
