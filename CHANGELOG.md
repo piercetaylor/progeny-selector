@@ -2,10 +2,6 @@
 
 All notable changes to this project are documented in this file. The format follows Keep a Changelog 1.1.0 (https://keepachangelog.com/en/1.1.0/) and the project uses Semantic Versioning (https://semver.org/spec/v2.0.0.html).
 
-### Added
-
-- `scripts/bench_pipeline.py` and `scripts/bench_shinylive.py` measure wall-clock and peak memory on generated datasets; `docs/limits.md` records the measured limits for CPython and Shinylive (docs/adr/0021).
-
 ## [Unreleased]
 
 ### Documentation
@@ -19,6 +15,8 @@ All notable changes to this project are documented in this file. The format foll
 - An unset criteria.yaml `assembly` means whatever the crop implies: `Wm82.a4` under soybean, `none` under every other crop. An explicit `Wm82.*` under a non-soybean crop is refused naming the key, and an explicit `none` is accepted under any crop. A downloaded criteria.yaml writes an unset key as `assembly: null` and stays reusable across crops.
 
 ### Added
+
+- `scripts/bench_pipeline.py` and `scripts/bench_shinylive.py` measure wall-clock and peak memory on generated datasets; `docs/limits.md` records the measured limits for CPython and Shinylive (docs/adr/0021).
 
 - Crop selector (contract 1.5.0, docs/adr/0020): soybean (default), maize, rice, sorghum, wheat, barley, oat, common bean and cotton chromosome schemes; a chosen crop normalizes and orders chromosome names, resolves target regions and selects chromosome lengths by that crop's convention, so a maize `chr1` is no longer read as `Gm01` and a maize target `chr7` resolves. `--crop ID` on the CLI and a Crop select on the Load screen.
 
