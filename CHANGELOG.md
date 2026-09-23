@@ -8,6 +8,10 @@ All notable changes to this project are documented in this file. The format foll
 
 ## [Unreleased]
 
+### Documentation
+
+- Replace the milestone-heavy landing page with a concise workflow and fixture example; preserve the previous README in `docs/legacy-readme.md`.
+
 ### Fixed
 
 - The next-round manifest refuses an empty next-generation label in `io.export`, so `select --next-generation ""` is a usage error and the Export screen shows the refusal and writes no file, where both previously wrote ids like `BC2F1-F1-001--001` and a blank `generation` column; a padded label is trimmed, and a refused write no longer leaves an empty file behind.
