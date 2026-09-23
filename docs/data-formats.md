@@ -4,7 +4,74 @@ This document is the contract for every file progeny-selector reads or writes. T
 
 ## Input contract
 
-The input contract is `contract/data-contract.md`, version 1.5.0, mirrored byte for byte from backcross, where the canonical copy lives. It defines chromosome names (read under a crop chromosome scheme chosen at load time, one of `soybean` (the default, and the contract 1.2.0 rule), `maize`, `rice`, `sorghum`, `wheat`, `barley`, `oat`, `common-bean` and `cotton`; `--crop ID` on the command line, the Crop select on the Load screen), the genotype file (VCF, HapMap, wide CSV; diploid calls only), the cell vocabulary per format (IUPAC codes expand to the heterozygote; `?`, stray `B`/`H`, `0`, `+`, `A?` are errors; `X`/`XX` are missing in HapMap, and in a wide CSV only under a token profile that lists them, such as `tassel`), samples.csv, markers.csv and the class codes; `contract/README.md` gives the version rules, `tests/test_contract_cases.py` runs every case under `contract/cases/` through `load_dataset`, and `scripts/check_contract.py` recomputes `MANIFEST.sha256` and, given `../backcross`, byte-compares the mirror with the canonical copy. backcross's docs/input-coding.md tabulates the accepted, missing and rejected codes per format and applies here unchanged. What this tool adds on top of the contract: the genotype format is chosen by file extension alone (`.vcf`, `.hmp.txt`, `.hmp`, `.hapmap`, `.csv`, `.tsv`, `.txt`, each optionally `.gz` or `.bgz`), which is the contract's minimum; for an A/B/H-coded file whose parents have no column the loader creates them internally (recurrent = all A, donor = all B, with a warning) and lists them in `Dataset.synthetic_sample_ids`; a pair of one nucleotide and one of N, `-`, `.` (`AN`, `A-`) is read as missing, which the contract has not yet decided; the chromosome lengths of the assembly named by `assembly` (`constants.py`) are the chromosome ends for drag bounds and marker weights when positions are in bp, and those tables are Williams 82's, so under any crop but `soybean` every chromosome ends at its last marker; `generation` values such as `BC2F1`, `BC3F2`, `F2`, `BC1`, `BC2S1` are parsed for expected values and unparseable strings are kept and flagged `generation_unparsed`; `family_id` groups progeny for per-family ranks and top-N selection; and markers absent from markers.csv have no cM, which disables cM mode for the whole dataset (all markers need cM).
+The input contract is `contract/data-contract.md`, version 1.6.0, mirrored byte for byte from backcross, where the canonical copy lives. It defines chromosome names (read under a crop chromosome scheme chosen at load time, one of `soybean` (the default, and the contract 1.2.0 rule), `maize`, `rice`, `sorghum`, `wheat`, `barley`, `oat`, `common-bean` and `cotton`; `--crop ID` on the command line, the Crop select on the Load screen), the genotype file (VCF, HapMap, wide CSV; diploid calls only), the cell vocabulary per format (IUPAC codes expand to the heterozygote; `?`, stray `B`/`H`, `0`, `+`, `A?` are errors; `X`/`XX` are missing in HapMap, and in a wide CSV only under a token profile that lists them, such as `tassel`), samples.csv, markers.csv and the class codes; `contract/README.md` gives the version rules, `tests/test_contract_cases.py` runs every case under `contract/cases/` through `load_dataset`, and `scripts/check_contract.py` recomputes `MANIFEST.sha256` and, given `../backcross`, byte-compares the mirror with the canonical copy. backcross's docs/input-coding.md tabulates the accepted, missing and rejected codes per format and applies here unchanged. What this tool adds on top of the contract: the genotype format is chosen by file extension alone (`.vcf`, `.hmp.txt`, `.hmp`, `.hapmap`, `.csv`, `.tsv`, `.txt`, each optionally `.gz` or `.bgz`), which is the contract's minimum; for an A/B/H-coded file whose parents have no column the loader creates them internally (recurrent = all A, donor = all B, with a warning) and lists them in `Dataset.synthetic_sample_ids`; the chromosome lengths of the assembly named by `assembly` (`constants.py`) are the chromosome ends for drag bounds and marker weights when positions are in bp, and those tables are Williams 82's, so under any crop but `soybean` every chromosome ends at its last marker; `generation` values such as `BC2F1`, `BC3F2`, `F2`, `BC1`, `BC2S1` are parsed for expected values and unparseable strings are kept and flagged `generation_unparsed`; `family_id` groups progeny for per-family ranks and top-N selection; and markers absent from markers.csv have no cM, which disables cM mode for the whole dataset (all markers need cM).
+
+## BrAPI allele matrix (outside the shared contract)
+
+A variant set on a BrAPI v2.1 server is a fourth genotype source, alongside VCF, HapMap and wide CSV.
+It is not part of `contract/data-contract.md`, because that contract describes file text and a server
+delivers neither cells nor positions as text. Everything else applies unchanged: samples.csv declares
+the roles, markers.csv overrides positions, and the loaded `Dataset` is the one a file produces
+(docs/adr/0024, mirrored from backcross's ADR 0015 so the two tools read one server the same way).
+
+On the command line, `rank` and `validate` take `--brapi-url URL --variant-set ID` in place of
+`--genotypes`; exactly one of the two sources is required and giving both is a usage error.
+`--brapi-token-env VAR` names an environment variable holding a bearer token, and the token itself is
+never given on the command line. `--profile` with a BrAPI source is an error, since token profiles
+apply to HapMap and wide CSV.
+
+Three endpoints are read for one variant set, in this order: `/callsets`, `/variants`, then
+`/allelematrix` with `dataMatrixAbbreviations=GT`. The allele matrix has variants as rows and call
+sets as columns, the transpose of this tool's samples-as-columns habit, and every cell is joined to
+its variant and call set by the `variantDbIds` and `callSetDbIds` of that response and never by page
+position. `POST /search/allelematrix` is not used.
+
+The reading rules, with the sibling's decision numbers:
+
+- **D1 positions.** `pos_bp` is `start + 1`, because BrAPI's `start` is 0-based with `end` exclusive
+  and VCF POS is 1-based. `end` is read for nothing. `start` must be an integer or a float equal to
+  its floor. A variant with no `referenceName` or no `start` takes both from markers.csv; with no
+  entry there the load fails naming the marker. `referenceName` is normalised under the chosen crop.
+- **D2 marker id.** The first `variantNames` entry that is neither empty nor `.`, else `variantDbId`.
+  A bare string counts as one entry.
+- **D3 calls.** GT tokens are allele indices, not the nucleotide vocabulary of a file. `sepPhased` and
+  `sepUnphased` both split and phase is ignored; a token equal to `unknownString` is missing; a token
+  missing on one side is missing as a whole; a token with no separator is haploid and reads as the
+  homozygote. More than two parts, a part that is neither a non-negative integer nor the unknown
+  string, and an allele index of 127 or more are errors. Allele symbols are `referenceBases` followed
+  by `alternateBases`, and the index strings where the server gives no bases. Allele order within a
+  call is kept. A half-missing call is stored as missing on both sides where a VCF load keeps the
+  called side; every consumer reads either as missing, so no figure differs.
+- **D4 sample id.** The trimmed `callSetName` when it is non-empty and unique in the variant set, else
+  `callSetDbId`, with one warning per shared name. A collision among the resulting ids fails the load.
+- **D5 traceability.** `Dataset.call_sets` carries one record per sample and is empty for a file.
+  `progeny-selector brapi-callsets --brapi-url URL --variant-set ID [--brapi-token-env VAR] --out
+  brapi-callsets.csv` writes `sample_id,call_set_name,call_set_db_id,sample_db_id`, one row per call
+  set in server order, CRLF like the other writers. It runs before samples.csv exists, which is the
+  point: samples.csv is built from the server's own ids. No results.csv or selected.csv column
+  changes in M3.
+- **D6 paging.** `/callsets` pages by number through the `totalPages` of page 0. `/variants` sends no
+  token on page 0, then `pageToken=<nextPageToken>` when the previous response gave a non-empty one
+  and `page=N&pageToken=N` when it did not. `/allelematrix` pages both dimensions, variant page
+  outermost, with the counts from `result.pagination[]` of the first page. A repeated id across pages,
+  a repeated id within a matrix page, a matrix page whose `(variantDbIds, callSetDbIds)` pair was
+  already read, and an id in a matrix page that the lists did not carry are errors, as is a response
+  with no GT matrix. A variant or call set no matrix page carried is a warning naming it, because its
+  calls are all missing.
+- **D7 transport.** `Accept: application/json` on every request, and `Authorization: Bearer <token>`
+  when a token is configured. The token never appears in a URL, message, warning, log or output. Each
+  request times out after 60 s. A base URL must be `http://` or `https://` and must not carry a user
+  name or password.
+- **Q9 size guard.** Before the matrix is allocated, a variant set above 12,012,000 calls adds a
+  warning naming the count and the largest measured CPython case, 6,000 markers by 2,002 call sets
+  (docs/limits.md). The load proceeds.
+
+Loading is CPython only in M3 (Q6); the browser build has no BrAPI source and points to the command
+line. A browser build would also need the server to allow the page's origin (CORS), which the app
+cannot work around.
+
+Not supported: `/samples` and `/germplasm` for naming, authentication other than a bearer token,
+polyploid calls, and any write to the server.
 
 ## criteria.yaml (selection criteria)
 

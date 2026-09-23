@@ -56,7 +56,7 @@ CODED_TOKENS = frozenset({"A", "B", "H"})
 def parse_nucleotide_call(text: str, missing: frozenset[str] = WIDE_NUCLEOTIDE_MISSING, profile: CompiledProfile | None = None) -> Call:
     """Accept "A", "AA", "AT", "A/T", "A|T" (a separator only between two characters) and the IUPAC codes R Y S W K M (expanded);
     return the sorted allele pair,
-    None for a token in ``missing`` or a pair with N, - or . (half-missing, undecided in contract 1.1.0);
+    None for a token in ``missing`` or a pair with N, - or . (half-missing pairs included, contract 1.6.0);
     ValueError for any other cell ("?", "B", "H", "X", "0", "+", "A?")."""
     t = str(text).strip().upper()
     if profile is not None:

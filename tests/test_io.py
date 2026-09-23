@@ -9,9 +9,12 @@ from pathlib import Path
 import numpy as np
 import pytest
 
+from progeny_selector.constants import HAPMAP_MISSING, WIDE_NUCLEOTIDE_MISSING
 from progeny_selector.io import load_dataset, load_genotypes, read_criteria
+from progeny_selector.io.calls import detect_coding, parse_nucleotide_call
 from progeny_selector.io.criteria import criteria_from_dict
 from progeny_selector.io.manifest import read_markers, read_samples
+from progeny_selector.io.profiles import BUILTIN_PROFILES, compile_profile
 from progeny_selector.io.wide_csv import read_wide_csv
 from progeny_selector.model.criteria import CriteriaError
 from progeny_selector.model.dataset import DataContractError
@@ -273,12 +276,70 @@ def test_nucleotide_rejects_stray_cells(tmp_path: Path):
             read_wide_csv(p)
 
 
-def test_half_missing_pairs_unchanged(tmp_path: Path):
-    """Undecided in contract 1.1.0 (PLAN.md): a pair with N, - or . reads as missing, as before."""
+def _half_missing_cells() -> list[str]:
+    """Every pair of one nucleotide and one of N, -, . , in both orders and all three spellings."""
+    cells: list[str] = []
+    for n in "ACGT":
+        for h in ("N", "-", "."):
+            for a, b in ((n, h), (h, n)):
+                cells += [f"{a}{b}", f"{a}/{b}", f"{a}|{b}"]
+    return cells
+
+
+def test_half_missing_pairs_read_as_missing(tmp_path: Path):
+    """Contract 1.6.0: a pair of one nucleotide and one of N, - or . is missing, either order, both formats."""
+    for cell in _half_missing_cells():
+        assert parse_nucleotide_call(cell, WIDE_NUCLEOTIDE_MISSING) is None, cell
+        assert parse_nucleotide_call(cell, HAPMAP_MISSING) is None, cell
+        lower = cell.lower()  # cells are compared case-insensitively
+        assert parse_nucleotide_call(lower, WIDE_NUCLEOTIDE_MISSING) is None, lower
+        assert parse_nucleotide_call(f" {lower} ", HAPMAP_MISSING) is None, lower
     p = tmp_path / "g.csv"
     p.write_text("marker_id,chrom,pos_bp,S1,S2,S3,S4\nm1,Gm06,100,T,AN,A-,./A\n")
     gm = read_wide_csv(p)
     assert (gm.calls[0, 1:] == -1).all() and gm.alleles[0] == ["T"]
+
+
+def test_half_missing_pair_needs_one_of_the_three_tokens():
+    """Contract 1.6.0: only N, - and . pair with a nucleotide; another missing token does not."""
+    for bad in ("AX", "XA", "A/X", "AU", "UA", "A?"):
+        for missing in (WIDE_NUCLEOTIDE_MISSING, HAPMAP_MISSING):
+            with pytest.raises(ValueError, match="unrecognised nucleotide call"):
+                parse_nucleotide_call(bad, missing)
+
+
+def test_half_missing_pairs_under_profiles():
+    """Contract 1.6.0: the rule is part of the nucleotide grammar, so it applies under base nucleotide only."""
+    for pid in ("tassel", "soybase-report"):
+        compiled = compile_profile(BUILTIN_PROFILES[pid])
+        for cell in _half_missing_cells():
+            assert parse_nucleotide_call(cell, WIDE_NUCLEOTIDE_MISSING, compiled) is None, (pid, cell)
+            assert parse_nucleotide_call(cell, HAPMAP_MISSING, compiled) is None, (pid, cell)
+        extra = "AX" if pid == "tassel" else "AU"
+        with pytest.raises(ValueError, match="unrecognised nucleotide call"):
+            parse_nucleotide_call(extra, WIDE_NUCLEOTIDE_MISSING, compiled)
+    for pid in ("dart", "axiom", "kasp"):
+        compiled = compile_profile(BUILTIN_PROFILES[pid])
+        for cell in _half_missing_cells():
+            if cell in compiled.missing:  # NA, asserted below
+                continue
+            for text in (cell, cell.lower()):
+                with pytest.raises(ValueError, match="unrecognised nucleotide call"):
+                    parse_nucleotide_call(text, WIDE_NUCLEOTIDE_MISSING, compiled)
+        # "unless the profile lists that exact token": NA is in all three missing lists.
+        assert "NA" in compiled.missing, pid
+        assert parse_nucleotide_call("NA", WIDE_NUCLEOTIDE_MISSING, compiled) is None, pid
+        assert parse_nucleotide_call("na", WIDE_NUCLEOTIDE_MISSING, compiled) is None, pid
+
+
+def test_half_missing_pair_decides_nucleotide_detection(tmp_path: Path):
+    """Contract 1.6.0: the pair is not a missing token, so a file whose only non-A/B cell is the pair
+    is detected as nucleotide, and the parse then fails on the coded letter B, not on the pair."""
+    assert detect_coding(["A", "B", "N/A"]) == "nucleotide"
+    p = tmp_path / "g.csv"
+    p.write_text("marker_id,chrom,pos_bp,RP,DONOR,L1\nm1,Gm01,100,A,B,N/A\n")
+    with pytest.raises(DataContractError, match="line 2: unrecognised nucleotide call 'B'"):
+        read_wide_csv(p)
 
 
 def test_hapmap_missing_tokens(tmp_path: Path):

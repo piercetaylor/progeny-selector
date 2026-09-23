@@ -1,0 +1,89 @@
+{
+  "contractVersion": "1.6.0",
+  "coded": false,
+  "chromosomeOrder": [
+    "Gm04"
+  ],
+  "markers": [
+    {
+      "id": "f1",
+      "chrom": "Gm04",
+      "posBp": 100,
+      "cm": null
+    },
+    {
+      "id": "f2",
+      "chrom": "Gm04",
+      "posBp": 200,
+      "cm": null
+    },
+    {
+      "id": "f3",
+      "chrom": "Gm04",
+      "posBp": 300,
+      "cm": null
+    },
+    {
+      "id": "f4",
+      "chrom": "Gm04",
+      "posBp": 400,
+      "cm": null
+    }
+  ],
+  "sampleIds": [
+    "RP",
+    "DONOR",
+    "L1",
+    "L2"
+  ],
+  "calls": {
+    "RP": [
+      [
+        "A",
+        "A"
+      ],
+      [
+        "C",
+        "C"
+      ],
+      [
+        "A",
+        "A"
+      ],
+      [
+        "G",
+        "G"
+      ]
+    ],
+    "DONOR": [
+      [
+        "G",
+        "G"
+      ],
+      [
+        "T",
+        "T"
+      ],
+      [
+        "T",
+        "T"
+      ],
+      [
+        "T",
+        "T"
+      ]
+    ],
+    "L1": [
+      null,
+      null,
+      null,
+      null
+    ],
+    "L2": [
+      null,
+      null,
+      null,
+      null
+    ]
+  }
+}

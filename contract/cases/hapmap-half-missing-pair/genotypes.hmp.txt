@@ -1,0 +1,5 @@
+rs#	alleles	chrom	pos	strand	assembly#	center	protLSID	assayLSID	panelLSID	QCcode	RP	DONOR	L1	L2
+f1	A/G	Gm04	100	+	NA	NA	NA	NA	NA	NA	AA	GG	AN	-A
+f2	C/T	Gm04	200	+	NA	NA	NA	NA	NA	NA	CC	TT	C.	.C
+f3	A/T	Gm04	300	+	NA	NA	NA	NA	NA	NA	AA	TT	A/N	N|T
+f4	G/T	Gm04	400	+	NA	NA	NA	NA	NA	NA	GG	TT	G-	-|G
