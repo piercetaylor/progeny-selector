@@ -5,9 +5,9 @@ to the browser as downloads. Each handler yields the file's text, so nothing is
 written to a temporary directory; under shinylive the files are generated in
 the tab, under ``shiny run`` on the server side.
 
-The manifest's placeholder-row count is checked by ``io.export``, not here: the screen passes the
-field through, and on refusal shows the writer's own message in the status line and produces no
-file, so a count the CLI rejects never becomes a silently parent-only manifest.
+The manifest's placeholder-row count and next-generation label are checked by ``io.export``, not here: the
+screen passes the fields through, and on refusal shows the writer's own message in the status line and
+produces no file, so values the CLI rejects never become a silently parent-only or blank-label manifest.
 
 Interface:
     view(id) -> Tag
@@ -20,6 +20,7 @@ from shiny import module, reactive, render, req, ui
 
 from progeny_selector.io.export import (
     MANIFEST_COLUMNS,
+    check_next_generation,
     check_per_selected,
     next_round_manifest_text,
     results_csv_text,
@@ -62,16 +63,17 @@ def server_(input, output, session, state) -> None:
     message = reactive.Value("")
 
     @reactive.effect
-    def _check_count() -> None:
-        # io/export owns the rule and its wording; the screen passes the field through and shows the
+    def _check_inputs() -> None:
+        # io/export owns the rules and their wording; the screen passes the fields through and shows the
         # message. A reactive.Value set inside a download handler never reaches the client — that
-        # request is outside the session's flush cycle — so the check runs here, on the input.
+        # request is outside the session's flush cycle — so the checks run here, on the inputs.
+        # A cleared numeric field reads as None and the writer's own default then applies, so only a
+        # value that is present is checked; the label is always checked, blank field included.
         per_selected = input.per_selected()
-        if per_selected is None:
-            message.set("")
-            return
         try:
-            check_per_selected(int(per_selected))
+            if per_selected is not None:
+                check_per_selected(int(per_selected))
+            check_next_generation(input.next_gen() or "")
         except DataContractError as exc:
             message.set(f"error: {exc}")
         else:

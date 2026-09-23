@@ -71,3 +71,40 @@ def test_zero_per_selected_is_refused_and_no_file_is_downloaded(page: Page, app:
     assert dl.value.failure() == "canceled"
     with pytest.raises(PlaywrightError):
         dl.value.path()
+
+
+def test_blank_next_generation_is_refused_and_no_file_is_downloaded(page: Page, app: ShinyAppProc) -> None:
+    """A blank label passes the text field, so io/export refuses it; the screen shows that and downloads nothing.
+
+    The silent failure this closes is a next_samples.csv of ids like BC2F1-F1-001--001 with an empty
+    generation column, which looks like a written manifest. The CLI already refuses a blank label.
+    """
+    page.goto(app.url)
+    load_fixture(page)
+    navbar = controller.PageNavbar(page, "screen")
+    navbar.set("rank")
+    rank_table = controller.OutputDataFrame(page, "rank-table")
+    rank_table.expect_nrow(11)
+    rank_table.select_rows([0])
+    # The second half asserts the progeny id, so the selection must have reached the server first.
+    rank_table.expect_selected_num_rows(1)
+
+    navbar.set("export")
+    next_gen = controller.InputText(page, "export-next_gen")
+    next_gen.set("   ")
+    controller.OutputTextVerbatim(page, "export-status").expect_value("error: next generation label must not be empty")
+    # No file at all: the download is cancelled, not saved with a blank label stamped into the ids.
+    with page.expect_download() as dl:
+        controller.DownloadButton(page, "export-manifest").click()
+    assert dl.value.failure() == "canceled"
+    with pytest.raises(PlaywrightError):
+        dl.value.path()
+
+    next_gen.set("BC4F1")
+    controller.OutputTextVerbatim(page, "export-status").expect_value("")
+    with page.expect_download() as dl2:
+        controller.DownloadButton(page, "export-manifest").click()
+    rows = list(csv.reader(Path(dl2.value.path()).read_bytes().decode("utf-8").splitlines()))
+    progeny = [r for r in rows[1:] if r[2] == "progeny"]
+    assert [r[0] for r in progeny] == ["BC2F1-F1-001-BC4F1-001"]
+    assert [r[3] for r in progeny] == ["BC4F1"]
