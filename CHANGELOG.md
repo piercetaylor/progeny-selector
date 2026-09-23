@@ -27,6 +27,8 @@ All notable changes to this project are documented in this file. The format foll
 
 ### Changed
 
+- Classification, RPP and IBS to a parent compute in blocks of 64 sample columns, so analysis temporaries are set by the marker count alone: 83 MB for `rpp` at 50,000 markers whether the file holds 200 individuals or 2,000, where before the cost scaled with the call count and reaches about 3.2 GB at 50,000 x 2,000 by arithmetic from the measured per-call figure (docs/adr/0025). Results are bit-identical.
+
 - `read_vcf` reads the file in two passes and fills a preallocated matrix instead of stacking a list of rows, so the parse peak falls from 3.6x to 2.0x the genotype matrix on a 50,000-marker file (68.4 MiB to 38.4 MiB, measured on the reference machine); what remains beyond the matrix is the marker and allele tables, about 450 bytes a record, so the saving is largest on the sample-heavy files where the matrix dominates (docs/adr/0022). A truncated `.gz` is now a contract error naming the file, reported ahead of any row error in the same file. Results are unchanged.
 
 - results.csv schema 1.1.0: a fixed `crop` column after `results_schema` and before `token_profile`, which stays last (docs/adr/0016); selected.csv gains it in the same position and `scripts/read_results.R` reads it. Under any crop but soybean a chromosome ends at its last marker, because the chromosome length tables are Williams 82's; the per-chromosome "assembly gives no length" warning says so.

@@ -27,6 +27,7 @@ from progeny_selector.constants import (
     STATE_N,
     STATE_U,
     STATE_X,
+    sample_blocks,
 )
 from progeny_selector.model.dataset import GenotypeMatrix
 
@@ -71,21 +72,23 @@ def classify(gm: GenotypeMatrix, rp_id: str, donor_id: str) -> Classification:
     rp_allele = np.where(informative, rp[:, 0], -1).astype(np.int8)
     donor_allele = np.where(informative, donor[:, 0], -1).astype(np.int8)
 
-    a1 = gm.calls[:, :, 0]
-    a2 = gm.calls[:, :, 1]
     r = rp_allele[:, None]
     d = donor_allele[:, None]
 
-    missing = (a1 < 0) | (a2 < 0)
-    is_a = (a1 == r) & (a2 == r)
-    is_b = (a1 == d) & (a2 == d)
-    is_h = ((a1 == r) & (a2 == d)) | ((a1 == d) & (a2 == r))
-
-    states = np.full((gm.n_markers, gm.n_samples), STATE_X, dtype=np.int8)
-    states[is_h] = STATE_H
-    states[is_b] = STATE_B
-    states[is_a] = STATE_A
-    states[missing] = STATE_N
+    n_m, n_s = gm.n_markers, gm.n_samples
+    states = np.full((n_m, n_s), STATE_X, dtype=np.int8)
+    for j0, j1 in sample_blocks(n_s):
+        a1 = gm.calls[:, j0:j1, 0]
+        a2 = gm.calls[:, j0:j1, 1]
+        missing = (a1 < 0) | (a2 < 0)
+        is_a = (a1 == r) & (a2 == r)
+        is_b = (a1 == d) & (a2 == d)
+        is_h = ((a1 == r) & (a2 == d)) | ((a1 == d) & (a2 == r))
+        block = states[:, j0:j1]
+        block[is_h] = STATE_H
+        block[is_b] = STATE_B
+        block[is_a] = STATE_A
+        block[missing] = STATE_N
     states[~informative, :] = STATE_U
     return Classification(
         states=states,

@@ -1,7 +1,8 @@
 """Shared constants: parent-of-origin state codes, soybean chromosome tables, palette.
 
 Responsibility: single source of truth for small tables used across io, core and app.
-Interface: module-level constants only; no functions with side effects.
+Interface: module-level constants, plus ``sample_blocks``, a pure helper that turns a sample
+count into the column blocks the three chunked core functions share; no side effects.
 """
 
 from __future__ import annotations
@@ -28,6 +29,35 @@ LABEL_TO_STATE: dict[str, int] = {v: k for k, v in STATE_LABELS.items()}
 
 # Recurrent-parent contribution per state for RPP; NaN means "excluded from numerator and denominator".
 RPP_CONTRIBUTION: np.ndarray = np.array([1.0, 0.5, 0.0, np.nan, np.nan, np.nan], dtype=float)
+# The same table with the excluded states as 0.0, for indexing by state code inside a block sum.
+RPP_LOOKUP: np.ndarray = np.nan_to_num(RPP_CONTRIBUTION)
+RPP_LOOKUP.setflags(write=False)
+
+# columns per block in `classify`, `rpp` and `ibs_to_sample`; a float64 `(50_000, 64)` temporary
+# is 25 MiB, so three of them stay under 100 MiB at 50K markers (docs/adr/0025)
+CORE_SAMPLE_CHUNK: int = 64
+
+
+def sample_blocks(n_samples: int) -> list[tuple[int, int]]:
+    """Half-open column blocks of width ``CORE_SAMPLE_CHUNK``, never leaving a width-1 tail.
+
+    A one-column tail is folded into the block before it, so the last block is 65 wide and not
+    64 plus 1. numpy reduces a single-column array along axis 0 by pairwise summation and a
+    wider one by accumulating rows in order, so a width-1 block would give a different weighted
+    RPP for the last individual than the unchunked code did (docs/adr/0025). Every block this
+    returns is at least two columns wide unless the whole matrix is one column, which is the
+    shape the unchunked code reduced anyway.
+    """
+    blocks: list[tuple[int, int]] = []
+    j0 = 0
+    while j0 < n_samples:
+        j1 = min(j0 + CORE_SAMPLE_CHUNK, n_samples)
+        if n_samples - j1 == 1:
+            j1 = n_samples
+        blocks.append((j0, j1))
+        j0 = j1
+    return blocks
+
 
 # Locus status codes.
 STATUS_FAIL: int = 0

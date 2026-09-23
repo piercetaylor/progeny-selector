@@ -22,6 +22,7 @@ from typing import Literal, overload
 
 import numpy as np
 
+from progeny_selector.constants import sample_blocks
 from progeny_selector.model.dataset import GenotypeMatrix
 
 MAX_IBS_MARKERS = 2000  # pairwise IBS subsamples down to this many markers
@@ -39,12 +40,18 @@ def _shared_alleles(a: np.ndarray, b: np.ndarray) -> np.ndarray:
 def ibs_to_sample(gm: GenotypeMatrix, ref_sample_id: str) -> np.ndarray:
     """Mean shared-allele proportion between every sample and ``ref_sample_id``; NaN when no overlap."""
     ref = gm.calls[:, gm.sample_index(ref_sample_id), :]
-    called = np.asarray((gm.calls >= 0).all(axis=2)) & np.asarray((ref >= 0).all(axis=1))[:, None]
-    shared = _shared_alleles(gm.calls, ref[:, None, :]) / 2.0
-    denom = called.sum(axis=0)
-    with np.errstate(invalid="ignore", divide="ignore"):
-        out = np.where(called, shared, 0.0).sum(axis=0) / denom
-    out[denom == 0] = np.nan
+    ref_called = np.asarray((ref >= 0).all(axis=1))
+    n_s = gm.n_samples
+    out = np.empty(n_s)
+    for j0, j1 in sample_blocks(n_s):
+        block = gm.calls[:, j0:j1, :]
+        called = np.asarray((block >= 0).all(axis=2)) & ref_called[:, None]
+        shared = _shared_alleles(block, ref[:, None, :]) / 2.0
+        denom = called.sum(axis=0)
+        with np.errstate(invalid="ignore", divide="ignore"):
+            block_out = np.where(called, shared, 0.0).sum(axis=0) / denom
+        block_out[denom == 0] = np.nan
+        out[j0:j1] = block_out
     return out
 
 

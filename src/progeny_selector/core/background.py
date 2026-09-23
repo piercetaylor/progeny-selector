@@ -17,8 +17,9 @@ from __future__ import annotations
 
 import numpy as np
 
+from progeny_selector.constants import RPP_LOOKUP, sample_blocks
 from progeny_selector.core.chrom import SOYBEAN, CompiledScheme, chrom_sort_key
-from progeny_selector.core.classify import is_called_informative, rpp_contribution
+from progeny_selector.core.classify import is_called_informative
 from progeny_selector.model.dataset import GenotypeMatrix
 
 DEFAULT_MAX_COVERAGE = {"cm": 10.0, "bp": 4_000_000.0}
@@ -70,14 +71,21 @@ def rpp(states: np.ndarray, weights: np.ndarray | None = None, marker_mask: np.n
     contribution: A=1, H=0.5, B=0. X, N and U calls are excluded from both sums, which is
     equivalent to imputing each individual's own mean. NaN when no marker qualifies.
     """
-    contrib = rpp_contribution(states)
-    counted = is_called_informative(states)
+    n_m, n_s = states.shape
+    w = np.ones(n_m, dtype=float) if weights is None else weights
     if marker_mask is not None:
-        counted = counted & marker_mask[:, None]
-    w = np.ones(states.shape[0], dtype=float) if weights is None else weights
-    w2 = np.where(counted, w[:, None], 0.0)
-    denom = w2.sum(axis=0)
-    numer = np.nansum(w2 * np.nan_to_num(contrib), axis=0)
+        w = np.where(marker_mask, w, 0.0)
+    numer = np.empty(n_s)
+    denom = np.empty(n_s)
+    for j0, j1 in sample_blocks(n_s):
+        c = states[:, j0:j1]
+        counted = is_called_informative(c)
+        # np.where, not w[:, None] * counted: an infinite weight times a False multiplies to NaN
+        # and would poison every column's denominator, where the unchunked code produced NaN only
+        # in the columns the infinity actually entered (docs/adr/0025).
+        w2 = np.where(counted, w[:, None], 0.0)
+        numer[j0:j1] = np.nansum(w2 * RPP_LOOKUP[c], axis=0)
+        denom[j0:j1] = w2.sum(axis=0)
     with np.errstate(invalid="ignore", divide="ignore"):
         out = numer / denom
     out[denom == 0] = np.nan
