@@ -4,6 +4,10 @@ All notable changes to this project are documented in this file. The format foll
 
 ## [Unreleased]
 
+### Documentation
+
+- Replace the milestone-heavy landing page with a concise workflow and fixture example; preserve the previous README in `docs/legacy-readme.md`.
+
 ### Fixed
 
 - results.csv and the Validate screen record the chromosome-length table the run used, and not the criteria.yaml text. A maize run with an unset `assembly` recorded `Wm82.a4` while using no length table at all, and now records `none` (docs/adr/0015, amendment 2026-09-22).
