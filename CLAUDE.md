@@ -6,7 +6,7 @@ Read this, then `PLAN.md`. Everything below is the working agreement; `PLAN.md` 
 
 Ranks and selects progeny in marker-assisted backcross programs: foreground status at target loci, negative selection at avoid loci, recurrent-parent genome recovery overall and on carrier versus non-carrier chromosomes, donor-segment bounds with recombinant flags, similarity to each parent, QC flags, and a weighted composite score applied after hard filters. The compute core is a pure Python package; the UI is Shiny for Python, run locally or exported with Shinylive so genotype data stays in the browser tab.
 
-Open a session **inside this repo**, never in the parent directory. The siblings `backcross` (TypeScript; GitHub repo piercetaylor/backcross, but the folder on disk is still named `isoline-browser`, so `../isoline-browser` is the working path until it is renamed) and `field-capture-android` (Gradle) have their own toolchains and their own `PLAN.md`.
+Open a session **inside this repo**, never in the parent directory. The siblings `backcross` (TypeScript; GitHub repo piercetaylor/backcross, at `../backcross`; the folder was named `isoline-browser` until 2026-09-23) and `field-capture-android` (Gradle) have their own toolchains and their own `PLAN.md`.
 
 ## State
 
@@ -18,7 +18,7 @@ Open a session **inside this repo**, never in the parent directory. The siblings
 ruff check . && ruff format --check .
 mypy
 pytest -q
-python3 scripts/check_contract.py            # contract/ manifest; add ../isoline-browser to byte-compare with the canonical copy
+python3 scripts/check_contract.py            # contract/ manifest; add ../backcross to byte-compare with the canonical copy
 ```
 
 Plus regenerating the fixture with `python3 scripts/make_fixture.py` and confirming `git diff --exit-code -- tests/fixtures` is clean: the generator is deterministic.
