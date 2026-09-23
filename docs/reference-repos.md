@@ -10,9 +10,9 @@ URL: https://github.com/cropgeeks/flapjack (fetched). Licence: BSD-2-Clause. Lan
 
 URL: https://github.com/cropgeeks/flapjack-bytes (fetched). Licence: BSD-2-Clause. Language: JavaScript; Rollup, Babel, ESLint; test/ and sample-data/; no CI file visible. Canvas graphical-genotype library with BrAPI/file/URL loading. Borrowed: the compact-strip idea for the Compare screen (colour by state per marker on one row per line). Not borrowed: rendering code; detailed browsing is the sibling project's scope.
 
-## plantbreeding/API (BrAPI)
+## plantbreeding/BrAPI (BrAPI specification)
 
-URL: https://github.com/plantbreeding/API (fetched). Licence: MIT. Specification for the Breeding API; V2.1 with Core, Phenotyping, Genotyping (samples, markers, variant sets, variants, call sets, calls) and Germplasm modules. Borrowed: vocabulary for a later loader and the sample/germplasm distinction behind `sample_id` versus `line_name`. Not borrowed: nothing implemented.
+URL: https://github.com/plantbreeding/BrAPI (fetched 2026-09-22; the repository was renamed from `plantbreeding/API`, and GitHub redirects the old paths, so a fetch of either name returns the same files). Licence: MIT. Specification for the Breeding API; V2.1 with Core, Phenotyping, Genotyping (samples, markers, variant sets, variants, call sets, calls) and Germplasm modules. The shapes a loader needs are in `Specification/BrAPI-Genotyping/AlleleMatrix/` (the `AlleleMatrix` object and its query parameters) and `Specification/BrAPI-Genotyping/Variants/Schemas/Variant.yaml`, which gives `start` as 0-based with `end` exclusive, against VCF's 1-based POS. Borrowed: vocabulary for a later loader and the sample/germplasm distinction behind `sample_id` versus `line_name`. Not borrowed: nothing implemented.
 
 ## Breeding-Insight (organisation)
 
