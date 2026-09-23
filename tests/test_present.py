@@ -8,8 +8,18 @@ import sys
 import pytest
 
 from progeny_selector.app import present
-from progeny_selector.app.present import chip_style, qc_row_styles, status_cell_styles, status_columns, strip_rects
+from progeny_selector.app.present import (
+    chip_style,
+    decode_generation,
+    encode_generation,
+    generation_choices,
+    qc_row_styles,
+    status_cell_styles,
+    status_columns,
+    strip_rects,
+)
 from progeny_selector.constants import STATE_COLORS, STATUS_COLORS
+from progeny_selector.core.navigation import UNASSIGNED, FamilyNode, GenerationNode
 from progeny_selector.core.strip import chromosome_strips
 from tests.test_strip import co_located_strips, progeny_states, strips_for, two_chrom_matrix
 
@@ -97,6 +107,34 @@ def test_strip_rects_scales_to_longest_chromosome():
         assert_widths_fit_bar(strip, row, bar_max * strip.length_bp / longest)
     assert geom.rows[1].y > geom.rows[0].y
     assert geom.height == 2 * 8 + 3
+
+
+def test_decode_generation():
+    assert decode_generation("g:BC2F1") == "BC2F1"
+    assert decode_generation("all") is None
+    assert decode_generation(None) is None
+    assert decode_generation("") is None
+    assert decode_generation("none") == UNASSIGNED
+
+
+def test_encode_generation_prefix_round_trip():
+    # The discriminating case for the prefix: a generation literally named "all".
+    assert encode_generation("all") == "g:all"
+    assert decode_generation(encode_generation("all")) == "all"
+
+
+def test_generation_choices():
+    fam = FamilyNode("F1", 3, (GenerationNode("BC2F1", 2), GenerationNode(None, 1)))
+    assert generation_choices(fam) == {
+        "all": "(all generations) (3)",
+        "g:BC2F1": "BC2F1 (2)",
+        "none": "(no generation) (1)",
+    }
+
+
+def test_generation_choices_without_unassigned_node():
+    fam = FamilyNode("F1", 2, (GenerationNode("BC2F1", 2),))
+    assert "none" not in generation_choices(fam)
 
 
 def test_import_without_shiny(monkeypatch):

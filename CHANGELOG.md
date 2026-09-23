@@ -16,6 +16,7 @@ All notable changes to this project are documented in this file. The format foll
 
 ### Added
 
+- Navigate offers a "(no generation)" choice for individuals without a generation; the Rank caption names an unassigned family or generation; the Navigate reload guard has a browser test.
 - `scripts/bench_pipeline.py` and `scripts/bench_shinylive.py` measure wall-clock and peak memory on generated datasets; `docs/limits.md` records the measured limits for CPython and Shinylive (docs/adr/0021).
 
 - Crop selector (contract 1.5.0, docs/adr/0020): soybean (default), maize, rice, sorghum, wheat, barley, oat, common bean and cotton chromosome schemes; a chosen crop normalizes and orders chromosome names, resolves target regions and selects chromosome lengths by that crop's convention, so a maize `chr1` is no longer read as `Gm01` and a maize target `chr7` resolves. `--crop ID` on the CLI and a Crop select on the Load screen.

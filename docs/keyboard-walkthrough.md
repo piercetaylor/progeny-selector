@@ -38,7 +38,8 @@ activates the focused tab.
 The family accordion headers are buttons: `Enter`/`Space` opens or closes a
 family's panel. Inside an open panel, the generation choice is a radio group:
 arrow keys move the selection between generations, which is a change event
-(no extra `Enter` needed).
+(no extra `Enter` needed). A family whose individuals lack a generation also
+offers "(no generation)"; arrow keys reach it like any other choice.
 
 ## Rank
 

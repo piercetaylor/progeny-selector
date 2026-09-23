@@ -4,7 +4,9 @@ Responsibility: show the tree from ``core.navigation.build_tree`` as an accordio
 of families, each holding a radio group of its generations, so a node is picked
 with mouse or keyboard (accordion headers are buttons, radios take arrow keys);
 write the selection into ``state.breadcrumb``, which filters the Rank screen,
-and render it as a Bootstrap breadcrumb whose ancestor crumbs step back up.
+and render it as a Bootstrap breadcrumb whose ancestor crumbs step back up. The
+radio offers every generation of the family and "(no generation)" when any
+individual lacks one.
 
 Interface:
     view(id) -> Tag
@@ -15,6 +17,7 @@ from __future__ import annotations
 
 from shiny import module, reactive, render, ui
 
+from progeny_selector.app.present import ALL_GENERATIONS, decode_generation, generation_choices
 from progeny_selector.core.navigation import UNASSIGNED, NavTree, build_tree, crumb_labels
 
 
@@ -68,14 +71,11 @@ def server_(input, output, session, state) -> None:
         panels = []
         for i, fam in enumerate(nav.families):
             label = fam.family_id if fam.family_id is not None else "(no family)"
-            choices = {
-                "": f"(all generations) ({fam.n})",
-                **{g.generation: f"{g.generation} ({g.n})" for g in fam.generations if g.generation},
-            }
+            choices = generation_choices(fam)
             panels.append(
                 ui.accordion_panel(
                     f"{label} ({fam.n})",
-                    ui.input_radio_buttons(session.ns(f"gen_{i}"), "Generation", choices=choices, selected=""),
+                    ui.input_radio_buttons(session.ns(f"gen_{i}"), "Generation", choices=choices, selected=ALL_GENERATIONS),
                     value=f"fam_{i}",
                 )
             )
@@ -97,8 +97,7 @@ def server_(input, output, session, state) -> None:
         if i is not None and i < len(nav.families):
             fam = nav.families[i]
             family = UNASSIGNED if fam.family_id is None else fam.family_id
-            gen = input[f"gen_{i}"]()
-            generation = gen or None
+            generation = decode_generation(input[f"gen_{i}"]())
         state.breadcrumb.set({"cross": nav.cross, "family": family, "generation": generation})
 
     @output(suspend_when_hidden=False)
@@ -126,7 +125,7 @@ def server_(input, output, session, state) -> None:
     def _to_family() -> None:
         i = _open_index()
         if i is not None:
-            ui.update_radio_buttons(f"gen_{i}", selected="")
+            ui.update_radio_buttons(f"gen_{i}", selected=ALL_GENERATIONS)
 
 
 def server(id: str, state) -> None:

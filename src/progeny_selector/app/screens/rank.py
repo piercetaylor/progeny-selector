@@ -19,7 +19,7 @@ from typing import Any
 from shiny import module, reactive, render, ui
 
 from progeny_selector.app.present import status_cell_styles, status_columns
-from progeny_selector.core.navigation import filter_rows
+from progeny_selector.core.navigation import NavTree, build_tree, crumb_labels, filter_rows
 
 DISPLAY_COLUMNS = (
     "rank_overall",
@@ -56,6 +56,11 @@ def view(id: str) -> ui.Tag:
 @module.server
 def server_(input, output, session, state) -> None:
     @reactive.calc
+    def nav_tree() -> NavTree | None:
+        dataset = state.dataset()
+        return build_tree(dataset) if dataset else None
+
+    @reactive.calc
     def rows() -> list[dict]:
         result = state.result()
         if result is None:
@@ -68,8 +73,12 @@ def server_(input, output, session, state) -> None:
 
     @render.text
     def caption() -> str:
-        crumb = state.breadcrumb()
-        where = " > ".join(p for p in (crumb.get("cross"), crumb.get("family"), crumb.get("generation")) if p) or "no data loaded"
+        nav = nav_tree()
+        if nav is None:
+            where = "no data loaded"
+        else:
+            crumb = state.breadcrumb()
+            where = " > ".join(crumb_labels(nav, crumb.get("family"), crumb.get("generation")))
         return f"{len(rows())} individuals shown ({where}); select rows, then open Compare"
 
     @render.data_frame

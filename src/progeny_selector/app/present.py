@@ -14,6 +14,10 @@ Interface:
     chip_style(status) -> str                         inline CSS for a status badge
     strip_rects(strips, ticks, width_px=320, row_px=8, gap_px=3, label_px=34, min_rect_px=1.0) -> StripGeometry
     StripGeometry, StripRow, Rect, TickShape (frozen dataclasses)
+    ALL_GENERATIONS, NO_GENERATION, GENERATION_PREFIX
+    encode_generation(generation) -> str              Navigate radio value for a generation node
+    decode_generation(value) -> str | None            radio value -> breadcrumb generation selector
+    generation_choices(fam) -> dict[str, str]          Navigate radio choices for a FamilyNode
 """
 
 from __future__ import annotations
@@ -23,9 +27,51 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 
 from progeny_selector.constants import STATE_COLORS, STATE_LABELS, STATUS_COLORS
+from progeny_selector.core.navigation import UNASSIGNED, FamilyNode
 from progeny_selector.core.strip import ChromStrip, LocusTick
 
 STATUS_COLUMN_RE = re.compile(r"^(target|avoid)_.+_status$")
+
+# The Navigate radio's "all generations" value is "" today and core.navigation.UNASSIGNED is
+# also "", so the two cannot share the value space: real generations are prefixed, sentinels
+# are bare words. A stripped manifest cell can never collide with a prefixed value, and a
+# generation literally named "all" encodes as "g:all".
+ALL_GENERATIONS = "all"
+NO_GENERATION = "none"
+GENERATION_PREFIX = "g:"
+
+
+def encode_generation(generation: str | None) -> str:
+    """Navigate radio value for a generation node: NO_GENERATION for None, else prefixed."""
+    if generation is None:
+        return NO_GENERATION
+    return GENERATION_PREFIX + generation
+
+
+def decode_generation(value: str | None) -> str | None:
+    """Radio value -> breadcrumb generation selector (None means no filter)."""
+    if value is None:
+        return None
+    if value == "" or value == ALL_GENERATIONS:
+        return None
+    if value == NO_GENERATION:
+        return UNASSIGNED
+    if value.startswith(GENERATION_PREFIX):
+        return value[len(GENERATION_PREFIX) :]
+    return None
+
+
+def generation_choices(fam: FamilyNode) -> dict[str, str]:
+    """Navigate radio choices for a family: all generations, then each named generation, then (no generation)."""
+    choices = {ALL_GENERATIONS: f"(all generations) ({fam.n})"}
+    for g in fam.generations:
+        if g.generation is not None:
+            choices[encode_generation(g.generation)] = f"{g.generation} ({g.n})"
+    for g in fam.generations:
+        if g.generation is None:
+            choices[NO_GENERATION] = f"(no generation) ({g.n})"
+    return choices
+
 
 # A zero-width (single-marker) locus tick is drawn this wide, as a fraction of its bar.
 MIN_TICK_FRACTION = 0.004
