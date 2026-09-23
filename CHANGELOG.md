@@ -2,6 +2,10 @@
 
 All notable changes to this project are documented in this file. The format follows Keep a Changelog 1.1.0 (https://keepachangelog.com/en/1.1.0/) and the project uses Semantic Versioning (https://semver.org/spec/v2.0.0.html).
 
+### Added
+
+- `scripts/bench_pipeline.py` and `scripts/bench_shinylive.py` measure wall-clock and peak memory on generated datasets; `docs/limits.md` records the measured limits for CPython and Shinylive (docs/adr/0021).
+
 ## [Unreleased]
 
 ### Fixed

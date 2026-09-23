@@ -43,6 +43,10 @@ Genotypes (VCF 4.2+, plain or bgzip; HapMap; wide CSV with nucleotide or A/B/H c
 
 PLAN.md (problem, algorithms, UI walkthrough, milestones, verification status), docs/data-formats.md, docs/reference-repos.md, docs/adr/ (MADR records), CHANGELOG.md, CONTRIBUTING.md.
 
+## Limits
+
+Measured wall-clock and peak memory for CPython and Shinylive at several dataset sizes: docs/limits.md.
+
 ## Licence
 
 MIT (LICENSE).
