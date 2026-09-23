@@ -34,7 +34,29 @@ Each item is a decision the documents do not settle or an inconsistency between 
 
 Settled before this spec and not reopened: the five-item scope and its exclusions (PLAN.md "M3 scope"); the phase order (PLAN.md:270); no contract version in M3; ADR numbering from 0021. Decisions taken in this spec on the planner's authority, each recorded in the phase and its ADR: `Dataset` keeps a whole int8 `GenotypeMatrix` and `core/` stays whole-array (Phase 3, ADR 0022); the CPython memory figure is the `tracemalloc` peak (numpy reports its allocations to it) and the browser figure is `measureUserAgentSpecificMemory` under cross-origin isolation (Phase 2, ADR 0021); the BrAPI loader mirrors the sibling's ADR 0015 rules verbatim where the two tools would otherwise read one server differently (Phase 7, ADR 0024).
 
-The main session records the maintainer's answers to Q1-Q17 here before any dispatch, as `docs/m2-phases.md` did. Phases 6 and 8 are dispatched only on a yes to Q1 and Q6.
+### Answers, 2026-09-22
+
+The maintainer answered Q1, Q3 and Q6; the main session settled the rest on the evidence named in each line. No phase is dispatched before this block.
+
+- **Q1: yes, Phase 6 is in.** The arithmetic was checked against the code before the question was put: `core/background.py::rpp` builds `contrib`, `w2`, `np.nan_to_num(contrib)` and their product, four float64 `(m, s)` temporaries, 32 bytes per call against the matrix's 2. Streaming the parser alone would leave the 50K x 2,000 acceptance figure PLAN.md:131 names as a "did not complete" row rather than a measurement.
+- **Q2: as recommended.** The label is stripped and an empty result refused; an unparseable label is accepted, as it is on input, because `contract/data-contract.md` keeps `generation` free text and QC already flags `generation_unparsed`.
+- **Q3: WCAG 2.2 AA, with the DataGrid keyboard limit as a recorded exception.** No keyboard-only multi-row selection path in M3. The inconsistency is confirmed: PLAN.md:80 claims "DataGrid supports arrow-key navigation and space/enter selection", `docs/keyboard-walkthrough.md:45` says "Needs a mouse" against shiny 1.7. The walkthrough is the observed behaviour, so PLAN.md:80 is what Phase 9 corrects, and the exception carries a dated line in ADR 0023.
+- **Q4: as recommended.** COOP and COEP in the bench server, `crossOriginIsolated` asserted, exit 3 rather than a fabricated figure. If Shinylive will not load under `require-corp`, that returns here as a question and is not a doer's choice.
+- **Q5: as recommended.** No timing in CI; the two scripts run per milestone, and CI runs only the deterministic `tracemalloc` bound tests.
+- **Q6: command line only. Phase 8 is struck from M3.** A BrAPI fetch from the Shinylive tab is cross-origin and the app cannot supply the server's `Access-Control-Allow-Origin`; under Pyodide `urllib` has no sockets, so the browser transport would be the async `pyodide.http.pyfetch`, unverifiable here against any real server. The browser build points to the command line. Shinylive BrAPI waits for a server known to send the headers, and the Load-screen card is carried in the Handoff, not planned here.
+- **Q7: as recommended, no schema bump in M3.** The ids sit on `Dataset.call_sets` and in `brapi-callsets.csv`, so nothing is lost and the columns can be added later without re-fetching. A contract version originates in backcross, and M3 introduces none.
+- **Q8: as recommended,** the sibling's rule verbatim, so a samples.csv written for backcross loads here unchanged.
+- **Q9: as recommended.** A warning, not a refusal: an HPC node with more memory than the reference laptop is not refused, and an out-of-memory failure is loud rather than silent.
+- **Q10: as recommended,** `--brapi-token-env`; a token never appears in a command line, URL, message or output.
+- **Q11: settled as fact, and the citation is already fixed.** The repository was renamed: `gh api repos/plantbreeding/API` reports `full_name` `plantbreeding/BrAPI`, and GitHub redirects the old paths, which is why this session's fetches under the old name returned the specification files. The sibling's parenthetical that those paths "return 404" is imprecise; the content of both citations was always the same repository. `docs/reference-repos.md` names the canonical repository as of commit `9b64e78`, with the AlleleMatrix and Variant paths and the 0-based `start`, so Phase 7 has nothing left to correct there.
+- **Q12: as recommended.** The sibling's `docs/data-formats.md:9` heading becomes false once a CLI loader ships here; the main session notes it in the sibling's handoff, and nothing in this milestone edits `../isoline-browser`.
+- **Q13: as recommended.** `parse_brapi_call` reads a half-missing token as missing, `_parse_gt` is left alone so every VCF test and the fixture stay byte-identical, and ADR 0024 records that the two are equivalent downstream.
+- **Q14: not in M3.** The authoritative scope block does not list the family-aware duplicate rule or the silent overlap skip; both stay in the Handoff with Question B.
+- **Q15: two passes.** The bound is then exactly the matrix plus one line, and the cost is one extra decompression, recorded in the table's own column.
+- **Q16: attempt the third Shinylive case and record the outcome,** because a documented limit is more useful than a blank.
+- **Q17: Phase 9, docs only,** as listed.
+
+Phase 6 is dispatched. Phase 8 is not part of this milestone.
 
 ## Order, dependencies and parallelism
 
@@ -48,7 +70,7 @@ The main session records the maintainer's answers to Q1-Q17 here before any disp
 | 5 | Accessibility review: axe on every screen, focus order, non-colour cues, `docs/accessibility.md`, ADR 0023 | sonnet | no | 4 |
 | 6 | (Q1) Analysis-memory bound: sample-chunked `classify`, `rpp`, `ibs_to_sample`, ADR 0025 | opus | yes | 3 |
 | 7 | BrAPI loader: `io/brapi.py`, `model` call-set refs, CLI, fixture pages, ADR 0024 | opus | yes | 3 |
-| 8 | (Q6) BrAPI on the Load screen under `shiny run` | sonnet | no | 7 |
+| ~~8~~ | ~~(Q6) BrAPI on the Load screen under `shiny run`~~ struck: command line only in M3 (Q6 answered) | — | — | — |
 | 9 | Re-measurement after 3 (and 6), docs, PLAN.md verification block, end-of-milestone review | main session, then sonnet (docs) | end-of-milestone pass | all |
 
 Parallel pairs on disjoint files: 3 with 4; 3 with 5; 6 with 7. CHANGELOG.md is the collision point of every pair: the second phase of a pair puts its CHANGELOG line in its report and the main session inserts it. Phase 2 must precede 3 so the streaming rewrite has a baseline; Phase 9 re-runs the same scripts on the same generated inputs.
@@ -157,7 +179,7 @@ Not verifiable here: which rules fire (contrast of black text on `#0072B2` is 4.
 
 Reviewer: no (app, tests, docs, `constants.py`). Model: sonnet. Acceptance: `pytest -m e2e` green with the two new files; `KNOWN_A11Y_EXCEPTIONS` either empty or every entry justified in `docs/accessibility.md` and ADR 0023; the report lists every violation found, and for each whether it was fixed (file, line) or excepted (reason).
 
-## Phase 6: analysis-memory bound (dispatched only on a yes to Q1)
+## Phase 6: analysis-memory bound (approved, Q1 answered yes)
 
 Goal: `classify`, `rpp` and `ibs_to_sample` compute in blocks of sample columns so analysis memory at 50K x 2,000 stays within a few times the genotype matrix, with output bit-identical to today.
 
@@ -247,7 +269,7 @@ Not verifiable here: any live server; CORS on any server; `resolve_locus` on an 
 
 Reviewer: yes (io, model). Model: opus. Acceptance: `tests/test_brapi.py` passes with no network; `tests/fixtures/brapi/` is generated by `scripts/make_fixture.py`, under 64 KB, and a second run reproduces it (`git hash-object` on every file, by the main session, until the first commit makes the diff gate see it); `python scripts/check_contract.py ../isoline-browser` reports the same identical count as Phase 0; `tests/test_smoke_pipeline.py` unchanged.
 
-## Phase 8: BrAPI on the Load screen under `shiny run` (dispatched only on a yes to Q6)
+## Phase 8: BrAPI on the Load screen under `shiny run` (struck from M3, Q6 answered command line only; kept for the milestone that takes it up)
 
 Goal: the Load screen offers a BrAPI server as the genotype source when the app runs under CPython, and says so honestly under Shinylive.
 
@@ -276,10 +298,9 @@ Acceptance: the verification block exists with the measured rows and versions; t
 - [ ] An empty or blank next-generation label is refused in `io.export` for the CLI (exit 2) and the Export screen (message, no file); a padded label is trimmed (`tests/test_next_generation.py`, `tests/e2e/test_export_manifest.py`).
 - [ ] `docs/limits.md` records measured wall-clock and peak memory for 6K x 2,000, 50K x 200 and 50K x 2,000 in CPython on the reference machine, and 6K x 2,000 and 50K x 200 in Shinylive, with hardware and versions, the 2,000-progeny rows marked "duplicate scan ran", and the 50K x 2,000 browser attempt recorded (docs/adr/0021).
 - [ ] `read_vcf` parses within 1.5 x the matrix on the bound test and below `matrix + 64 MiB` at 50K x 2,000 in the table; every VCF contract case, `test_io.py`, `test_crops.py` and the smoke test pass unchanged; the fixture regenerates without a diff (docs/adr/0022).
-- [ ] (Q1) `classify`, `rpp` and `ibs_to_sample` are bit-identical to their pre-phase implementations on random inputs and each stays under its memory threshold; the 50K x 2,000 analysis peak is at or below 4 x the matrix (docs/adr/0025).
+- [ ] `classify`, `rpp` and `ibs_to_sample` are bit-identical to their pre-phase implementations on random inputs and each stays under its memory threshold; the 50K x 2,000 analysis peak is at or below 4 x the matrix (docs/adr/0025).
 - [ ] Navigate offers "(no generation)"; the Rank caption names "(no family)" and "(no generation)"; the reload guard has a browser test (`tests/e2e/test_navigate_gaps.py`, `tests/e2e/test_navigate_rank.py`).
 - [ ] axe-core finds no WCAG 2.2 AA violation outside `KNOWN_A11Y_EXCEPTIONS` on every screen state; every exception is justified in `docs/accessibility.md` and ADR 0023; focus never lands on a hidden element; statuses carry text.
 - [ ] A BrAPI variant set loads through the CLI into the same `Dataset` as the VCF of the same data (`tests/test_brapi.py::test_brapi_equals_vcf_on_the_fixture`); positions are `start + 1` with the region test proving it; the token never appears outside the `Authorization` header; `brapi-callsets.csv` is written; no test touches the network (docs/adr/0024).
-- [ ] (Q6) The Load screen loads from a local fixture BrAPI server under `shiny run` and says "use the command line" under Shinylive.
 - [ ] `contract/` untouched: `python scripts/check_contract.py ../isoline-browser` reports the same identical count as at `fc21019`; `constants.RESULTS_SCHEMA` is `"1.1.0"` (unless Q7 is answered otherwise, in which case the bump is its own recorded change).
-- [ ] ADRs 0021-0024 (and 0025 if Q1) present; CHANGELOG entries under `[Unreleased]` written by the main session; PLAN.md M3 verification block and Handoff updated; CLAUDE.md State updated; end-of-milestone reviewer pass done.
+- [ ] ADRs 0021-0025 present; CHANGELOG entries under `[Unreleased]` written by the main session; PLAN.md M3 verification block and Handoff updated; CLAUDE.md State updated; end-of-milestone reviewer pass done.
