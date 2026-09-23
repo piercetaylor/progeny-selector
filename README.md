@@ -25,5 +25,10 @@ progeny-selector select --results results.csv --top 3 --out selected.csv --next-
 ## Verification and documentation
 
 `pytest -q`, `ruff check .`, `ruff format --check .`, and `mypy` check the package. Browser and static-export checks are described in [the plan](PLAN.md), along with real-data verification and its limits. [Design decisions](docs/adr/) and the [archived README](docs/legacy-readme.md) retain more detail.
+## Limits
+
+Measured wall-clock and peak memory for CPython and Shinylive at several dataset sizes: docs/limits.md.
+
+## Licence
 
 The software is available under the [MIT license](LICENSE). There is no associated paper; cite this repository with the commit or version used.

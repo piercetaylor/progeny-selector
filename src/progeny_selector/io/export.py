@@ -27,6 +27,8 @@ header is exactly ``FIXED_COLUMNS``. selected.csv carries ``results_schema`` too
 next_samples.csv does not, and keeps empty cells, because it is the input contract's
 samples.csv. A placeholder-row count below 1 is refused with ``DataContractError``: a manifest
 holding the two parents and no progeny is a silently truncated file rather than a smaller one.
+The next-generation label is trimmed and an empty label is refused the same way, because a blank
+label writes placeholder ids like ``BC2F1-F1-001--001`` and an empty ``generation`` column.
 """
 
 from __future__ import annotations
@@ -46,6 +48,7 @@ __all__ = [
     "NA",
     "RESULTS_SCHEMA",
     "SELECTION_COLUMNS",
+    "check_next_generation",
     "check_per_selected",
     "next_round_manifest_text",
     "results_csv_text",
@@ -214,10 +217,27 @@ def check_per_selected(n_per_selected: int) -> None:
         raise DataContractError(f"placeholder rows per selected individual must be 1 or more, got {n_per_selected}")
 
 
+def check_next_generation(next_generation: str) -> str:
+    """The label every manifest writer stamps into placeholder ids and the generation column.
+
+    Blank is refused here, where the CLI and the Export screen both arrive, because a blank label writes ids
+    like ``BC2F1-F1-001--001`` and an empty generation column that looks like a written manifest.
+
+    ``None`` counts as blank: the ``str()`` cast guards against a non-string value a Shiny input can
+    hand the writer, and on ``None`` alone it would otherwise yield the label ``"None"``, stamped into
+    ids as ``BC2F1-F1-001-None-001``. The annotation is not the protection here, the check is.
+    """
+    label = "" if next_generation is None else str(next_generation).strip()
+    if not label:
+        raise DataContractError("next generation label must not be empty")
+    return label
+
+
 def _write_next_round_manifest(
     fh: TextIO, rows: list[dict], next_generation: str, rp: Sample, donor: Sample, n_per_selected: int = 1
 ) -> None:
     check_per_selected(n_per_selected)
+    next_generation = check_next_generation(next_generation)
     writer = csv.writer(fh)
     writer.writerow(MANIFEST_COLUMNS)
     writer.writerow([rp.sample_id, rp.line_name, "recurrent_parent", "", "", rp.notes or ""])
@@ -240,6 +260,9 @@ def write_next_round_manifest(
     rows: list[dict], path: str | Path, next_generation: str, rp: Sample, donor: Sample, n_per_selected: int = 1
 ) -> None:
     """samples.csv for the next round: both parents plus placeholder progeny ids derived from each selected line."""
+    # Both checks run before the file is created, so a refused call leaves no empty file behind.
+    check_per_selected(n_per_selected)
+    check_next_generation(next_generation)
     with open(path, "w", encoding="utf-8", newline="") as fh:
         _write_next_round_manifest(fh, rows, next_generation, rp, donor, n_per_selected)
 

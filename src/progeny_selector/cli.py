@@ -66,7 +66,7 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--overall", action="store_true", help="top N overall instead of per family")
     s.add_argument("--out", required=True, help="selected.csv")
     s.add_argument("--next-manifest", help="write a samples.csv skeleton for the next round")
-    s.add_argument("--next-generation", default="BC3F1")
+    s.add_argument("--next-generation", type=_nonblank_label, default="BC3F1", metavar="LABEL")
     s.add_argument(
         "--per-selected",
         type=_positive_int,
@@ -92,6 +92,17 @@ def _positive_int(value: str) -> int:
     if n < 1:
         raise argparse.ArgumentTypeError(f"must be 1 or more, got {n}")
     return n
+
+
+def _nonblank_label(value: str) -> str:
+    """argparse type for a non-blank text label, trimmed; a blank one is a usage error (exit 2).
+
+    The rule itself lives in ``io.export.check_next_generation``, which every manifest writer runs;
+    this is the CLI's earlier, exit-code-shaped report of the same rule.
+    """
+    if not value.strip():
+        raise argparse.ArgumentTypeError("must not be empty")
+    return value.strip()
 
 
 def _profile_ref(ref: str | None) -> str | dict | None:
