@@ -20,7 +20,7 @@ from htmltools import Tag
 from shiny import module, render, ui
 
 from progeny_selector.app.present import Rect, StripGeometry, StripRow, chip_style, strip_rects
-from progeny_selector.constants import PALETTE_OKABE_ITO, STATE_COLORS
+from progeny_selector.constants import PALETTE_OKABE_ITO, STATE_COLORS, STATE_TEXT_COLORS
 from progeny_selector.core.drag import DragResult
 from progeny_selector.core.strip import chromosome_strips, locus_ticks
 
@@ -127,7 +127,10 @@ def _legend() -> Tag:
     swatches = [
         ui.span(
             f"{label} {meaning}",
-            style=f"background-color: {STATE_COLORS[label]}; color: #000000; padding: 0 0.4em; border-radius: 0.25em; margin-right: 0.3em;",
+            style=(
+                f"background-color: {STATE_COLORS[label]}; color: {STATE_TEXT_COLORS[label]}; "
+                "padding: 0 0.4em; border-radius: 0.25em; margin-right: 0.3em;"
+            ),
         )
         for label, meaning in STATE_MEANINGS
     ]

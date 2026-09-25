@@ -3,7 +3,8 @@
 From page load to a downloaded `selected.csv`, using only the keyboard, with the
 places a mouse is still needed called out. Observed against `shiny` 1.7 in
 Chromium (`tests/e2e/test_keyboard_walkthrough.py`); the DataGrid's own keyboard
-handling is a third-party component this project does not control.
+handling is a third-party component this project does not control. See
+`docs/accessibility.md` for the wider WCAG 2.2 AA review this walkthrough feeds.
 
 ## Load
 

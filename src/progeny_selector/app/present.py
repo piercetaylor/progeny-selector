@@ -26,7 +26,7 @@ import re
 from collections.abc import Sequence
 from dataclasses import dataclass
 
-from progeny_selector.constants import STATE_COLORS, STATE_LABELS, STATUS_COLORS
+from progeny_selector.constants import STATE_COLORS, STATE_LABELS, STATE_TEXT_COLORS, STATUS_COLORS
 from progeny_selector.core.navigation import UNASSIGNED, FamilyNode
 from progeny_selector.core.strip import ChromStrip, LocusTick
 
@@ -128,7 +128,7 @@ def status_cell_styles(columns: Sequence[str], rows: list[dict]) -> list[dict]:
                         "location": "body",
                         "rows": hits,
                         "cols": [j],
-                        "style": {"background-color": colour, "color": "#000000", "font-weight": "600"},
+                        "style": {"background-color": colour, "color": STATE_TEXT_COLORS[value], "font-weight": "600"},
                     }
                 )
     return styles
@@ -155,7 +155,10 @@ def qc_row_styles(rows: list[dict]) -> list[dict]:
 
 def chip_style(status: str) -> str:
     """Inline CSS for a status badge: black text on the status colour."""
-    return f"background-color: {STATUS_COLORS[status]}; color: #000000; font-weight: 600; padding: 0 0.4em; border-radius: 0.25em;"
+    return (
+        f"background-color: {STATUS_COLORS[status]}; color: {STATE_TEXT_COLORS[status]}; "
+        "font-weight: 600; padding: 0 0.4em; border-radius: 0.25em;"
+    )
 
 
 def strip_rects(

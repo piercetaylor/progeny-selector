@@ -44,6 +44,7 @@ app_ui = ui.page_navbar(
     title="progeny-selector",
     id="screen",
     fillable=True,
+    lang="en",
 )
 
 

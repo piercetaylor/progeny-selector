@@ -189,6 +189,23 @@ STATUS_COLORS: dict[str, str] = {
     "unknown": PALETTE_OKABE_ITO["gray"],
 }
 
+# Text colour to pair with each per-locus state colour (STATE_COLORS) and each status colour
+# (STATUS_COLORS), so the app never writes a colour literal of its own next to a background one
+# (docs/adr/0023). Black on the "A" state's blue background (Okabe-Ito blue, #0072B2) is 4.05:1,
+# below WCAG 2.2 AA's 4.5:1 for normal text, so white is used there; black passes (>= 5.4:1) on
+# every other state colour and on all three status colours.
+STATE_TEXT_COLORS: dict[str, str] = {
+    "A": "#FFFFFF",
+    "H": "#000000",
+    "B": "#000000",
+    "X": "#000000",
+    "N": "#000000",
+    "U": "#000000",
+    "pass": "#000000",
+    "fail": "#000000",
+    "unknown": "#000000",
+}
+
 SAMPLE_ROLES: tuple[str, ...] = ("recurrent_parent", "donor_parent", "candidate", "progeny")
 # Wide-CSV missing tokens per mode (contract/data-contract.md 1.1.0, "Wide CSV"). `?` is not missing.
 WIDE_NUCLEOTIDE_MISSING: frozenset[str] = frozenset({"", "N", "NN", "NA", "-", "--", ".", "./.", ".|."})
