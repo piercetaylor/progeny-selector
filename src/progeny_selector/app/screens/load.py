@@ -12,7 +12,7 @@ shown verbatim; a failed Apply leaves AppState untouched. A "Token profile" sele
 (JSON, optional)" file input choose how HapMap and wide-CSV cells are read; a custom file,
 when given, is used instead of the select, which is disabled while it is set (as backcross's
 Upload screen); "Clear custom token profile" forgets it and resets the file input; an
-unreadable or invalid file is a load error. A "Crop" select (contract 1.5.0: the nine built-in
+unreadable or invalid file is a load error. A "Crop" select (contract 1.5.0, extended by 1.7.0: the twelve built-in
 chromosome schemes, soybean the default) chooses the scheme chromosome names are normalised and
 ordered under; positions are not converted between assemblies.
 
@@ -89,7 +89,7 @@ PROFILE_CHOICES: dict[str, str] = {
 }
 
 
-# The crop chromosome schemes (contract 1.5.0), in file order with soybean first and selected.
+# The crop chromosome schemes (contract 1.5.0, extended by 1.7.0), in file order with soybean first and selected.
 CROP_CHOICES: dict[str, str] = {cid: scheme.name for cid, scheme in BUILTIN_CROPS.items()}
 
 
