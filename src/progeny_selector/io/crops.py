@@ -1,7 +1,8 @@
 """Crop chromosome schemes (contract/data-contract.md 1.5.0, "Chromosome names"; contract/crops/;
-docs/adr/0020; mirrors backcross src/io/crops.ts).
+docs/adr/0020, and docs/adr/0027 for cowpea, pea and peanut in 1.7.0; mirrors backcross
+src/io/crops.ts).
 
-Responsibility: the nine schemes shipped under contract/crops/, the schema check for one of
+Responsibility: the twelve schemes shipped under contract/crops/, the schema check for one of
 them, and the id-to-compiled-scheme lookup the readers, ``load_dataset``, the CLI and the
 Load screen resolve a chosen crop through. ``soybean`` is the default and reproduces the
 1.2.0 rule exactly. No user-supplied scheme is accepted in this version. Shinylive stages
@@ -14,7 +15,8 @@ which holds the soybean literal because ``core`` imports no ``io``; they are re-
 Interface:
     CropScheme, CompiledScheme, compile_scheme, DEFAULT_CROP_ID
     BUILTIN_CROPS: dict[str, CropScheme]   (soybean, maize, rice, sorghum, wheat, barley, oat,
-                                            common-bean, cotton, in that order)
+                                            common-bean, cotton, cowpea, pea, peanut, in that
+                                            order)
     validate_scheme(obj) -> CropScheme     (DataContractError "crop scheme: <reason>")
     resolve_crop(crop: str | None) -> CompiledScheme   (None -> soybean; an unknown id is an error)
 """
@@ -316,6 +318,96 @@ BUILTIN_CROPS: dict[str, CropScheme] = {
         pattern=r"^(?:chr|chromosome)?[_\s-]?([AD])[_-]?0*([1-9]|1[0-3])$",
         sources=[
             "https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/007/990/345/GCF_007990345.1_Gossypium_hirsutum_v2.1/GCF_007990345.1_Gossypium_hirsutum_v2.1_assembly_report.txt",
+        ],
+    ),
+    "cowpea": CropScheme(
+        id="cowpea",
+        name="Cowpea",
+        species="Vigna unguiculata",
+        ploidy=2,
+        assembly=(
+            "IT97K-499-35 v1.1 (NCBI ASM411807v2; Vu01-Vu11 follow the pseudomolecules, and the linkage-group numbers of "
+            "earlier cowpea maps differ: Vu01=old LG4, Vu02=old7, Vu03=old3, Vu04=old11, Vu05=old1, Vu06=old6, Vu07=old2, "
+            "Vu08=old5, Vu09=old8, Vu10=old10, Vu11=old9)"
+        ),
+        chromosomes=["Vu01", "Vu02", "Vu03", "Vu04", "Vu05", "Vu06", "Vu07", "Vu08", "Vu09", "Vu10", "Vu11"],
+        keys=["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11"],
+        pattern=r"^(?:vu|chr|chromosome)?[_\s-]?(?:0*([1-9]|1[01])|0*(1)\(old4\)|0*(2)\(old7\)|0*(3)\(old3\)|0*(4)\(old11\)|0*(5)\(old1\)|0*(6)\(old6\)|0*(7)\(old2\)|0*(8)\(old5\)|0*(9)\(old8\)|0*(10)\(old10\)|0*(11)\(old9\))$",
+        sources=[
+            "https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/004/118/075/GCF_004118075.2_ASM411807v2/GCF_004118075.2_ASM411807v2_assembly_report.txt",
+            "https://data.legumeinfo.org/Vigna/unguiculata/genomes/IT97K-499-35.gnm1.QnBW/README.IT97K-499-35.gnm1.QnBW.yml",
+            "https://pmc.ncbi.nlm.nih.gov/articles/PMC5908840/",
+            "https://pmc.ncbi.nlm.nih.gov/articles/PMC6852540/",
+            "https://www.biorxiv.org/content/10.1101/518969v1.full",
+            "https://pmc.ncbi.nlm.nih.gov/articles/PMC10791481/",
+            "https://pmc.ncbi.nlm.nih.gov/articles/PMC6469422/",
+        ],
+    ),
+    "pea": CropScheme(
+        id="pea",
+        name="Pea",
+        species="Pisum sativum",
+        ploidy=2,
+        assembly=(
+            "Cameor Pisum_sativum_v1a (chromosome number is the karyotype number, LG suffix is the genetic-map linkage "
+            "group: chr1LG6, chr2LG1, chr3LG5, chr4LG4, chr5LG3, chr6LG2, chr7LG7; Ensembl writes 1LG6-7LG7; ZW6 chr1-chr7 "
+            "agree with the karyotype numbers in every published marker pair; a bare 1-7 is not read, because published "
+            "tables use it for both numberings)"
+        ),
+        chromosomes=["chr1LG6", "chr2LG1", "chr3LG5", "chr4LG4", "chr5LG3", "chr6LG2", "chr7LG7"],
+        keys=["1", "2", "3", "4", "5", "6", "7"],
+        pattern=r"^(?:(?:chr|chromosome)[_\s-]?0*([1-7])|(?:chr|chromosome)?[_\s-]?(?:0*(1)LG6|0*(2)LG1|0*(3)LG5|0*(4)LG4|0*(5)LG3|0*(6)LG2|0*(7)LG7))$",
+        sources=[
+            "https://ftp.ncbi.nlm.nih.gov/genomes/all/GCA/900/700/895/GCA_900700895.2_Pisum_sativum_v1a/GCA_900700895.2_Pisum_sativum_v1a_assembly_report.txt",
+            "https://rest.ensembl.org/info/assembly/pisum_sativum?content-type=application/json",
+            "https://ftp.ncbi.nlm.nih.gov/genomes/all/GCA/024/323/335/GCA_024323335.2_CAAS_Psat_ZW6_1.0/GCA_024323335.2_CAAS_Psat_ZW6_1.0_assembly_report.txt",
+            "https://pmc.ncbi.nlm.nih.gov/articles/PMC10663473/",
+            "https://pmc.ncbi.nlm.nih.gov/articles/PMC7430820/",
+            "https://pmc.ncbi.nlm.nih.gov/articles/PMC13389026/",
+        ],
+    ),
+    "peanut": CropScheme(
+        id="peanut",
+        name="Peanut",
+        species="Arachis hypogaea",
+        ploidy=4,
+        assembly=(
+            "Tifrunner gnm1 KYV3 / gnm2 J5K5 (Arahy.01-Arahy.10 = A subgenome, Arahy.11-Arahy.20 = B subgenome; gnm2 NCBI "
+            "seq-name arahy.Tifrunner.gnm2.chrNN; A01-A10/B01-B10 and Aradu./Araip. tokens are not mapped)"
+        ),
+        chromosomes=[
+            "Arahy.01",
+            "Arahy.02",
+            "Arahy.03",
+            "Arahy.04",
+            "Arahy.05",
+            "Arahy.06",
+            "Arahy.07",
+            "Arahy.08",
+            "Arahy.09",
+            "Arahy.10",
+            "Arahy.11",
+            "Arahy.12",
+            "Arahy.13",
+            "Arahy.14",
+            "Arahy.15",
+            "Arahy.16",
+            "Arahy.17",
+            "Arahy.18",
+            "Arahy.19",
+            "Arahy.20",
+        ],
+        keys=["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20"],
+        pattern=r"^(?:(?:arahy\.tifrunner\.gnm[12]\.)?(?:arahy\.|chr)|chromosome)?[_\s-]?0*([1-9]|1[0-9]|20)$",
+        sources=[
+            "https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/003/086/295/GCF_003086295.2_arahy.Tifrunner.gnm1.KYV3/GCF_003086295.2_arahy.Tifrunner.gnm1.KYV3_assembly_report.txt",
+            "https://hgdownload.soe.ucsc.edu/hubs/GCF/003/086/295/GCF_003086295.3/GCF_003086295.3_assembly_report.txt",
+            "https://rest.ensembl.org/info/assembly/arachis_hypogaea?content-type=application/json",
+            "https://data.legumeinfo.org/Arachis/hypogaea/genomes/Tifrunner.gnm1.KYV3/README.Tifrunner.gnm1.KYV3.yml",
+            "https://data.legumeinfo.org/Arachis/hypogaea/genomes/Tifrunner.gnm2.J5K5/README.Tifrunner.gnm2.J5K5.yml",
+            "https://www.osti.gov/pages/servlets/purl/2479207",
+            "http://oar.icrisat.org/11189/1/The%20genome%20of%20cultivated%20peanut%20provides%20insight%20into%20legume%20karyotypes%2C%20polyploid%20evolution%20and%20crop%20domestication.pdf",
+            "https://pmc.ncbi.nlm.nih.gov/articles/PMC7822046/",
         ],
     ),
 }

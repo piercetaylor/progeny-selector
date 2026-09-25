@@ -10,6 +10,8 @@ All notable changes to this project are documented in this file. The format foll
 
 - The shared input contract mirror is version 1.6.0: a genotype cell pairing one of A, C, G, T with one of `N`, `-`, `.`, in either order and in all three spellings, is read as missing in HapMap and in nucleotide-mode wide CSV, which `io.calls` already did and does not change (canonical record: backcross docs/adr/0021). A pair of two missing characters remains undefined by the contract.
 
+- The shared input contract mirror is version 1.7.0: `--crop` and the Load screen add cowpea, pea and peanut chromosome schemes (canonical record: backcross docs/adr/0022; mirror record docs/adr/0027). Pea needs a `chr` or `chromosome` prefix or a matching `LG` suffix and keeps a bare `1`-`7` as written, because published pea tables use bare digits for two numberings; peanut's `A01`/`B01`, `Aradu.` and `Araip.` spellings are kept as written. Sunflower stays deferred.
+
 ### Documentation
 
 - Replace the milestone-heavy landing page with a concise workflow and fixture example; preserve the previous README in `docs/legacy-readme.md`.

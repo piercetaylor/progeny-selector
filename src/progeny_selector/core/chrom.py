@@ -12,7 +12,7 @@ written and orders it after the canonical names, which is the 1.2.0 rule.
 
 ``core`` imports no ``io``, so ``soybean.json`` is repeated here as ``SOYBEAN_SCHEME``
 (tests/test_crops.py checks the two against each other) and every function defaults to
-it; ``io/crops.py`` holds the other eight. Mirrors backcross src/core/chromosomes.ts.
+it; ``io/crops.py`` holds the other eleven. Mirrors backcross src/core/chromosomes.ts.
 
 Interface:
     CropScheme, CompiledScheme (``.id`` is the scheme's id), compile_scheme(scheme) -> CompiledScheme

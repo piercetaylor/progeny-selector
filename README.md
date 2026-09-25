@@ -6,7 +6,7 @@ progeny-selector ranks candidates in marker-assisted backcross breeding. It chec
 
 ## Data and interpretation
 
-Inputs are VCF, HapMap, or wide CSV genotypes; `samples.csv` identifies one recurrent and one donor parent; `criteria.yaml` defines the selection rules. `markers.csv` can supply genetic-map positions. The shared [input contract](contract/data-contract.md) and [selection and output formats](docs/data-formats.md) document the fields. Crop-specific chromosome conventions cover soybean, maize, rice, sorghum, wheat, barley, oat, common bean, and cotton.
+Inputs are VCF, HapMap, or wide CSV genotypes; `samples.csv` identifies one recurrent and one donor parent; `criteria.yaml` defines the selection rules. `markers.csv` can supply genetic-map positions. The shared [input contract](contract/data-contract.md) and [selection and output formats](docs/data-formats.md) document the fields. Crop-specific chromosome conventions cover soybean, maize, rice, sorghum, wheat, barley, oat, common bean, cotton, cowpea, pea, and peanut.
 
 Marker spacing limits how tightly the software can bound donor segments. Criteria, assembly choice, missing calls, and quality flags affect rankings and should be reviewed before selecting plants. The browser-hosted Shiny export processes uploaded files in the browser tab. No real genotype dataset is distributed here.
 

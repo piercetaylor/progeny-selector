@@ -1,0 +1,5 @@
+marker_id,chrom,pos_bp,RP,DONOR,L1
+r1,Vu01(old4),1000,A,G,R
+r2,7,2000,A,G,R
+r3,Vu01(old7),3000,A,G,R
+r4,LG4,4000,A,G,R

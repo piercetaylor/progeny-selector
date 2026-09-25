@@ -1,0 +1,97 @@
+{
+  "contractVersion": "1.7.0",
+  "coded": false,
+  "chromosomeOrder": [
+    "Arahy.01",
+    "Arahy.11",
+    "Arahy.21",
+    "B01"
+  ],
+  "markers": [
+    {
+      "id": "r1",
+      "chrom": "Arahy.01",
+      "posBp": 1000,
+      "cm": null
+    },
+    {
+      "id": "r2",
+      "chrom": "Arahy.11",
+      "posBp": 2000,
+      "cm": null
+    },
+    {
+      "id": "r4",
+      "chrom": "Arahy.21",
+      "posBp": 4000,
+      "cm": null
+    },
+    {
+      "id": "r3",
+      "chrom": "B01",
+      "posBp": 3000,
+      "cm": null
+    }
+  ],
+  "sampleIds": [
+    "RP",
+    "DONOR",
+    "L1"
+  ],
+  "calls": {
+    "RP": [
+      [
+        "A",
+        "A"
+      ],
+      [
+        "A",
+        "A"
+      ],
+      [
+        "A",
+        "A"
+      ],
+      [
+        "A",
+        "A"
+      ]
+    ],
+    "DONOR": [
+      [
+        "G",
+        "G"
+      ],
+      [
+        "G",
+        "G"
+      ],
+      [
+        "G",
+        "G"
+      ],
+      [
+        "G",
+        "G"
+      ]
+    ],
+    "L1": [
+      [
+        "A",
+        "G"
+      ],
+      [
+        "A",
+        "G"
+      ],
+      [
+        "A",
+        "G"
+      ],
+      [
+        "A",
+        "G"
+      ]
+    ]
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "id": "pea",
+  "name": "Pea",
+  "species": "Pisum sativum",
+  "ploidy": 2,
+  "assembly": "Cameor Pisum_sativum_v1a (chromosome number is the karyotype number, LG suffix is the genetic-map linkage group: chr1LG6, chr2LG1, chr3LG5, chr4LG4, chr5LG3, chr6LG2, chr7LG7; Ensembl writes 1LG6-7LG7; ZW6 chr1-chr7 agree with the karyotype numbers in every published marker pair; a bare 1-7 is not read, because published tables use it for both numberings)",
+  "chromosomes": [
+    "chr1LG6",
+    "chr2LG1",
+    "chr3LG5",
+    "chr4LG4",
+    "chr5LG3",
+    "chr6LG2",
+    "chr7LG7"
+  ],
+  "keys": [
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6",
+    "7"
+  ],
+  "pattern": "^(?:(?:chr|chromosome)[_\\s-]?0*([1-7])|(?:chr|chromosome)?[_\\s-]?(?:0*(1)LG6|0*(2)LG1|0*(3)LG5|0*(4)LG4|0*(5)LG3|0*(6)LG2|0*(7)LG7))$",
+  "sources": [
+    "https://ftp.ncbi.nlm.nih.gov/genomes/all/GCA/900/700/895/GCA_900700895.2_Pisum_sativum_v1a/GCA_900700895.2_Pisum_sativum_v1a_assembly_report.txt",
+    "https://rest.ensembl.org/info/assembly/pisum_sativum?content-type=application/json",
+    "https://ftp.ncbi.nlm.nih.gov/genomes/all/GCA/024/323/335/GCA_024323335.2_CAAS_Psat_ZW6_1.0/GCA_024323335.2_CAAS_Psat_ZW6_1.0_assembly_report.txt",
+    "https://pmc.ncbi.nlm.nih.gov/articles/PMC10663473/",
+    "https://pmc.ncbi.nlm.nih.gov/articles/PMC7430820/",
+    "https://pmc.ncbi.nlm.nih.gov/articles/PMC13389026/"
+  ]
+}

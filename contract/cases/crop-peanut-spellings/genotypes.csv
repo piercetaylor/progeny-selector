@@ -1,0 +1,5 @@
+marker_id,chrom,pos_bp,RP,DONOR,L1
+r1,Arahy.01,1000,A,G,R
+r2,arahy.Tifrunner.gnm2.chr11,2000,A,G,R
+r3,B01,3000,A,G,R
+r4,Arahy.21,4000,A,G,R

@@ -1,4 +1,4 @@
-"""Crop chromosome schemes (contract 1.5.0; src/progeny_selector/io/crops.py, core/chrom.py).
+"""Crop chromosome schemes (contracts 1.5.0 and 1.7.0; src/progeny_selector/io/crops.py, core/chrom.py).
 
 For each contract/crops/*.json the Python literal in BUILTIN_CROPS equals the file (the equality that
 keeps the runtime copy honest, since Shinylive stages the package and not contract/), the key
@@ -45,6 +45,9 @@ MAIZE = resolve_crop("maize")
 RICE = resolve_crop("rice")
 COTTON = resolve_crop("cotton")
 OAT = resolve_crop("oat")
+COWPEA = resolve_crop("cowpea")
+PEA = resolve_crop("pea")
+PEANUT = resolve_crop("peanut")
 
 MINIMAL_CRITERIA = """name: crop case
 targets:
@@ -65,12 +68,25 @@ def _write(tmp_path: Path, name: str, text: str) -> Path:
     return path
 
 
-# --- the nine files -------------------------------------------------------------------------
+# --- the twelve files -------------------------------------------------------------------------
 
 
-def test_nine_builtins() -> None:
+def test_twelve_builtins() -> None:
     assert [p.stem for p in CROP_FILES] == sorted(BUILTIN_CROPS)
-    assert list(BUILTIN_CROPS) == ["soybean", "maize", "rice", "sorghum", "wheat", "barley", "oat", "common-bean", "cotton"]
+    assert list(BUILTIN_CROPS) == [
+        "soybean",
+        "maize",
+        "rice",
+        "sorghum",
+        "wheat",
+        "barley",
+        "oat",
+        "common-bean",
+        "cotton",
+        "cowpea",
+        "pea",
+        "peanut",
+    ]
 
 
 @pytest.mark.parametrize("path", CROP_FILES, ids=lambda p: p.stem)
@@ -144,8 +160,8 @@ def test_unmatched_names_are_kept_and_ordered_after_the_canonical_names() -> Non
 def test_resolve_crop_defaults_to_soybean_and_names_the_built_ins() -> None:
     assert resolve_crop(None) is SOYBEAN
     assert resolve_crop(DEFAULT_CROP_ID) is SOYBEAN
-    with pytest.raises(DataContractError, match=r'unknown crop "cowpea"; built-in crops are soybean, maize'):
-        resolve_crop("cowpea")
+    with pytest.raises(DataContractError, match=r'unknown crop "sunflower"; built-in crops are soybean, maize'):
+        resolve_crop("sunflower")
 
 
 @pytest.mark.parametrize(
@@ -228,8 +244,8 @@ def test_load_dataset_threads_the_crop_to_genotypes_and_markers(tmp_path: Path) 
     assert dataset.crop == "maize"
     assert [m.chrom for m in dataset.genotypes.markers] == ["chr1", "chr10"]
     assert load_dataset(genotypes, samples, markers).crop == "soybean"
-    with pytest.raises(DataContractError, match='unknown crop "cowpea"'):
-        load_dataset(genotypes, samples, markers, crop="cowpea")
+    with pytest.raises(DataContractError, match='unknown crop "sunflower"'):
+        load_dataset(genotypes, samples, markers, crop="sunflower")
 
 
 # --- the crop reaches the exports ---------------------------------------------------------------
@@ -270,7 +286,7 @@ def test_empty_results_header_carries_crop_before_token_profile() -> None:
     assert header[-2:] == ["crop", "token_profile"]
 
 
-def test_load_screen_offers_the_nine_crops() -> None:
+def test_load_screen_offers_the_twelve_crops() -> None:
     assert list(CROP_CHOICES) == list(BUILTIN_CROPS)
     assert CROP_CHOICES["common-bean"] == "Common bean"
 
@@ -324,14 +340,14 @@ def test_cli_rejects_an_unknown_crop(tmp_path: Path) -> None:
             "--samples",
             str(case / "samples.csv"),
             "--crop",
-            "cowpea",
+            "sunflower",
         ],
         capture_output=True,
         text=True,
         env=env,
     )
     assert proc.returncode == 2
-    assert "cowpea" in proc.stderr
+    assert "sunflower" in proc.stderr
 
 
 # --- the scheme reaches core: lengths, foreground, ordering -------------------------------------
@@ -525,3 +541,80 @@ def test_an_unanchored_pattern_searches_as_backcross_does() -> None:
     assert normalize_chrom("chr1", unanchored) == "chr1"
     # `re.exec` in backcross finds "chr2" inside this name; `re.match` would not.
     assert normalize_chrom("scaffold_chr2", unanchored) == "chr2"
+
+
+# --- contract 1.7.0: cowpea, pea, peanut (twins of backcross tests/crops.test.ts) -------------------
+
+
+@pytest.mark.parametrize(
+    ("spelling", "canonical"),
+    [
+        ("Vu01", "Vu01"),
+        ("vu1", "Vu01"),
+        ("Vu_03", "Vu03"),
+        ("chr11", "Vu11"),
+        ("7", "Vu07"),
+        ("Vu01(old4)", "Vu01"),
+        ("Vu02(old7)", "Vu02"),
+        ("Vu11(old9)", "Vu11"),
+        ("Vu10(old10)", "Vu10"),
+    ],
+)
+def test_cowpea_maps(spelling: str, canonical: str) -> None:
+    assert normalize_chrom(spelling, COWPEA) == canonical
+
+
+@pytest.mark.parametrize("spelling", ["Vu01(old7)", "LG4", "VuLG4", "Vu12"])
+def test_cowpea_falls_through(spelling: str) -> None:
+    """A wrong old-LG pairing, the refused `LG` prefix and an out-of-range number stay as written."""
+    assert normalize_chrom(spelling, COWPEA) == spelling
+
+
+@pytest.mark.parametrize(
+    ("spelling", "canonical"),
+    [
+        ("chr4", "chr4LG4"),
+        ("Chr_04", "chr4LG4"),
+        ("chromosome4", "chr4LG4"),
+        ("chr 4", "chr4LG4"),
+        ("chr4LG4", "chr4LG4"),
+        ("4LG4", "chr4LG4"),
+        ("1LG6", "chr1LG6"),
+        ("07LG7", "chr7LG7"),
+        ("chr1lg6", "chr1LG6"),
+    ],
+)
+def test_pea_maps(spelling: str, canonical: str) -> None:
+    assert normalize_chrom(spelling, PEA) == canonical
+
+
+@pytest.mark.parametrize("spelling", ["4", "04", "chr1LG1", "1LG1", "LG4", "LG6", "chr8", "8", "chr0"])
+def test_pea_falls_through(spelling: str) -> None:
+    """A bare number is refused: published pea tables use it for both the karyotype and the LG numbering."""
+    assert normalize_chrom(spelling, PEA) == spelling
+
+
+def test_pea_bare_number_sorts_after_the_canonical_names() -> None:
+    names = ["4", *reversed(PEA.scheme.chromosomes)]
+    assert sorted(names, key=lambda c: chrom_sort_key(c, PEA)) == [*PEA.scheme.chromosomes, "4"]
+
+
+@pytest.mark.parametrize(
+    ("spelling", "canonical"),
+    [
+        ("Arahy.01", "Arahy.01"),
+        ("arahy.Tifrunner.gnm2.chr11", "Arahy.11"),
+        ("arahy.Tifrunner.gnm1.Arahy.05", "Arahy.05"),
+        ("chr20", "Arahy.20"),
+        ("20", "Arahy.20"),
+        ("Chromosome 3", "Arahy.03"),
+    ],
+)
+def test_peanut_maps(spelling: str, canonical: str) -> None:
+    assert normalize_chrom(spelling, PEANUT) == canonical
+
+
+@pytest.mark.parametrize("spelling", ["A01", "B01", "Aradu.A09", "Araip.B08", "Arahy.21", "Arahy.00"])
+def test_peanut_falls_through(spelling: str) -> None:
+    """The subgenome spellings need an alias table the scheme schema does not have (docs/adr/0027)."""
+    assert normalize_chrom(spelling, PEANUT) == spelling

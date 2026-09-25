@@ -1,0 +1,43 @@
+{
+  "id": "cowpea",
+  "name": "Cowpea",
+  "species": "Vigna unguiculata",
+  "ploidy": 2,
+  "assembly": "IT97K-499-35 v1.1 (NCBI ASM411807v2; Vu01-Vu11 follow the pseudomolecules, and the linkage-group numbers of earlier cowpea maps differ: Vu01=old LG4, Vu02=old7, Vu03=old3, Vu04=old11, Vu05=old1, Vu06=old6, Vu07=old2, Vu08=old5, Vu09=old8, Vu10=old10, Vu11=old9)",
+  "chromosomes": [
+    "Vu01",
+    "Vu02",
+    "Vu03",
+    "Vu04",
+    "Vu05",
+    "Vu06",
+    "Vu07",
+    "Vu08",
+    "Vu09",
+    "Vu10",
+    "Vu11"
+  ],
+  "keys": [
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6",
+    "7",
+    "8",
+    "9",
+    "10",
+    "11"
+  ],
+  "pattern": "^(?:vu|chr|chromosome)?[_\\s-]?(?:0*([1-9]|1[01])|0*(1)\\(old4\\)|0*(2)\\(old7\\)|0*(3)\\(old3\\)|0*(4)\\(old11\\)|0*(5)\\(old1\\)|0*(6)\\(old6\\)|0*(7)\\(old2\\)|0*(8)\\(old5\\)|0*(9)\\(old8\\)|0*(10)\\(old10\\)|0*(11)\\(old9\\))$",
+  "sources": [
+    "https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/004/118/075/GCF_004118075.2_ASM411807v2/GCF_004118075.2_ASM411807v2_assembly_report.txt",
+    "https://data.legumeinfo.org/Vigna/unguiculata/genomes/IT97K-499-35.gnm1.QnBW/README.IT97K-499-35.gnm1.QnBW.yml",
+    "https://pmc.ncbi.nlm.nih.gov/articles/PMC5908840/",
+    "https://pmc.ncbi.nlm.nih.gov/articles/PMC6852540/",
+    "https://www.biorxiv.org/content/10.1101/518969v1.full",
+    "https://pmc.ncbi.nlm.nih.gov/articles/PMC10791481/",
+    "https://pmc.ncbi.nlm.nih.gov/articles/PMC6469422/"
+  ]
+}
