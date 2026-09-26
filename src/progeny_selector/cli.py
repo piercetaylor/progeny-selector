@@ -161,6 +161,10 @@ def _profile_ref(ref: str | None) -> str | dict | None:
 def _load(args: argparse.Namespace, parser: argparse.ArgumentParser):
     if bool(args.genotypes) == bool(args.brapi_url):
         parser.error("give --genotypes or --brapi-url with --variant-set")
+    if args.variant_set and not args.brapi_url:
+        parser.error("--variant-set applies only with --brapi-url")
+    if args.brapi_token_env and not args.brapi_url:
+        parser.error("--brapi-token-env applies only with --brapi-url")
     if args.brapi_url:
         if args.profile:
             raise DataContractError("token profiles apply to HapMap and wide CSV; the genotype source is a BrAPI server")
@@ -251,8 +255,8 @@ def cmd_select(args: argparse.Namespace) -> int:
 
 
 def cmd_brapi_callsets(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
-    if not args.brapi_url:
-        parser.error("give --genotypes or --brapi-url with --variant-set")
+    if not args.brapi_url or not args.variant_set:
+        parser.error("brapi-callsets needs --brapi-url and --variant-set")
     call_sets, warnings = brapi.fetch_call_sets(_brapi_source(args, parser), brapi.urllib_fetch_json)
     with open(args.out, "w", encoding="utf-8", newline="") as fh:
         fh.write(call_sets_csv_text(call_sets))

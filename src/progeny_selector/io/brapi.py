@@ -32,6 +32,7 @@ Interface:
 from __future__ import annotations
 
 import csv
+import http.client
 import json
 import urllib.error
 import urllib.parse
@@ -86,6 +87,10 @@ def normalise_base_url(raw: str) -> str:
         raise DataContractError("BrAPI: base URL must start with http:// or https://")
     if parsed.username or parsed.password:
         raise DataContractError("BrAPI: base URL must not contain a user name or password; use --brapi-token-env")
+    # Endpoint paths are appended to the base, so a query or fragment would end up in the middle
+    # of every request URL. Neither is echoed: a query is where a careless user puts a token.
+    if parsed.query or parsed.fragment or "?" in base or "#" in base:
+        raise DataContractError("BrAPI: base URL must not contain a query string (?...) or a fragment (#...)")
     return base
 
 
@@ -475,13 +480,20 @@ def fetch_brapi_genotypes(
     seen_pages: set[tuple[tuple[str, ...], tuple[str, ...]]] = set()
     covered_rows = np.zeros(len(markers), dtype=bool)
     covered_cols = np.zeros(len(call_sets), dtype=bool)
-    first = session.get(matrix_url(0, 0))["result"]
-    variant_pages = _dimension_pages(first, "VARIANTS")
-    call_set_pages = _dimension_pages(first, "CALLSETS")
+    page0 = session.get(matrix_url(0, 0))["result"]
+    variant_pages = _dimension_pages(page0, "VARIANTS")
+    call_set_pages = _dimension_pages(page0, "CALLSETS")
+    first: dict | None = page0
+    del page0
     for v in range(variant_pages):
         for c in range(call_set_pages):
-            # Each page is read and discarded, so the peak is the matrix plus one page.
-            result = first if (v == 0 and c == 0) else session.get(matrix_url(v, c))["result"]
+            # Page (0, 0) is handed over and its name dropped, and each page's name is dropped
+            # once it is written in, so no earlier page is referenced while the next one is
+            # fetched: the peak is the matrix plus one page.
+            if first is not None:
+                result, first = first, None
+            else:
+                result = session.get(matrix_url(v, c))["result"]
             _read_matrix_page(
                 result,
                 f"{v},{c}",
@@ -495,6 +507,7 @@ def fetch_brapi_genotypes(
                 covered_rows,
                 covered_cols,
             )
+            del result
     warnings.extend(_coverage_warnings(covered_rows, [m.marker_id for m in markers], "variant"))
     warnings.extend(_coverage_warnings(covered_cols, [c.call_set_db_id for c in call_sets], "call set"))
     alleles = [s if s is not None else [str(k) for k in range(max(max_index[i] + 1, 1))] for i, s in enumerate(symbols)]
@@ -541,7 +554,9 @@ def urllib_fetch_json(url: str, headers: dict[str, str]) -> dict:
     except urllib.error.HTTPError as exc:
         # The token is in the header the caller built, never in the URL or the code.
         raise DataContractError(f"BrAPI: GET {url} returned HTTP {exc.code}") from None
-    except (urllib.error.URLError, TimeoutError, OSError) as exc:
+    except (urllib.error.URLError, TimeoutError, OSError, http.client.HTTPException) as exc:
+        # HTTPException covers IncompleteRead, raised by response.read() when the connection
+        # closes early; it is not an OSError and would otherwise escape as a traceback.
         reason = getattr(exc, "reason", exc)
         raise DataContractError(f"BrAPI: could not reach {url}: {reason}") from None
     try:

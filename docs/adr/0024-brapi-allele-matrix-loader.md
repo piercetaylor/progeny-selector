@@ -113,7 +113,9 @@ homozygotes, one phased heterozygote, a bare `.` for a missing call on one page)
 same alleles, so `tests/test_brapi.py` tests the parser and not the fixture. That test compares the
 BrAPI load against `read_vcf` of the same 25 marker ids and 8 sample ids and asserts the matrices are
 equal. No test reaches the network: the transport is a stub over the recorded pages, and the one test
-of `urllib_fetch_json` replaces `urllib.request.urlopen`.
+of `urllib_fetch_json` replaces `urllib.request.OpenerDirector.open`. It patches the opener and
+not `urlopen`, because the transport builds its own opener to strip `Authorization` on a
+cross-host redirect.
 
 `tests/fixtures/brapi/criteria.yaml` is the BC2F1 criteria with the avoid locus dropped. That locus is
 `syn_Gm13_10` and the variant set holds Gm06 alone, so `resolve_locus` refuses it.

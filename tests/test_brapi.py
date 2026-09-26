@@ -53,8 +53,12 @@ def _source(**kwargs) -> BrapiSource:
     return BrapiSource(**defaults)  # type: ignore[arg-type]
 
 
-def _stub(fixture_dir: Path, recorded: list[str], variants_prefix: str = "variants"):
-    """A FetchJson serving the recorded pages, checking the query the loader sent."""
+def _stub(fixture_dir: Path, recorded: list[str], variants_prefix: str = "variants", page_tokens: dict[str, str] | None = None):
+    """A FetchJson serving the recorded pages, checking the query the loader sent.
+
+    ``page_tokens`` maps a ``nextPageToken`` a test planted to the page number it stands for, so a
+    ``/variants`` request carrying ``pageToken`` and no ``page`` is served too.
+    """
 
     def fetch_json(url: str, headers: dict[str, str]) -> dict:
         assert headers["Accept"] == "application/json"
@@ -66,7 +70,11 @@ def _stub(fixture_dir: Path, recorded: list[str], variants_prefix: str = "varian
         if endpoint == "callsets":
             name = f"callsets.p{query['page']}.json"
         elif endpoint == "variants":
-            page = query["page"]
+            if "page" in query:
+                page = query["page"]
+            else:
+                assert page_tokens is not None, f"pageToken request with no token map: {url}"
+                page = page_tokens[query["pageToken"]]
             if page != "0":
                 assert "pageToken" in query
             name = f"{variants_prefix}.p{page}.json"
@@ -189,6 +197,13 @@ def test_nopos_uses_markers_csv(fixture_dir: Path) -> None:
         _source(), _stub(BRAPI_DIR, [], variants_prefix="variants-nopos"), marker_map=read_markers(marker_map_path)
     )
     assert [(m.chrom, m.pos_bp) for m in nopos.markers] == [(m.chrom, m.pos_bp) for m in with_pos.markers]
+    # With no bases, the symbols are the index strings up to the highest index called at the
+    # variant, and the indices themselves are the ones the based load holds.
+    assert np.array_equal(nopos.calls, with_pos.calls)
+    for i, symbols in enumerate(nopos.alleles):
+        called = {int(x) for x in nopos.calls[i].ravel() if x >= 0}
+        assert symbols == (["0", "1"] if 1 in called else ["0"])
+    assert ["0", "1"] in nopos.alleles
     with pytest.raises(DataContractError, match=with_pos.markers[0].marker_id):
         fetch_brapi_genotypes(_source(), _stub(BRAPI_DIR, [], variants_prefix="variants-nopos"))
 
@@ -481,3 +496,123 @@ def test_name_collision_is_explained_when_the_manifest_then_fails() -> None:
     assert "samples in manifest but not in genotype file" in message
     assert "2 call sets share the name 'BC2F1-F1-001'" in message
     assert "cs2, cs3" in message
+
+
+def test_load_brapi_dataset_sets_call_sets_scheme_and_token_profile(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The three Dataset fields load_brapi_dataset stamps, each checked so deleting its line fails.
+
+    maize leaves "Gm06" unchanged, so the load works and the scheme differs from the soybean
+    default. build_dataset is wrapped to return a dataset with a foreign token_profile, since the
+    Dataset default is already "default" and would hide a deleted assignment.
+    """
+    real_build = brapi.build_dataset
+
+    def build_with_foreign_profile(gm, samples):
+        dataset = real_build(gm, samples)
+        dataset.token_profile = "not-set-by-the-loader"
+        return dataset
+
+    monkeypatch.setattr(brapi, "build_dataset", build_with_foreign_profile)
+    dataset = load_brapi_dataset(_source(), BRAPI_DIR / "samples.csv", crop="maize", fetch_json=_stub(BRAPI_DIR, []))
+    served = [row for p in (0, 1) for row in json.loads((BRAPI_DIR / f"callsets.p{p}.json").read_text(encoding="utf-8"))["result"]["data"]]
+    expected = tuple(CallSetRef(r["callSetName"], r["callSetName"], r["callSetDbId"], r["sampleDbId"]) for r in served)
+    assert len(expected) == N_CALL_SETS
+    assert dataset.call_sets == expected
+    assert dataset.scheme.id == "maize"
+    assert dataset.crop == "maize"
+    assert dataset.token_profile == "default"
+
+
+def test_variants_follow_next_page_token() -> None:
+    """D6: a non-empty nextPageToken is sent back as pageToken, with no page parameter."""
+
+    def mutate(name: str, body: dict) -> dict:
+        if name == "variants" and body["metadata"]["pagination"]["currentPage"] == 0:
+            body["metadata"]["pagination"]["nextPageToken"] = "t1"
+        return body
+
+    recorded: list[str] = []
+    inner = _stub(BRAPI_DIR, recorded, page_tokens={"t1": "1"})
+
+    def fetch_json(url: str, headers: dict[str, str]) -> dict:
+        body = inner(url, headers)
+        return mutate(urlsplit(url).path.rsplit("/", 1)[-1], copy.deepcopy(body))
+
+    gm, _, warnings = fetch_brapi_genotypes(_source(), fetch_json)
+    variant_queries = [parse_qs(urlsplit(u).query) for u in recorded if urlsplit(u).path.endswith("/variants")]
+    assert len(variant_queries) == 2
+    assert "pageToken" not in variant_queries[0]
+    assert variant_queries[1]["pageToken"] == ["t1"]
+    assert "page" not in variant_queries[1]
+    assert warnings == []
+    assert gm.n_markers == N_VARIANTS
+    baseline, _, _ = fetch_brapi_genotypes(_source(), _stub(BRAPI_DIR, []))
+    assert [m.marker_id for m in gm.markers] == [m.marker_id for m in baseline.markers]
+    assert np.array_equal(gm.calls, baseline.calls)
+
+
+def test_incomplete_read_is_a_data_contract_error(monkeypatch: pytest.MonkeyPatch) -> None:
+    import http.client
+
+    class _Truncated:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+        def read(self) -> bytes:
+            raise http.client.IncompleteRead(b"{", 10)
+
+    monkeypatch.setattr(urllib.request.OpenerDirector, "open", lambda self, request, timeout=None: _Truncated())
+    with pytest.raises(DataContractError, match=r"^BrAPI: could not reach https://example\.org/brapi/v2/callsets"):
+        brapi.urllib_fetch_json(f"{BASE_URL}/callsets?page=0", {"Accept": "application/json"})
+
+
+def test_base_url_with_query_or_fragment_is_refused() -> None:
+    from progeny_selector.io.brapi import normalise_base_url
+
+    assert normalise_base_url(" https://host/brapi/v2// ") == "https://host/brapi/v2"
+    for bad in ("https://host/brapi/v2?x=1", "https://host/brapi/v2#top", "https://host/brapi/v2?token=secret"):
+        with pytest.raises(DataContractError, match="query string") as excinfo:
+            normalise_base_url(bad)
+        assert "secret" not in str(excinfo.value)
+
+
+def test_cli_brapi_usage_errors(tmp_path: Path, fixture_dir: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    with pytest.raises(SystemExit) as exc:
+        main(["brapi-callsets", "--variant-set", "vs1", "--out", str(tmp_path / "c.csv")])
+    assert exc.value.code == 2
+    err = capsys.readouterr().err
+    assert "brapi-callsets needs --brapi-url and --variant-set" in err
+    assert "--genotypes" not in err.splitlines()[-1]
+
+    with pytest.raises(SystemExit) as exc:
+        main(
+            [
+                "validate",
+                "--genotypes",
+                str(fixture_dir / "genotypes.vcf"),
+                "--variant-set",
+                "vs1",
+                "--samples",
+                str(fixture_dir / "samples.csv"),
+            ]
+        )
+    assert exc.value.code == 2
+    assert "--variant-set applies only with --brapi-url" in capsys.readouterr().err
+
+    with pytest.raises(SystemExit) as exc:
+        main(
+            [
+                "validate",
+                "--genotypes",
+                str(fixture_dir / "genotypes.vcf"),
+                "--brapi-token-env",
+                "PS_ANY_VAR",
+                "--samples",
+                str(fixture_dir / "samples.csv"),
+            ]
+        )
+    assert exc.value.code == 2
+    assert "--brapi-token-env applies only with --brapi-url" in capsys.readouterr().err
