@@ -2,7 +2,7 @@
 
 Responsibility: assemble screen modules into a navset with breadcrumb state
 (cross -> family -> generation -> individual) held in reactive values that
-every screen reads. Status: M2 in progress; every screen runs the real
+every screen reads. Status: M3 complete; every screen runs the real
 pipeline.
 
 Interface:

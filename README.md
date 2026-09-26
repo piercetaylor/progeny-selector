@@ -21,14 +21,15 @@ progeny-selector rank --brapi-url https://host/brapi/v2 --variant-set VS1 --samp
 progeny-selector select --results results.csv --top 3 --out selected.csv --next-manifest next_samples.csv --next-generation BC3F1 --samples tests/fixtures/synthetic_bc2f1/samples.csv
 ```
 
-`progeny-selector validate` checks inputs and reports quality warnings. `shiny run src/progeny_selector/app/app.py` opens the local interface. The [keyboard walkthrough](docs/keyboard-walkthrough.md) covers its screens.
+`progeny-selector validate` checks inputs and reports quality warnings. `shiny run src/progeny_selector/app/app.py` opens the local interface. The [keyboard walkthrough](docs/keyboard-walkthrough.md) covers its screens, and the [accessibility review](docs/accessibility.md) records the WCAG 2.2 AA check against every screen.
 
 ## Verification and documentation
 
 `pytest -q`, `ruff check .`, `ruff format --check .`, and `mypy` check the package. Browser and static-export checks are described in [the plan](PLAN.md), along with real-data verification and its limits. [Design decisions](docs/adr/) and the [archived README](docs/legacy-readme.md) retain more detail.
+
 ## Limits
 
-Measured wall-clock and peak memory for CPython and Shinylive at several dataset sizes: docs/limits.md.
+Measured wall-clock and peak memory for CPython and Shinylive at several dataset sizes: [docs/limits.md](docs/limits.md). The Shinylive build loaded and analyzed 50,000 markers by 2,000 individuals in the browser in 226 s.
 
 ## Licence
 
