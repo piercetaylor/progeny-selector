@@ -14,7 +14,7 @@ bundling axe-core 4.12.1, against Chromium 151.0.7922.34 (the revision Playwrigh
 Each run scopes axe to the rule tags `wcag2a`, `wcag2aa`, `wcag21a`, `wcag21aa` and `wcag22aa`, so a
 rule outside those tag sets (axe's own best-practice rules, for instance) is not asserted on.
 
-Eight page states are checked:
+Nine page states are checked:
 
 - the Load screen before any file is chosen (`test_load_screen_before_data`);
 - each of the seven screens (Load, Validate/QC, Navigate, Rank, Compare, Selection list, Export)

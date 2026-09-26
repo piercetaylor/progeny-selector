@@ -87,10 +87,12 @@ def test_compare_empty_before_selection(page: Page, app: ShinyAppProc) -> None:
 def test_exceptions_are_documented() -> None:
     from pathlib import Path
 
-    doc = Path(__file__).parents[2] / "docs" / "accessibility.md"
-    text = doc.read_text(encoding="utf-8")
+    docs_dir = Path(__file__).parents[2] / "docs"
+    accessibility_text = (docs_dir / "accessibility.md").read_text(encoding="utf-8")
+    adr_text = (docs_dir / "adr" / "0023-accessibility-baseline.md").read_text(encoding="utf-8")
     for rule_id in KNOWN_A11Y_EXCEPTIONS:
-        assert rule_id in text, f"{rule_id} is excepted in test_a11y.py but missing from docs/accessibility.md"
+        assert rule_id in accessibility_text, f"{rule_id} is excepted in test_a11y.py but missing from docs/accessibility.md"
+        assert rule_id in adr_text, f"{rule_id} is excepted in test_a11y.py but missing from docs/adr/0023-accessibility-baseline.md"
 
 
 def test_status_is_never_colour_alone(page: Page, app: ShinyAppProc) -> None:

@@ -6,7 +6,7 @@ All notable changes to this project are documented in this file. The format foll
 
 ### Added
 
-- Accessibility review against WCAG 2.2 AA: axe-core runs on every screen in the browser tests, focus never lands on a hidden element, statuses carry text as well as colour; docs/accessibility.md records the method and the known exceptions (docs/adr/0023).
+- Accessibility review against WCAG 2.2 AA: axe-core runs on every screen in the browser tests, a Tab walk from the Load screen never lands focus on an element with no layout box, statuses carry text as well as colour; docs/accessibility.md records the method and the known exceptions (docs/adr/0023).
 
 - Load a variant set from a BrAPI v2.1 server on the command line (`rank` and `validate` with `--brapi-url` and `--variant-set`, token from the environment variable named by `--brapi-token-env`); `brapi-callsets` writes the call-set table so samples.csv is built from the server's own ids; roles still come from samples.csv (docs/adr/0024).
 
@@ -33,9 +33,9 @@ All notable changes to this project are documented in this file. The format foll
 
 ### Changed
 
-- Classification, RPP and IBS to a parent compute in blocks of 64 sample columns, so analysis temporaries are set by the marker count alone: 83 MB for `rpp` at 50,000 markers whether the file holds 200 individuals or 2,000, where before the cost scaled with the call count and reaches about 3.2 GB at 50,000 x 2,000 by arithmetic from the measured per-call figure (docs/adr/0025). Results are bit-identical.
+- Classification, RPP and IBS to a parent compute in blocks of 64 sample columns, so analysis temporaries are set by the marker count alone: 83 MB for `rpp` at 50,000 markers, measured the same at 100 individuals and at 2,000, where before the cost scaled with the call count and reaches about 3.2 GB at 50,000 x 2,000 by arithmetic from the measured per-call figure (docs/adr/0025). Results are bit-identical.
 
-- `read_vcf` reads the file in two passes and fills a preallocated matrix instead of stacking a list of rows, so the parse peak falls from 3.6x to 2.0x the genotype matrix on a 50,000-marker file (68.4 MiB to 38.4 MiB, measured on the reference machine); what remains beyond the matrix is the marker and allele tables, about 450 bytes a record, so the saving is largest on the sample-heavy files where the matrix dominates (docs/adr/0022). A truncated `.gz` is now a contract error naming the file, reported ahead of any row error in the same file. Results are unchanged.
+- `read_vcf` reads the file in two passes and fills a preallocated matrix instead of stacking a list of rows, so the parse peak falls from 3.6x to 2.0x the genotype matrix on a file of 50,000 markers by 200 individuals (68.4 MiB to 38.4 MiB, measured on the reference machine); what remains beyond the matrix is the marker and allele tables, about 450 bytes a record, so the saving is largest on the sample-heavy files where the matrix dominates (docs/adr/0022). A truncated `.gz` is now a contract error naming the file, reported ahead of any row error in the same file. Results are unchanged.
 
 - results.csv schema 1.1.0: a fixed `crop` column after `results_schema` and before `token_profile`, which stays last (docs/adr/0016); selected.csv gains it in the same position and `scripts/read_results.R` reads it. Under any crop but soybean a chromosome ends at its last marker, because the chromosome length tables are Williams 82's; the per-chromosome "assembly gives no length" warning says so.
 
