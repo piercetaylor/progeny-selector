@@ -20,6 +20,8 @@ All notable changes to this project are documented in this file. The format foll
 
 ### Fixed
 
+- The Load screen reads a genotype upload named `.vcf.gz`, `.vcf.bgz`, `.hmp.txt` or `.hmp.gz`. Shiny stores an upload under its last suffix only, so such a file reached the reader as `0.gz` or `0.txt` and failed with "cannot infer genotype format" or a wide-CSV header error; the screen now restores the upload's own name before reading it, and errors in samples.csv, markers.csv and criteria.yaml name the user's file.
+
 - The next-round manifest refuses an empty next-generation label in `io.export`, so `select --next-generation ""` is a usage error and the Export screen shows the refusal and writes no file, where both previously wrote ids like `BC2F1-F1-001--001` and a blank `generation` column; a padded label is trimmed, and a refused write no longer leaves an empty file behind.
 - results.csv and the Validate screen record the chromosome-length table the run used, and not the criteria.yaml text. A maize run with an unset `assembly` recorded `Wm82.a4` while using no length table at all, and now records `none` (docs/adr/0015, amendment 2026-09-22).
 - An unset criteria.yaml `assembly` means whatever the crop implies: `Wm82.a4` under soybean, `none` under every other crop. An explicit `Wm82.*` under a non-soybean crop is refused naming the key, and an explicit `none` is accepted under any crop. A downloaded criteria.yaml writes an unset key as `assembly: null` and stays reusable across crops.

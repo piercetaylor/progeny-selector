@@ -30,6 +30,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 
 from htmltools import Tag, TagChild
 from shiny import module, reactive, render, ui
@@ -110,6 +111,18 @@ def profile_select_tag(selected: str, disabled: bool) -> Tag:
     return tag
 
 
+def _with_original_name(file_info: dict) -> str:
+    """The upload's ``datapath`` renamed to its original ``name`` (basename only), so format
+    detection by extension sees the upload's real suffix rather than Shiny's ``<index><suffix>``
+    temp name, which keeps only the last one. Idempotent: if the target already exists (Load
+    pressed twice on the same upload), it is returned unchanged."""
+    datapath = file_info["datapath"]
+    target = os.path.join(os.path.dirname(datapath), os.path.basename(file_info["name"]))
+    if target != datapath and not os.path.exists(target):
+        os.rename(datapath, target)
+    return target
+
+
 def read_profile_json(path: str) -> dict:
     """The custom token profile file as a dict; DataContractError when unreadable or not a JSON object."""
     try:
@@ -171,8 +184,12 @@ def server_(input, output, session, state) -> None:
             if pf is not None:
                 profile = read_profile_json(pf)
             crop = input.crop() or DEFAULT_CROP_ID
-            dataset = load_dataset(g[0]["datapath"], s[0]["datapath"], m[0]["datapath"] if m else None, profile=profile, crop=crop)
-            criteria = read_criteria(c[0]["datapath"])
+            genotype_path = _with_original_name(g[0])
+            samples_path = _with_original_name(s[0])
+            markers_path = _with_original_name(m[0]) if m else None
+            criteria_path = _with_original_name(c[0])
+            dataset = load_dataset(genotype_path, samples_path, markers_path, profile=profile, crop=crop)
+            criteria = read_criteria(criteria_path)
             result = run_analysis(dataset, criteria)
             state.dataset.set(dataset)
             state.criteria.set(criteria)
