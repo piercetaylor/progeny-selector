@@ -10,9 +10,11 @@ All notable changes to this project are documented in this file. The format foll
 
 - Load a variant set from a BrAPI v2.1 server on the command line (`rank` and `validate` with `--brapi-url` and `--variant-set`, token from the environment variable named by `--brapi-token-env`); `brapi-callsets` writes the call-set table so samples.csv is built from the server's own ids; roles still come from samples.csv (docs/adr/0024).
 
-- The shared input contract mirror is version 1.6.0: a genotype cell pairing one of A, C, G, T with one of `N`, `-`, `.`, in either order and in all three spellings, is read as missing in HapMap and in nucleotide-mode wide CSV, which `io.calls` already did and does not change (canonical record: backcross docs/adr/0021). A pair of two missing characters remains undefined by the contract.
+- The shared input contract mirror is version 1.6.0: a genotype cell pairing one of A, C, G, T with one of `N`, `-`, `.`, in either order and in all three spellings, is read as missing in HapMap and in nucleotide-mode wide CSV, which `io.calls` already did and does not change (canonical record: backcross docs/adr/0021). A pair of two missing characters (`N/N`, `..`) was left undefined by 1.6.0 and is defined by 1.8.0 below.
 
 - The shared input contract mirror is version 1.7.0: `--crop` and the Load screen add cowpea, pea and peanut chromosome schemes (canonical record: backcross docs/adr/0022; mirror record docs/adr/0027). Pea needs a `chr` or `chromosome` prefix or a matching `LG` suffix and keeps a bare `1`-`7` as written, because published pea tables use bare digits for two numberings; peanut's `A01`/`B01`, `Aradu.` and `Araip.` spellings are kept as written. Sunflower stays deferred.
+
+- The shared input contract mirror is version 1.8.0: a genotype cell pairing two of `N`, `-`, `.`, in any order and in all three spellings (`N/N`, `N-`, `./N`, `..`, `-|N`), is read as missing in HapMap and in nucleotide-mode wide CSV, which `io.calls` already did and does not change (canonical record: backcross docs/adr/0023; mirror record docs/adr/0028). A pair with `X` that is not itself a missing token (`X/X`, `XN`) stays an error; under a `base: none` token profile (`dart`, `axiom`, `kasp`) such a cell is an error unless the profile lists it, as `axiom` lists `--`; and a wide CSV holding such a cell that is not itself a missing token is read as nucleotide by `auto` detection.
 
 ### Documentation
 

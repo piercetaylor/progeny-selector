@@ -342,6 +342,77 @@ def test_half_missing_pair_decides_nucleotide_detection(tmp_path: Path):
         read_wide_csv(p)
 
 
+def _two_missing_cells() -> list[str]:
+    """Every pair of two of N, -, . , in every order and all three spellings: 27 cells."""
+    cells: list[str] = []
+    for a in ("N", "-", "."):
+        for b in ("N", "-", "."):
+            cells += [f"{a}{b}", f"{a}/{b}", f"{a}|{b}"]
+    return cells
+
+
+def test_two_missing_pairs_read_as_missing(tmp_path: Path):
+    """Contract 1.8.0: a pair of two of N, - or . is missing, with no profile and under a nucleotide-base profile."""
+    cells = _two_missing_cells()
+    assert len(cells) == 27 and len(set(cells)) == 27
+    profiles = [(pid, compile_profile(BUILTIN_PROFILES[pid])) for pid in ("tassel", "soybase-report")]
+    for cell in cells:
+        for text in (cell, cell.lower(), f" {cell.lower()} "):
+            assert parse_nucleotide_call(text, WIDE_NUCLEOTIDE_MISSING) is None, text
+            assert parse_nucleotide_call(text, HAPMAP_MISSING) is None, text
+            for pid, compiled in profiles:
+                assert parse_nucleotide_call(text, WIDE_NUCLEOTIDE_MISSING, compiled) is None, (pid, text)
+                assert parse_nucleotide_call(text, HAPMAP_MISSING, compiled) is None, (pid, text)
+    p = tmp_path / "g.csv"
+    p.write_text("marker_id,chrom,pos_bp,S1,S2,S3,S4\nm1,Gm06,100,T,N/N,N-,-|.\n")
+    gm = read_wide_csv(p)
+    assert (gm.calls[0, 1:] == -1).all() and gm.alleles[0] == ["T"]
+
+
+def test_two_missing_pairs_under_base_none_profiles():
+    """Contract 1.8.0: under base none the pair is an error unless the profile lists it; axiom lists --."""
+    axiom = compile_profile(BUILTIN_PROFILES["axiom"])
+    assert "--" in axiom.missing
+    assert parse_nucleotide_call("--", WIDE_NUCLEOTIDE_MISSING, axiom) is None
+    assert parse_nucleotide_call("--", HAPMAP_MISSING, axiom) is None
+    for pid in ("dart", "kasp", "axiom"):
+        compiled = compile_profile(BUILTIN_PROFILES[pid])
+        assert compiled.base == "none", pid
+        for cell in _two_missing_cells():
+            if pid == "axiom" and cell == "--":  # asserted above
+                continue
+            assert cell not in compiled.missing, (pid, cell)
+            for missing in (WIDE_NUCLEOTIDE_MISSING, HAPMAP_MISSING):
+                with pytest.raises(ValueError, match="not a token of the"):
+                    parse_nucleotide_call(cell, missing, compiled)
+
+
+def test_two_missing_pair_excludes_x():
+    """Contract 1.8.0: X is not a pair character, so a pair with X that is not itself a missing token stays an error."""
+    tassel = compile_profile(BUILTIN_PROFILES["tassel"])
+    for bad in ("X/X", "XN", "N/X", "X."):
+        for missing in (WIDE_NUCLEOTIDE_MISSING, HAPMAP_MISSING):
+            with pytest.raises(ValueError, match="unrecognised nucleotide call"):
+                parse_nucleotide_call(bad, missing)
+    # X is tassel's own missing token; it still does not become a pair character.
+    with pytest.raises(ValueError, match="unrecognised nucleotide call"):
+        parse_nucleotide_call("X/X", WIDE_NUCLEOTIDE_MISSING, tassel)
+    # XX stays a HapMap missing token and a wide-CSV error.
+    assert parse_nucleotide_call("XX", HAPMAP_MISSING) is None
+    with pytest.raises(ValueError, match="unrecognised nucleotide call"):
+        parse_nucleotide_call("XX", WIDE_NUCLEOTIDE_MISSING)
+
+
+def test_two_missing_pair_decides_nucleotide_detection(tmp_path: Path):
+    """Contract 1.8.0: N/N is not a missing token, so a file whose only non-A/B cell is N/N
+    is detected as nucleotide, and the parse then fails on the coded letter B, not on the pair."""
+    assert detect_coding(["A", "B", "N/N"]) == "nucleotide"
+    p = tmp_path / "g.csv"
+    p.write_text("marker_id,chrom,pos_bp,RP,DONOR,L1\nm1,Gm01,100,A,B,N/N\n")
+    with pytest.raises(DataContractError, match="line 2: unrecognised nucleotide call 'B'"):
+        read_wide_csv(p)
+
+
 def test_hapmap_missing_tokens(tmp_path: Path):
     p = tmp_path / "g.hmp.txt"
     p.write_text(

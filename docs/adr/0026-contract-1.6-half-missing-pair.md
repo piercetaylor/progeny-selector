@@ -23,3 +23,7 @@ No input changes meaning, no output changes, no error kind is added, and `result
 
 - The maintainer decides the two-missing pair (`N/N`, `N-`), which both tools read as missing and the contract still leaves undefined.
 - A platform is met whose `-` is a real deletion allele worth carrying rather than discarding, which would be a token profile question, not a change to this rule.
+
+## Amendment, 2026-09-26
+
+The sentence above saying a pair of two of `N`, `-`, `.` that is not itself a missing token (`N/N`, `N-`) stays "not defined by this version", and the first "Revisit when" item, are superseded by contract 1.8.0: such a pair is read as missing in HapMap and in nucleotide-mode wide CSV, as both tools already did (canonical record backcross docs/adr/0023; mirror record docs/adr/0028). The original text is kept as written.
