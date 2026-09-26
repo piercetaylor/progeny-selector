@@ -219,7 +219,9 @@ def measure_case(case: Path) -> dict:
         export_s = perf_counter() - t0
 
         n_pass = sum(1 for r in analysis.rows if r["passes_filters"])
-        total_s = parse_s + analysis_s + dedup_s + export_s
+        # run_analysis already runs the duplicate scan (core/pipeline.py), so dedup_s is
+        # the same scan timed a second time on its own and is not added again.
+        total_s = parse_s + analysis_s + export_s
 
         result.update(
             {
