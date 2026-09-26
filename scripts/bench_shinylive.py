@@ -85,7 +85,11 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         with sync_playwright() as pw:
-            browser = pw.chromium.launch(headless=True)
+            # channel="chromium" runs the full browser in its new headless mode. Plain
+            # headless=True launches chromium-headless-shell (Playwright 1.49 and later),
+            # whose measureUserAgentSpecificMemory() throws SecurityError even when the
+            # page is crossOriginIsolated.
+            browser = pw.chromium.launch(headless=True, channel="chromium")
             page = browser.new_page()
             try:
                 t_goto = time.monotonic()
@@ -111,8 +115,15 @@ def main(argv: list[str] | None = None) -> int:
 
                 t_click = time.monotonic()
                 frame.locator("#load-run").click()
-                expect(frame.locator("#load-status")).to_contain_text(f"{n_markers} markers, {n_progeny} progeny", timeout=timeout_ms)
+                # Wait for either outcome, so a load error ends the run when it appears
+                # and not when the timeout expires.
+                status = frame.locator("#load-status")
+                expected = f"{n_markers} markers, {n_progeny} progeny"
+                expect(status).to_contain_text(re.compile(re.escape(expected) + "|error:"), timeout=timeout_ms)
                 t_status = time.monotonic() - t_click
+                if expected not in status.inner_text():
+                    print(f"outcome: load failed after {t_status:.1f} s: {status.inner_text()}")
+                    return 4
 
                 mem_after = page.evaluate("performance.measureUserAgentSpecificMemory().then(r => r.bytes)")
 
