@@ -15,9 +15,9 @@ from collections.abc import Callable
 import numpy as np
 import pytest
 
-from progeny_selector.constants import STATE_A, STATE_B, STATE_H, STATE_N, STATE_U, STATE_X
+from progeny_selector.constants import RPP_LOOKUP, STATE_A, STATE_B, STATE_H, STATE_N, STATE_U, STATE_X
 from progeny_selector.core.background import rpp
-from progeny_selector.core.classify import Classification, classify, is_called_informative, rpp_contribution
+from progeny_selector.core.classify import Classification, classify, is_called_informative
 from progeny_selector.core.similarity import _shared_alleles, ibs_to_sample
 from progeny_selector.model.dataset import GenotypeMatrix, Marker
 
@@ -25,7 +25,7 @@ from progeny_selector.model.dataset import GenotypeMatrix, Marker
 
 
 def _rpp_reference(states: np.ndarray, weights: np.ndarray | None = None, marker_mask: np.ndarray | None = None) -> np.ndarray:
-    contrib = rpp_contribution(states)
+    contrib = RPP_LOOKUP[states]
     counted = is_called_informative(states)
     if marker_mask is not None:
         counted = counted & marker_mask[:, None]

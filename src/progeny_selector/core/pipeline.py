@@ -33,7 +33,7 @@ from progeny_selector.core.chrom import SOYBEAN, CompiledScheme, chrom_length_bp
 from progeny_selector.core.classify import Classification, classify
 from progeny_selector.core.drag import DragResult, donor_segment
 from progeny_selector.core.foreground import ResolvedLocus, foreground_status, resolve_locus
-from progeny_selector.core.qc import SampleQC, duplicate_pairs, parent_qc, sample_qc
+from progeny_selector.core.qc import SampleQC, duplicate_scan, parent_qc, sample_qc
 from progeny_selector.core.score import composite_score, hard_filters, rank_rows, rank_rows_staged
 from progeny_selector.core.similarity import ibs_to_sample
 from progeny_selector.model.criteria import Criteria, CriteriaError
@@ -230,7 +230,10 @@ def run_analysis(dataset: Dataset, criteria: Criteria) -> AnalysisResult:
     # threshold over all markers (docs/adr/0017). Advisory, so it never changes the hard filters.
     if len(sample_ids) > _MAX_DUPLICATE_SAMPLES:
         warnings.append(f"duplicate detection skipped above {_MAX_DUPLICATE_SAMPLES} individuals")
-    dups = duplicate_pairs(gm, sample_ids, max_samples=_MAX_DUPLICATE_SAMPLES, marker_idx=np.flatnonzero(cls.informative))
+    scan = duplicate_scan(gm, sample_ids, max_samples=_MAX_DUPLICATE_SAMPLES, marker_idx=np.flatnonzero(cls.informative))
+    if scan.n_skipped:
+        warnings.append(f"{scan.n_skipped} pairs skipped: fewer than {scan.floor} markers called in both lines")
+    dups = scan.pairs
     duplicated = {s for a, b, _ in dups for s in (a, b)}
     for q in qc:
         if q.sample_id in duplicated:

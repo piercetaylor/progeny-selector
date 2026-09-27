@@ -93,8 +93,12 @@ def test_stale_family_is_not_published_on_reload(page: Page, app: ShinyAppProc) 
     navbar.set("load")
     controller.InputActionButton(page, "load-run").click()
     expect(page.locator("#load-status")).to_contain_text(LOAD_STATUS, timeout=60_000)
+    # The breadcrumb re-renders after the status text, so wait for its settled
+    # post-reload state before reading the history the observer recorded.
+    expect(crumb.locator("li")).to_have_count(1)
 
     crumbs = page.evaluate("window.__crumbs")
+    assert crumbs
     assert all("F2" not in c for c in crumbs)
 
     navbar.set("navigate")

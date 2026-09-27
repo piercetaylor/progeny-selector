@@ -105,18 +105,9 @@ def state_labels(states: np.ndarray) -> np.ndarray:
     return lookup[states]
 
 
-def rpp_contribution(states: np.ndarray) -> np.ndarray:
-    """Per-call recurrent-parent contribution: A=1, H=0.5, B=0, otherwise NaN (excluded)."""
-    out = np.full(states.shape, np.nan, dtype=float)
-    out[states == STATE_A] = 1.0
-    out[states == STATE_H] = 0.5
-    out[states == STATE_B] = 0.0
-    return out
-
-
 def is_called_informative(states: np.ndarray) -> np.ndarray:
     """True for calls that enter RPP denominators (A, H or B)."""
     return (states == STATE_A) | (states == STATE_H) | (states == STATE_B)
 
 
-__all__ = ["STATE_N", "STATE_U", "Classification", "classify", "is_called_informative", "rpp_contribution", "state_labels"]
+__all__ = ["STATE_N", "STATE_U", "Classification", "classify", "is_called_informative", "state_labels"]

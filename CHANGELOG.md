@@ -24,6 +24,7 @@ All notable changes to this project are documented in this file. The format foll
 
 ### Fixed
 
+- `validate` reports how many duplicate-pair candidates it skipped because the two lines share too few called markers ("N pairs skipped: fewer than M markers called in both lines"), where it dropped them silently before (Q14, the silent-skip half). The reload-guard end-to-end test now waits for the breadcrumb's settled state and fails on an empty mutation history, so it can no longer pass vacuously.
 - The Load screen reads a genotype upload named `.vcf.gz`, `.vcf.bgz`, `.hmp.txt` or `.hmp.gz`. Shiny stores an upload under its last suffix only, so such a file reached the reader as `0.gz` or `0.txt` and failed with "cannot infer genotype format" or a wide-CSV header error; the screen now restores the upload's own name before reading it, and errors in samples.csv, markers.csv and criteria.yaml name the user's file.
 
 - The next-round manifest refuses an empty next-generation label in `io.export`, so `select --next-generation ""` is a usage error and the Export screen shows the refusal and writes no file, where both previously wrote ids like `BC2F1-F1-001--001` and a blank `generation` column; a padded label is trimmed, and a refused write no longer leaves an empty file behind.
@@ -91,6 +92,11 @@ All notable changes to this project are documented in this file. The format foll
 ### Fixed
 
 - Genotype files named `.vcf.bgz` now load, as documented; `.bcf`, which was never documented and was read as text, is rejected.
+
+### Removed
+
+- The unused `core.classify.rpp_contribution`, a second copy of the table `constants.RPP_LOOKUP` carries (the follow-up docs/adr/0025 recorded).
+
 
 ## [0.1.0] - unreleased
 

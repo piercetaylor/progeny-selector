@@ -15,6 +15,9 @@ Interface:
     parent_qc(gm, dataset, classification, filters) -> list[str] warnings
     duplicate_pairs(gm, sample_ids, threshold=0.995, max_samples=2000, marker_idx=None, min_overlap_frac=0.5)
         -> list[tuple[str, str, float]]
+    duplicate_scan(gm, sample_ids, threshold=0.995, max_samples=2000, marker_idx=None, min_overlap_frac=0.5)
+        -> DuplicateScan(pairs, n_skipped, floor); duplicate_pairs is a thin wrapper returning
+        just ``.pairs``, kept for existing callers
     uninformative_summary(classification) -> list[tuple[str, int]]   (reason, count), count desc then reason
     qc_table_rows(qc, dataset, filters) -> list[dict]   one flat row per SampleQC for the Validate screen
 """
@@ -25,6 +28,7 @@ import math
 import statistics
 from collections import Counter
 from dataclasses import dataclass, field
+from typing import NamedTuple
 
 import numpy as np
 
@@ -177,14 +181,22 @@ def parent_qc(gm: GenotypeMatrix, dataset: Dataset, classification: Classificati
     return warnings
 
 
-def duplicate_pairs(
+class DuplicateScan(NamedTuple):
+    """Result of ``duplicate_scan``: the reported pairs, plus how many were skipped and why."""
+
+    pairs: list[tuple[str, str, float]]
+    n_skipped: int
+    floor: int
+
+
+def duplicate_scan(
     gm: GenotypeMatrix,
     sample_ids: list[str],
     threshold: float = 0.995,
     max_samples: int = 2000,
     marker_idx: np.ndarray | None = None,
     min_overlap_frac: float = MIN_DUPLICATE_OVERLAP_FRAC,
-) -> list[tuple[str, str, float]]:
+) -> DuplicateScan:
     """Pairs of samples with IBS above ``threshold`` (marker-subsampled); empty when too many samples.
 
     ``marker_idx`` restricts the markers IBS is measured on; the pipeline passes the informative
@@ -195,20 +207,44 @@ def duplicate_pairs(
     the markers actually used for the comparison — after the ``marker_idx`` restriction and after
     subsampling — and never fewer than one. Without the floor a sample with almost no calls reaches
     IBS 1.0 against everyone it happens to agree with on its handful of markers
-    (docs/adr/0017, amendment 2026-09-21).
+    (docs/adr/0017, amendment 2026-09-21). ``n_skipped`` counts every pair whose overlap falls
+    below that floor, regardless of its IBS, so the caller can warn about the skip; ``floor`` is
+    the marker count the warning names.
     """
     if len(sample_ids) < 2 or len(sample_ids) > max_samples:
-        return []
+        return DuplicateScan([], 0, 0)
     idx = np.array([gm.sample_index(s) for s in sample_ids])
     ibs, overlap = pairwise_ibs(gm, idx, marker_idx=marker_idx, return_counts=True)
     n_pool = gm.n_markers if marker_idx is None else len(np.unique(np.asarray(marker_idx)))
     floor = max(1, math.ceil(min_overlap_frac * min(n_pool, MAX_IBS_MARKERS)))
     pairs: list[tuple[str, str, float]] = []
+    n_skipped = 0
     for a in range(len(idx)):
         for b in range(a + 1, len(idx)):
-            if overlap[a, b] >= floor and ibs[a, b] >= threshold:
+            if overlap[a, b] < floor:
+                n_skipped += 1
+            elif ibs[a, b] >= threshold:
                 pairs.append((sample_ids[a], sample_ids[b], float(ibs[a, b])))
-    return pairs
+    return DuplicateScan(pairs, n_skipped, floor)
+
+
+def duplicate_pairs(
+    gm: GenotypeMatrix,
+    sample_ids: list[str],
+    threshold: float = 0.995,
+    max_samples: int = 2000,
+    marker_idx: np.ndarray | None = None,
+    min_overlap_frac: float = MIN_DUPLICATE_OVERLAP_FRAC,
+) -> list[tuple[str, str, float]]:
+    """Thin wrapper around ``duplicate_scan`` for callers that only need the reported pairs."""
+    return duplicate_scan(
+        gm,
+        sample_ids,
+        threshold=threshold,
+        max_samples=max_samples,
+        marker_idx=marker_idx,
+        min_overlap_frac=min_overlap_frac,
+    ).pairs
 
 
 def uninformative_summary(classification: Classification) -> list[tuple[str, int]]:

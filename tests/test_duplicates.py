@@ -122,6 +122,28 @@ def test_sparse_sample_is_not_a_duplicate_of_everyone():
     assert result.duplicates == []
     for row in result.rows:
         assert "possible_duplicate" not in row["qc_flags"], row["sample_id"]
+    # P1-P2 and P2-P3 both overlap on 2 of the 30 markers used, below the floor of 15.
+    assert "2 pairs skipped: fewer than 15 markers called in both lines" in result.warnings
+
+
+def test_low_overlap_disagreeing_pair_is_still_counted_as_skipped():
+    """A skipped pair need not be a would-be duplicate: the count is of overlap, not IBS.
+
+    P2 is called at 2 markers (both P1 and P3 are also called there) and disagrees with both, so
+    its IBS against each is well below the 0.995 threshold. Both pairs are still skipped for
+    insufficient overlap and must be counted, even though neither would have been a duplicate.
+    """
+    p2 = [*(["B"] * 2), *(["N"] * 28)]
+    dataset = build({"P1": P1_STATES, "P2": p2, "P3": P3_STATES})
+    result = run_analysis(dataset, _criteria())
+    assert result.duplicates == []
+    assert "2 pairs skipped: fewer than 15 markers called in both lines" in result.warnings
+
+
+def test_no_skip_warning_when_every_pair_clears_the_floor():
+    dataset = build({"P1": P1_STATES, "P2": P2_STATES, "P3": P3_STATES})
+    result = run_analysis(dataset, _criteria())
+    assert not any("pairs skipped" in w for w in result.warnings)
 
 
 def test_overlap_just_above_the_floor_is_still_reported():
