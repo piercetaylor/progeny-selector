@@ -1,8 +1,8 @@
 """Crop chromosome schemes (contract/data-contract.md 1.5.0, "Chromosome names"; contract/crops/;
-docs/adr/0020, and docs/adr/0027 for cowpea, pea and peanut in 1.7.0; mirrors backcross
-src/io/crops.ts).
+docs/adr/0020, docs/adr/0027 for cowpea, pea and peanut in 1.7.0, and docs/adr/0029 for
+sunflower in 1.9.0; mirrors backcross src/io/crops.ts).
 
-Responsibility: the twelve schemes shipped under contract/crops/, the schema check for one of
+Responsibility: the thirteen schemes shipped under contract/crops/, the schema check for one of
 them, and the id-to-compiled-scheme lookup the readers, ``load_dataset``, the CLI and the
 Load screen resolve a chosen crop through. ``soybean`` is the default and reproduces the
 1.2.0 rule exactly. No user-supplied scheme is accepted in this version. Shinylive stages
@@ -15,8 +15,8 @@ which holds the soybean literal because ``core`` imports no ``io``; they are re-
 Interface:
     CropScheme, CompiledScheme, compile_scheme, DEFAULT_CROP_ID
     BUILTIN_CROPS: dict[str, CropScheme]   (soybean, maize, rice, sorghum, wheat, barley, oat,
-                                            common-bean, cotton, cowpea, pea, peanut, in that
-                                            order)
+                                            common-bean, cotton, cowpea, pea, peanut, sunflower,
+                                            in that order)
     validate_scheme(obj) -> CropScheme     (DataContractError "crop scheme: <reason>")
     resolve_crop(crop: str | None) -> CompiledScheme   (None -> soybean; an unknown id is an error)
 """
@@ -408,6 +408,27 @@ BUILTIN_CROPS: dict[str, CropScheme] = {
             "https://www.osti.gov/pages/servlets/purl/2479207",
             "http://oar.icrisat.org/11189/1/The%20genome%20of%20cultivated%20peanut%20provides%20insight%20into%20legume%20karyotypes%2C%20polyploid%20evolution%20and%20crop%20domestication.pdf",
             "https://pmc.ncbi.nlm.nih.gov/articles/PMC7822046/",
+        ],
+    ),
+    "sunflower": CropScheme(
+        id="sunflower",
+        name="Sunflower",
+        species="Helianthus annuus",
+        ploidy=2,
+        assembly=(
+            "HanXRQr2.0-SUNRISE (NCBI GCF_002127325.2; HanXRQChr01-HanXRQChr17) and HA412-HOv2.0 (Ha412HOChr01-"
+            "Ha412HOChr17), which share the LG1-LG17 numbering of the sunflower consensus genetic map"
+        ),
+        chromosomes=["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17"],
+        keys=["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17"],
+        pattern=r"^(?:ha412hochr|hanxrqchr|chr|chromosome)?[_\s-]?0*([1-9]|1[0-7])$",
+        sources=[
+            "https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/002/127/325/GCF_002127325.2_HanXRQr2.0-SUNRISE/GCF_002127325.2_HanXRQr2.0-SUNRISE_assembly_report.txt",
+            "https://www.ncbi.nlm.nih.gov/nuccore/CM007890.1",
+            "https://static-content.springer.com/esm/art%3A10.1038%2Fnature22380/MediaObjects/41586_2017_BFnature22380_MOESM1_ESM.pdf",
+            "https://www.ebi.ac.uk/europepmc/webservices/rest/PMC3385978/fullTextXML",
+            "https://www.ebi.ac.uk/europepmc/webservices/rest/PMC10083583/supplementaryFiles",
+            "https://sunflowergenome.org/assembly-data/",
         ],
     ),
 }

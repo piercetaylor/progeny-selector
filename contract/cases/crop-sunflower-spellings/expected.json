@@ -2,58 +2,62 @@
   "contractVersion": "1.9.0",
   "coded": false,
   "chromosomeOrder": [
-    "Gm07",
-    "ch7",
-    "scaffold_2",
-    "scaffold_10"
+    "1",
+    "2",
+    "3",
+    "17",
+    "18",
+    "HanXRQChr00c001",
+    "LG1",
+    "NC_035433.2"
   ],
   "markers": [
     {
-      "id": "n_chromo",
-      "chrom": "Gm07",
-      "posBp": 100,
+      "id": "r1",
+      "chrom": "1",
+      "posBp": 1000,
       "cm": null
     },
     {
-      "id": "n_dash",
-      "chrom": "Gm07",
-      "posBp": 200,
+      "id": "r2",
+      "chrom": "2",
+      "posBp": 2000,
       "cm": null
     },
     {
-      "id": "n_lg",
-      "chrom": "Gm07",
-      "posBp": 300,
+      "id": "r3",
+      "chrom": "3",
+      "posBp": 3000,
       "cm": null
     },
     {
-      "id": "n_space",
-      "chrom": "Gm07",
-      "posBp": 400,
+      "id": "r4",
+      "chrom": "17",
+      "posBp": 4000,
       "cm": null
     },
     {
-      "id": "n_ch",
-      "chrom": "ch7",
-      "posBp": 100,
+      "id": "r8",
+      "chrom": "18",
+      "posBp": 8000,
       "cm": null
     },
     {
-      "id": "n_s2b",
-      "chrom": "scaffold_2",
-      "posBp": 50,
+      "id": "r5",
+      "chrom": "HanXRQChr00c001",
+      "posBp": 5000,
       "cm": null
     },
     {
-      "id": "n_s2",
-      "chrom": "scaffold_2",
-      "posBp": 100,
+      "id": "r7",
+      "chrom": "LG1",
+      "posBp": 7000,
       "cm": null
     },
     {
-      "id": "n_s10",
-      "chrom": "scaffold_10",
-      "posBp": 100,
+      "id": "r6",
+      "chrom": "NC_035433.2",
+      "posBp": 6000,
       "cm": null
     }
   ],
@@ -65,8 +69,12 @@
   "calls": {
     "RP": [
       [
-        "C",
-        "C"
+        "A",
+        "A"
+      ],
+      [
+        "A",
+        "A"
       ],
       [
         "A",
@@ -77,10 +85,6 @@
         "A"
       ],
       [
-        "G",
-        "G"
-      ],
-      [
         "A",
         "A"
       ],
@@ -89,8 +93,8 @@
         "A"
       ],
       [
-        "C",
-        "C"
+        "A",
+        "A"
       ],
       [
         "A",
@@ -99,20 +103,12 @@
     ],
     "DONOR": [
       [
-        "T",
-        "T"
-      ],
-      [
-        "C",
-        "C"
-      ],
-      [
         "G",
         "G"
       ],
       [
-        "T",
-        "T"
+        "G",
+        "G"
       ],
       [
         "G",
@@ -123,8 +119,16 @@
         "G"
       ],
       [
-        "T",
-        "T"
+        "G",
+        "G"
+      ],
+      [
+        "G",
+        "G"
+      ],
+      [
+        "G",
+        "G"
       ],
       [
         "G",
@@ -133,36 +137,36 @@
     ],
     "L1": [
       [
-        "C",
-        "C"
-      ],
-      [
-        "C",
-        "C"
+        "A",
+        "G"
       ],
       [
         "A",
         "G"
       ],
       [
-        "G",
-        "G"
-      ],
-      [
-        "G",
+        "A",
         "G"
       ],
       [
         "A",
-        "A"
-      ],
-      [
-        "T",
-        "T"
+        "G"
       ],
       [
         "A",
-        "A"
+        "G"
+      ],
+      [
+        "A",
+        "G"
+      ],
+      [
+        "A",
+        "G"
+      ],
+      [
+        "A",
+        "G"
       ]
     ]
   }

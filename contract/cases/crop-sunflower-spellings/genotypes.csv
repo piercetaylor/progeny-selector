@@ -1,0 +1,9 @@
+marker_id,chrom,pos_bp,RP,DONOR,L1
+r1,Ha412HOChr01,1000,A,G,R
+r2,HanXRQChr02,2000,A,G,R
+r3,chr3,3000,A,G,R
+r4,17,4000,A,G,R
+r5,HanXRQChr00c001,5000,A,G,R
+r6,NC_035433.2,6000,A,G,R
+r7,LG1,7000,A,G,R
+r8,18,8000,A,G,R

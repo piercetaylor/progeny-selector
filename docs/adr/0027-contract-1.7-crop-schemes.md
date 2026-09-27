@@ -23,3 +23,7 @@ A dataset loaded with any of the nine earlier crops, or with none, reads exactly
 
 - The scheme schema gains an alias table, which would let peanut map `A01`..`B10` and the `Aradu.`/`Araip.` spellings.
 - A statement or whole-genome synteny table shows that sunflower's HA412-HO and HanXRQ chromosome numbers agree (the unblock condition in backcross docs/adr/0022).
+
+## Amendment, 2026-09-26
+
+The sunflower unblock condition above was met: contract 1.9.0 added the `sunflower` scheme (docs/adr/0029 here, backcross docs/adr/0024). The maintainer accepted a whole-genome alignment figure of HA412-HOv2 against XRQv2 as meeting it, although it is a figure and not a table.
