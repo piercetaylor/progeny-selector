@@ -45,6 +45,7 @@ ERROR_KIND_PATTERNS: dict[str, str] = {
     "delimited.unterminated_quote": r"unterminated quoted field",
     "genotypes.ambiguous_heterozygote": r"heterozygote token but the marker shows",
     "genotypes.profile_format": r"applies to HapMap and wide CSV",
+    "genotypes.invalid_gt": r"invalid GT",
 }
 
 CASE_NAMES = sorted(p.name for p in CASES.iterdir() if p.is_dir())

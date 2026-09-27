@@ -15,6 +15,7 @@ from progeny_selector.io.calls import detect_coding, parse_nucleotide_call
 from progeny_selector.io.criteria import criteria_from_dict
 from progeny_selector.io.manifest import read_markers, read_samples
 from progeny_selector.io.profiles import BUILTIN_PROFILES, compile_profile
+from progeny_selector.io.vcf import read_vcf
 from progeny_selector.io.wide_csv import read_wide_csv
 from progeny_selector.model.criteria import CriteriaError
 from progeny_selector.model.dataset import DataContractError
@@ -565,3 +566,135 @@ def test_markers_csv_empty_marker_id_names_line(tmp_path: Path):
     m.write_text("marker_id,chrom,pos_bp,cm\n,6,1000,0.5\n")
     with pytest.raises(DataContractError, match="line 2: empty marker_id"):
         read_markers(m)
+
+
+def _gt_vcf(tmp_path: Path, gt: str, alt: str = "T") -> Path:
+    """A one-sample VCF whose first record (line 3) is valid and whose second (line 4) carries `gt`."""
+    p = tmp_path / "gt.vcf"
+    header = "##fileformat=VCFv4.2\n#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tS1\n"
+    first = "1\t100\tm1\tA\tT\t.\t.\t.\tGT\t0/1\n"
+    second = f"1\t200\tm2\tA\t{alt}\t.\t.\t.\tGT:DP\t{gt}:7\n"
+    with open(p, "w", encoding="utf-8", newline="\n") as fh:
+        fh.write(header + first + second)
+    return p
+
+
+# Contract 1.10.0 (docs/adr/0030): every spelling outside the GT grammar, and every index outside
+# REF,ALT or above 127, is `invalid GT` naming the line and the value.
+@pytest.mark.parametrize(
+    ("gt", "alt", "reason"),
+    [
+        ("-5/0", "T", ""),
+        ("-1/0", "T", ""),
+        ("1e1/0", "T", ""),
+        ("/0", "T", ""),
+        ("0/", "T", ""),
+        ("+1/0", "T", ""),
+        (" 0/1", "T", ""),
+        ("0/1 ", "T", ""),
+        ("01/0", "T", ""),
+        ("1_0/0", "T", ""),
+        ("0/0/1", "T", ""),
+        ("|0|1", "T", ""),
+        ("/", "T", ""),
+        ("0//1", "T", ""),
+        ("0\\1", "T", ""),
+        ("0/" + chr(0x0661), "T", ""),  # an Arabic-Indic digit one, which `\d` would accept
+        ("2/0", "T", ", allele index 2 but the record has 2 alleles"),
+        ("0|2", "T", ", allele index 2 but the record has 2 alleles"),
+        ("1", ".", ", allele index 1 but the record has 1 alleles"),
+        ("128/0", "T", ", allele index above 127"),
+        ("5/200", "T", ", allele index 5 but the record has 2 alleles"),
+        ("200/5", "T", ", allele index above 127"),
+        ("9" * 5000 + "/0", "T", ", allele index above 127"),  # past int()'s 4300-digit limit
+    ],
+)
+def test_vcf_gt_grammar_errors(tmp_path: Path, gt: str, alt: str, reason: str):
+    p = _gt_vcf(tmp_path, gt, alt)
+    with pytest.raises(DataContractError, match=re.escape(f'line 4: invalid GT "{gt}"{reason}')):
+        read_vcf(p)
+
+
+@pytest.mark.parametrize(
+    ("gt", "alt", "pair"),
+    [
+        ("0/1", "T", (0, 1)),
+        ("1|0", "T", (1, 0)),
+        ("1", "T", (1, 1)),
+        ("0", "T", (0, 0)),
+        (".", "T", (-1, -1)),
+        ("./.", "T", (-1, -1)),
+        (".|.", "T", (-1, -1)),
+        ("./1", "T", (-1, 1)),
+        ("1|.", "T", (1, -1)),
+        ("", "T", (-1, -1)),
+        ("2/2", "G,T", (2, 2)),
+        ("10/3", ",".join(f"A{'C' * k}" for k in range(1, 11)), (10, 3)),
+    ],
+)
+def test_vcf_gt_grammar_reads(tmp_path: Path, gt: str, alt: str, pair: tuple[int, int]):
+    gm = read_vcf(_gt_vcf(tmp_path, gt, alt))
+    assert tuple(int(x) for x in gm.calls[1, 0]) == pair
+
+
+def test_vcf_gt_index_127_is_the_ceiling(tmp_path: Path):
+    alt = ",".join(f"A{'C' * k}" for k in range(1, 129))  # 128 ALT alleles, 129 with REF
+    gm = read_vcf(_gt_vcf(tmp_path, "127/0", alt))
+    assert tuple(int(x) for x in gm.calls[1, 0]) == (127, 0)
+    with pytest.raises(DataContractError, match=re.escape('line 4: invalid GT "0/128", allele index above 127')):
+        read_vcf(_gt_vcf(tmp_path, "0/128", alt))
+
+
+def test_vcf_gt_cache_does_not_skip_the_range_check(tmp_path: Path):
+    """`2/2` is read on a record with ALT G,T, then refused on the next, which has one ALT."""
+    p = tmp_path / "cache.vcf"
+    p.write_text(
+        "##fileformat=VCFv4.2\n#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tS1\tS2\n"
+        "1\t100\tm1\tA\tG,T\t.\t.\t.\tGT\t2/2\t0/1\n"
+        "1\t200\tm2\tA\tT\t.\t.\t.\tGT\t0/0\t2/2\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(DataContractError, match=re.escape('line 4: invalid GT "2/2", allele index 2 but the record has 2 alleles')):
+        read_vcf(p)
+
+
+def test_vcf_empty_gt_is_missing_in_every_position(tmp_path: Path):
+    """An empty last column (the line ends in a tab), an empty field under FORMAT GT, and an empty
+    GT sub-field before ':' (GT:DP) or after it (DP:GT) are all read as missing (contract 1.10.0)."""
+    p = tmp_path / "empty.vcf"
+    p.write_text(
+        "##fileformat=VCFv4.2\n#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tS1\tS2\n"
+        "1\t100\tm1\tA\tT\t.\t.\t.\tGT\t0/1\t\n"
+        "1\t200\tm2\tA\tT\t.\t.\t.\tGT\t\t1/1\n"
+        "1\t300\tm3\tA\tT\t.\t.\t.\tGT:DP\t:12\t0/0:3\n"
+        "1\t400\tm4\tA\tT\t.\t.\t.\tDP:GT\t12:\t3:1\n",
+        encoding="utf-8",
+    )
+    gm = read_vcf(p)
+    got = [[tuple(int(x) for x in gm.calls[i, j]) for j in range(2)] for i in range(4)]
+    assert got == [[(0, 1), (-1, -1)], [(-1, -1), (1, 1)], [(-1, -1), (0, 0)], [(-1, -1), (1, 1)]]
+
+
+def test_vcf_sample_field_ending_before_gt_is_missing(tmp_path: Path):
+    """With FORMAT DP:GT, a bare `12` (and an empty field) drops the GT sub-field: missing, not an error."""
+    p = tmp_path / "short.vcf"
+    p.write_text(
+        "##fileformat=VCFv4.2\n#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tS1\tS2\tS3\n"
+        "1\t100\tm1\tA\tT\t.\t.\t.\tDP:GT\t12\t3:0/1\t\n"
+        "1\t200\tm2\tA\tT\t.\t.\t.\tDP:AD:GT\t4:1,3\t4:1,3:1/1\t4\n",
+        encoding="utf-8",
+    )
+    gm = read_vcf(p)
+    got = [[tuple(int(x) for x in gm.calls[i, j]) for j in range(3)] for i in range(2)]
+    assert got == [[(-1, -1), (0, 1), (-1, -1)], [(-1, -1), (1, 1), (-1, -1)]]
+
+
+def test_vcf_gt_grammar_applies_when_gt_is_not_first(tmp_path: Path):
+    """With FORMAT DP:GT the GT sub-field after ':' is judged by the same grammar."""
+    p = tmp_path / "dpgt.vcf"
+    p.write_text(
+        "##fileformat=VCFv4.2\n#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tS1\n1\t100\tm1\tA\tT\t.\t.\t.\tDP:GT\t12:01/1\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(DataContractError, match=re.escape('line 3: invalid GT "01/1"')):
+        read_vcf(p)

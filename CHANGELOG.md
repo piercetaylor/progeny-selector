@@ -6,6 +6,7 @@ All notable changes to this project are documented in this file. The format foll
 
 ### Added
 
+- The shared input contract mirror is version 1.10.0: a VCF GT outside the grammar (a sign, an exponent, an underscore, whitespace, a leading zero, an empty side, three alleles, the VCF 4.4 leading phase indicator, or an allele index above 127 or outside REF,ALT) is the error `genotypes.invalid_gt`, naming the line and the value, where before it was misread or raised a raw Python exception; an empty GT, which raised a ValueError, and a sample field that ends before its GT sub-field, which raised an IndexError, are now read as missing (canonical record: backcross docs/adr/0025; mirror record docs/adr/0030).
 - Accessibility review against WCAG 2.2 AA: axe-core runs on every screen in the browser tests, a Tab walk from the Load screen never lands focus on an element with no layout box, statuses carry text as well as colour; docs/accessibility.md records the method and the known exceptions (docs/adr/0023).
 
 - Load a variant set from a BrAPI v2.1 server on the command line (`rank` and `validate` with `--brapi-url` and `--variant-set`, token from the environment variable named by `--brapi-token-env`); `brapi-callsets` writes the call-set table so samples.csv is built from the server's own ids; roles still come from samples.csv (docs/adr/0024).

@@ -4,6 +4,10 @@ Responsibility: parse the ``#CHROM`` header for sample ids and the GT field of
 every record into allele indices (REF = 0, ALT_k = k, '.' = -1); keep REF/ALT
 strings as the per-marker allele table; normalise chromosome names. Only GT is
 read; phasing is ignored; haploid GT is duplicated.
+The GT grammar is contract 1.10.0: `.` or an allele index, or two of them joined by
+`/` or `|`; an index is `0` or `[1-9][0-9]*`, at most 127 and less than the REF,ALT
+allele count. An empty GT is missing. Anything else is an `invalid GT` error naming
+the line and the value (docs/adr/0030).
 Records with ID "." or empty get "<CHROM>_<POS>" from CHROM as written in the file, before normalisation (contract 1.1.0).
 POS goes through position.py with the "digits" grammar, and an ID-less record is named from the parsed POS (contract 1.2.0).
 The file is read twice (docs/adr/0022): pass 1 (`_scan`) takes the sample ids and
@@ -23,6 +27,7 @@ Interface:
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 import numpy as np
@@ -32,17 +37,50 @@ from progeny_selector.io.delimited import is_blank, open_text
 from progeny_selector.io.position import parse_position
 from progeny_selector.model.dataset import DataContractError, GenotypeMatrix, Marker
 
+# Contract 1.10.0 GT grammar, the same pattern as backcross's GT_PATTERN. `[0-9]`, never `\d`,
+# which matches Unicode digits in Python; applied with fullmatch, because `$` accepts a trailing newline.
+_GT_RE = re.compile(r"^(\.|0|[1-9][0-9]*)(?:[/|](\.|0|[1-9][0-9]*))?$")
 
-def _parse_gt(token: str) -> tuple[int, int]:
-    gt = token.split(":", 1)[0]
-    parts = gt.replace("|", "/").split("/")
-    if len(parts) == 1:
-        parts = [parts[0], parts[0]]
-    if len(parts) != 2:
-        raise DataContractError(f"non-diploid GT {gt!r}")
-    a = -1 if parts[0] == "." else int(parts[0])
-    b = -1 if parts[1] == "." else int(parts[1])
-    return (a, b)
+# Highest allele index accepted (contract 1.10.0), so an index always fits the int8 store.
+MAX_ALLELE_INDEX = 127
+
+
+def _index(text: str) -> int:
+    """One allele index already matched by `_GT_RE`; '.' is -1.
+
+    More than three digits without a leading zero is at least 1000, so it is returned as
+    MAX_ALLELE_INDEX + 1 rather than converted: `int()` raises ValueError past 4300 digits
+    (Python 3.11+), which must reach the caller as the range error, not as a raw exception.
+    """
+    if text == ".":
+        return -1
+    return MAX_ALLELE_INDEX + 1 if len(text) > 3 else int(text)
+
+
+def _parse_gt(gt: str, line_no: int) -> tuple[int, int, int]:
+    """One GT value as (a, b, max(a, b)); '.' is -1, a haploid call is homozygous, an empty GT is missing.
+
+    Judges the grammar only. The range against the record's alleles is judged per record by the
+    caller, because a cached pair is shared by records with different ALT counts.
+    """
+    if gt == "":
+        return (-1, -1, -1)
+    m = _GT_RE.fullmatch(gt)
+    if m is None:
+        raise DataContractError(f'line {line_no}: invalid GT "{gt}"')
+    a = _index(m[1])
+    b = a if m[2] is None else _index(m[2])
+    return (a, b, max(a, b))
+
+
+def _range_error(gt: str, pair: tuple[int, int, int], n_alleles: int, line_no: int) -> DataContractError:
+    """The message for the first side of `pair` out of range, in backcross's order (first side, then second)."""
+    for i in pair[:2]:
+        if i > MAX_ALLELE_INDEX:
+            return DataContractError(f'line {line_no}: invalid GT "{gt}", allele index above {MAX_ALLELE_INDEX}')
+        if i >= n_alleles:
+            return DataContractError(f'line {line_no}: invalid GT "{gt}", allele index {i} but the record has {n_alleles} alleles')
+    raise AssertionError("no allele index out of range")
 
 
 def _scan(path: Path) -> tuple[list[str], int]:
@@ -80,7 +118,7 @@ def _fill(path: Path, sample_ids: list[str], calls: np.ndarray, scheme: Compiled
     """Pass 2: every validation of the single-pass reader, writing record i into `calls[i]`."""
     markers: list[Marker] = []
     alleles: list[list[str]] = []
-    gt_cache: dict[str, tuple[int, int]] = {}
+    gt_cache: dict[str, tuple[int, int, int]] = {}
     seen_header = False
     filled = 0
     with open_text(path) as fh:
@@ -111,7 +149,12 @@ def _fill(path: Path, sample_ids: list[str], calls: np.ndarray, scheme: Compiled
                 if "GT" not in fmt_keys:
                     raise DataContractError(f"line {line_no}: FORMAT has no GT")
                 gt_index = fmt_keys.index("GT")
-                tokens = [f.split(":")[gt_index] for f in fields[9:]]
+                # A sample field that ends before its GT sub-field (VCF lets trailing sub-fields be
+                # dropped) has a missing GT, read as '.' as backcross does (contract 1.10.0).
+                tokens = []
+                for f in fields[9:]:
+                    subs = f.split(":")
+                    tokens.append(subs[gt_index] if gt_index < len(subs) else ".")
             else:
                 tokens = fields[9:]
             try:
@@ -121,20 +164,24 @@ def _fill(path: Path, sample_ids: list[str], calls: np.ndarray, scheme: Compiled
             marker_id = mid if mid not in (".", "") else f"{chrom}_{pos_bp}"
             alt_alleles = [] if alt in (".", "") else alt.split(",")
             allele_list = [ref, *alt_alleles]
+            n_alleles = len(allele_list)
+            # Every index must be below both the allele count and 128 (contract 1.10.0); checked
+            # before the int8 store, so no index can overflow it.
+            limit = min(n_alleles, MAX_ALLELE_INDEX + 1)
             gts: list[tuple[int, int]] = []
             for token in tokens:
                 # Keyed on the GT sub-field alone, so a GT:DP file with varying depths cannot grow the cache.
                 key = token.split(":", 1)[0] if ":" in token else token
                 pair = gt_cache.get(key)
                 if pair is None:
-                    pair = _parse_gt(key)
+                    pair = _parse_gt(key, line_no)
                     gt_cache[key] = pair
-                gts.append(pair)
+                if pair[2] >= limit:
+                    raise _range_error(key, pair, n_alleles, line_no)
+                gts.append((pair[0], pair[1]))
             if filled >= calls.shape[0]:
                 raise DataContractError("VCF changed while it was being read")
             calls[filled] = gts
-            if calls[filled].max() >= len(allele_list):
-                raise DataContractError(f"line {line_no}: GT allele index exceeds ALT count")
             markers.append(Marker(marker_id=marker_id, chrom=normalize_chrom(chrom, scheme), pos_bp=pos_bp))
             alleles.append(allele_list)
             filled += 1

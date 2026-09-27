@@ -1,0 +1,40 @@
+{
+  "contractVersion": "1.10.0",
+  "coded": false,
+  "chromosomeOrder": [
+    "Gm06"
+  ],
+  "markers": [
+    {
+      "id": "k1",
+      "chrom": "Gm06",
+      "posBp": 1000,
+      "cm": null
+    }
+  ],
+  "sampleIds": [
+    "RP",
+    "DONOR",
+    "L1"
+  ],
+  "calls": {
+    "RP": [
+      [
+        "A",
+        "A"
+      ]
+    ],
+    "DONOR": [
+      [
+        "G",
+        "G"
+      ]
+    ],
+    "L1": [
+      [
+        "T",
+        "T"
+      ]
+    ]
+  }
+}

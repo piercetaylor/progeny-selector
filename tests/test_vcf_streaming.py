@@ -129,7 +129,7 @@ def test_error_line_numbers_are_unchanged(tmp_path: Path) -> None:
     fields = lines[3].split("\t")
     fields[9] = "2/0"  # ALT has one allele, so index 2 does not exist
     bad_index.write_text("\n".join([*lines[:3], "\t".join(fields), *lines[4:]]) + "\n", encoding="utf-8", newline="")
-    with pytest.raises(DataContractError, match=r"line 4: GT allele index exceeds ALT count"):
+    with pytest.raises(DataContractError, match=r'line 4: invalid GT "2/0", allele index 2 but the record has 2 alleles'):
         read_vcf(bad_index)
 
     early = tmp_path / "early.vcf"

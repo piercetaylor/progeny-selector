@@ -1,6 +1,6 @@
 # Data contract
 
-Contract version: 1.9.0
+Contract version: 1.10.0
 
 The input files shared by backcross and progeny-selector. This directory is the canonical copy in backcross and is mirrored byte for byte into progeny-selector; README.md gives the version rules and the cases under cases/ are the machine-checked examples.
 
@@ -20,7 +20,7 @@ Every text input (genotype file, samples.csv, markers.csv) is read line by line.
 
 ### VCF 4.2 or later
 
-Fixed columns `#CHROM POS ID REF ALT QUAL FILTER INFO FORMAT` followed by one column per sample, as in the VCF 4.2 specification [web] https://samtools.github.io/hts-specs/VCFv4.2.pdf. Only CHROM, POS, ID, REF, ALT, FORMAT and the GT sub-field are read. GT allele indices refer to the REF,ALT list (0 = REF); `.` is missing; `/` and `|` are treated alike (phase ignored); haploid GT is read as homozygous; multiallelic ALT is supported. Records with ID `.` or empty get the id `<CHROM>_<POS>` from CHROM exactly as written in the file, before chromosome normalisation, and POS as the parsed integer, so a record `chr13 019000000 .` is `chr13_19000000`, the string bcftools writes for `%CHROM_%POS`. INFO, QUAL and FILTER are ignored; filter upstream with bcftools.
+Fixed columns `#CHROM POS ID REF ALT QUAL FILTER INFO FORMAT` followed by one column per sample, as in the VCF 4.2 specification [web] https://samtools.github.io/hts-specs/VCFv4.2.pdf. Only CHROM, POS, ID, REF, ALT, FORMAT and the GT sub-field are read. GT allele indices refer to the REF,ALT list (0 = REF); `.` is missing; `/` and `|` are treated alike (phase ignored); haploid GT is read as homozygous; multiallelic ALT is supported. The GT sub-field is `.` or an allele index, or two of them separated by `/` or `|`. An allele index is `0` or a decimal integer without leading zeros (`[1-9][0-9]*`), at most 127, and less than the number of alleles in REF and ALT together. Anything else is the error kind `genotypes.invalid_gt`, naming the line and the value. That covers a sign, an exponent, an underscore, a space, a leading zero, an empty side (`/0`, `0/`), a GT with three or more alleles (polyploid dosage is out of scope), the VCF 4.4 leading phase indicator (`|0|1`), and an index outside the REF,ALT list. `./.`, `.|.`, `.` and a half-missing `./1` are read as before, and an empty GT, or a sample field that ends before its GT sub-field (VCF lets trailing sub-fields be dropped), is read as missing. Records with ID `.` or empty get the id `<CHROM>_<POS>` from CHROM exactly as written in the file, before chromosome normalisation, and POS as the parsed integer, so a record `chr13 019000000 .` is `chr13_19000000`, the string bcftools writes for `%CHROM_%POS`. INFO, QUAL and FILTER are ignored; filter upstream with bcftools.
 
 ### HapMap (TASSEL style)
 
