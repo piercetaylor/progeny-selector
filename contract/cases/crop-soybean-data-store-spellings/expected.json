@@ -2,34 +2,33 @@
   "contractVersion": "1.12.0",
   "coded": false,
   "chromosomeOrder": [
-    "Vu01",
-    "Vu07",
-    "LG4",
-    "Vu01(old7)"
+    "Gm07",
+    "Gm13",
+    "glyma.Wm82.gnm4.scaffold_22"
   ],
   "markers": [
     {
-      "id": "r1",
-      "chrom": "Vu01",
-      "posBp": 1000,
-      "cm": null
-    },
-    {
-      "id": "r2",
-      "chrom": "Vu07",
+      "id": "d2",
+      "chrom": "Gm07",
       "posBp": 2000,
       "cm": null
     },
     {
-      "id": "r4",
-      "chrom": "LG4",
-      "posBp": 4000,
+      "id": "d3",
+      "chrom": "Gm07",
+      "posBp": 3000,
       "cm": null
     },
     {
-      "id": "r3",
-      "chrom": "Vu01(old7)",
-      "posBp": 3000,
+      "id": "d1",
+      "chrom": "Gm13",
+      "posBp": 1000,
+      "cm": null
+    },
+    {
+      "id": "d4",
+      "chrom": "glyma.Wm82.gnm4.scaffold_22",
+      "posBp": 4000,
       "cm": null
     }
   ],

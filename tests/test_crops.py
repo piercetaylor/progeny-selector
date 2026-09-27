@@ -146,6 +146,68 @@ def test_lg_prefix_is_soybean_only() -> None:
     assert normalize_chrom("LG7", MAIZE) == "LG7"
 
 
+def test_soybean_reads_every_1_2_0_spelling_unchanged() -> None:
+    """Contract 1.12.0 is additive: every spelling the old pattern read maps as before."""
+    cases = {
+        "Gm01": "Gm01",
+        "gm1": "Gm01",
+        "chr7": "Gm07",
+        "Chr_07": "Gm07",
+        "chromosome 13": "Gm13",
+        "LG_7": "Gm07",
+        "lg7": "Gm07",
+        "7": "Gm07",
+        "07": "Gm07",
+        "20": "Gm20",
+    }
+    for name, canonical in cases.items():
+        assert normalize_chrom(name, SOYBEAN) == canonical, name
+
+
+def test_soybean_reads_the_data_store_names() -> None:
+    """Contract 1.12.0 (docs/adr/0032): the SoyBase / LIS Data Store prefix and the V1.1 spelling."""
+    cases = {
+        "glyma.Wm82.gnm4.Gm01": "Gm01",
+        "glyma.Wm82.gnm5.Chr13": "Gm13",
+        "glyma.Wm82.gnm2.Gm20": "Gm20",
+        "GLYMAchr_01": "Gm01",
+        "GLYMAchr01": "Gm01",
+        "glyma.wm82.gnm12.gm05": "Gm05",
+    }
+    for name, canonical in cases.items():
+        assert normalize_chrom(name, SOYBEAN) == canonical, name
+
+
+def test_soybean_keeps_other_data_store_and_unplaced_names_as_written() -> None:
+    for name in (
+        "21",
+        "Gm00",
+        "scaffold_22",
+        "glyma.Lee.gnm1.Gm01",  # another cultivar
+        "glyma.Wm82.gnm4.scaffold_22",
+        "glyma.Wm82.gnm2.Gm21",
+        "glyma.Wm82.gnm4.LG7",  # LG after the Data Store prefix is not a Data Store spelling
+        "glyma.Wm82.gnm6.01",
+        "NC_016088.4",  # RefSeq accessions need a table (deferred)
+        "MT",
+        "Pltd",
+        "ChrUn",
+    ):
+        assert normalize_chrom(name, SOYBEAN) == name, name
+
+
+def test_soybean_data_store_names_order_with_the_canonical_names() -> None:
+    """The twin of contract case crop-soybean-data-store-spellings."""
+    names = ["glyma.Wm82.gnm4.Gm13", "glyma.Wm82.gnm5.Chr07", "GLYMAchr_07", "glyma.Wm82.gnm4.scaffold_22"]
+    normalised = [normalize_chrom(n, SOYBEAN) for n in names]
+    assert normalised == ["Gm13", "Gm07", "Gm07", "glyma.Wm82.gnm4.scaffold_22"]
+    assert sorted(set(normalised), key=lambda c: chrom_sort_key(c, SOYBEAN)) == [
+        "Gm07",
+        "Gm13",
+        "glyma.Wm82.gnm4.scaffold_22",
+    ]
+
+
 def test_unmatched_names_are_kept_and_ordered_after_the_canonical_names() -> None:
     for name in ("ChrUn", "chrUn", "Un0", "chr00", "MT", "Pltd"):
         assert normalize_chrom(name, MAIZE) == name

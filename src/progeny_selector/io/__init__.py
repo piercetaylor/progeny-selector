@@ -5,9 +5,11 @@ TokenProfile; it applies to HapMap and wide CSV, and a profile with a VCF is an 
 ``load_dataset`` records its label ("default", a built-in id or "custom:<id>") in Dataset.token_profile.
 
 A crop (crops.py, contract 1.5.0) is a built-in scheme id; it chooses the chromosome naming scheme
-every reader normalises and orders names under. "soybean" is the default and reproduces contract
-1.2.0 exactly; ``load_dataset`` resolves it and puts the compiled scheme on Dataset.scheme, from
-which Dataset.crop is derived.
+every reader normalises and orders names under. "soybean" is the default and reads every
+spelling of the 1.2.0 rule, and since 1.12.0 the SoyBase / LIS Data Store names of the Wm82 reference assemblies
+(``glyma.Wm82.gnmN.Gm01``, ``glyma.Wm82.gnm5.Chr01``) and the V1.1 spelling ``GLYMAchr_01``;
+``load_dataset`` resolves it and puts the compiled scheme on Dataset.scheme, from which
+Dataset.crop is derived.
 
 A BrAPI variant set (brapi.py, docs/adr/0024) is a fourth genotype source outside the shared
 contract; samples.csv and markers.csv apply as for a file.

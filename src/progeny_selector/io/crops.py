@@ -1,11 +1,14 @@
 """Crop chromosome schemes (contract/data-contract.md 1.5.0, "Chromosome names"; contract/crops/;
-docs/adr/0020, docs/adr/0027 for cowpea, pea and peanut in 1.7.0, and docs/adr/0029 for
-sunflower in 1.9.0; mirrors backcross src/io/crops.ts).
+docs/adr/0020, docs/adr/0027 for cowpea, pea and peanut in 1.7.0, docs/adr/0029 for
+sunflower in 1.9.0, and docs/adr/0032 for the soybean Data Store names in 1.12.0; mirrors
+backcross src/io/crops.ts).
 
 Responsibility: the thirteen schemes shipped under contract/crops/, the schema check for one of
 them, and the id-to-compiled-scheme lookup the readers, ``load_dataset``, the CLI and the
-Load screen resolve a chosen crop through. ``soybean`` is the default and reproduces the
-1.2.0 rule exactly. No user-supplied scheme is accepted in this version. Shinylive stages
+Load screen resolve a chosen crop through. ``soybean`` is the default and reads every
+spelling of the 1.2.0 rule, and since 1.12.0 the SoyBase / LIS Data Store names of the Wm82 reference assemblies
+(``glyma.Wm82.gnmN.Gm01``, ``glyma.Wm82.gnm5.Chr01``) and the V1.1 spelling ``GLYMAchr_01``.
+No user-supplied scheme is accepted in this version. Shinylive stages
 the package, not the repository root, so the literals below are the runtime copy of
 contract/crops/*.json; tests/test_crops.py checks them against the files.
 

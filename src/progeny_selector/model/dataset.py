@@ -167,7 +167,9 @@ class Dataset:
     a built-in id, or "custom:<id>".
     scheme: the compiled crop chromosome scheme the names were read under (contract 1.5.0),
     which every later normalisation, ordering and chromosome-length lookup uses; ``SOYBEAN`` is
-    the default and reproduces contract 1.2.0. ``crop`` is its id, derived so the two cannot
+    the default and reads every spelling of the 1.2.0 rule, and since 1.12.0 the SoyBase / LIS
+    Data Store names of the Wm82 reference assemblies (``glyma.Wm82.gnmN.Gm01``, ``glyma.Wm82.gnm5.Chr01``) and the
+    V1.1 spelling ``GLYMAchr_01``. ``crop`` is its id, derived so the two cannot
     disagree.
     call_sets: every call set of the BrAPI variant set the dataset came from (docs/adr/0024), in
     server order; empty for a file. It is not aligned with ``genotypes.sample_ids``, which

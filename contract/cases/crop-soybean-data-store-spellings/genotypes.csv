@@ -1,0 +1,5 @@
+marker_id,chrom,pos_bp,RP,DONOR,L1
+d1,glyma.Wm82.gnm4.Gm13,1000,A,G,R
+d2,glyma.Wm82.gnm5.Chr07,2000,A,G,R
+d3,GLYMAchr_07,3000,A,G,R
+d4,glyma.Wm82.gnm4.scaffold_22,4000,A,G,R

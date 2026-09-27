@@ -72,7 +72,7 @@ def compile_scheme(scheme: CropScheme) -> CompiledScheme:
     )
 
 
-#: The literal of contract/crops/soybean.json (contract 1.5.0).
+#: The literal of contract/crops/soybean.json (contract 1.12.0).
 SOYBEAN_SCHEME = CropScheme(
     id="soybean",
     name="Soybean",
@@ -81,10 +81,11 @@ SOYBEAN_SCHEME = CropScheme(
     assembly="Williams 82 (Wm82.a2.v1 / a4.v1 / a6.v1 naming)",
     chromosomes=[f"Gm{i:02d}" for i in range(1, 21)],
     keys=[str(i) for i in range(1, 21)],
-    pattern=r"^(?:gm|chr|chromosome|lg)?[_\s-]?0*([1-9]|1[0-9]|20)$",
+    pattern=r"^(?:glyma\.wm82\.gnm[0-9]+\.(?:gm|chr)|glymachr|gm|chr|chromosome|lg)?[_\s-]?0*([1-9]|1[0-9]|20)$",
     sources=[
         "https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/000/004/515/GCF_000004515.6_Glycine_max_v4.0/GCF_000004515.6_Glycine_max_v4.0_assembly_report.txt",
         "https://rest.ensembl.org/info/assembly/glycine_max",
+        "https://data.legumeinfo.org/Glycine/max/genomes/Wm82.gnm5.NRKG/README.Wm82.gnm5.NRKG.yml",
     ],
 )
 
