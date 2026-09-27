@@ -40,6 +40,7 @@ from progeny_selector.core.pipeline import run_analysis
 from progeny_selector.io import load_dataset, read_criteria
 from progeny_selector.io.criteria import dump_criteria_yaml, read_criteria_text
 from progeny_selector.io.crops import BUILTIN_CROPS, DEFAULT_CROP_ID
+from progeny_selector.io.delimited import invalid_utf8_message
 from progeny_selector.io.profiles import BUILTIN_PROFILES, DEFAULT_PROFILE_ID
 from progeny_selector.model.criteria import CriteriaError
 from progeny_selector.model.dataset import DataContractError
@@ -128,6 +129,9 @@ def read_profile_json(path: str) -> dict:
     try:
         with open(path, encoding="utf-8") as fh:
             loaded = json.load(fh)
+    except UnicodeDecodeError:
+        # The contract 1.11.0 line and position, as backcross reports a custom profile (docs/adr/0031).
+        raise DataContractError(invalid_utf8_message(path, label="token profile file")) from None
     except (OSError, ValueError) as exc:
         raise DataContractError(f"token profile file: {exc}") from exc
     if not isinstance(loaded, dict):

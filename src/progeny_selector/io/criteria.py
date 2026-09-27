@@ -6,7 +6,8 @@ typos fail at the boundary, and serialise a Criteria back to that document in
 one canonical form. PyYAML is the only dependency (available in Pyodide, so
 the reader also runs under shinylive). Numeric and boolean fields are
 type-checked before the dataclasses are built, and malformed YAML is reported
-as CriteriaError, so those mistakes never surface as native exceptions.
+as CriteriaError, so those mistakes never surface as native exceptions; so is a
+file that is not valid UTF-8, naming the line (the contract 1.11.0 message; no case).
 
 Interface:
     read_criteria(path) -> Criteria
@@ -25,6 +26,7 @@ from pathlib import Path
 
 import yaml
 
+from progeny_selector.io.delimited import invalid_utf8_message
 from progeny_selector.model.criteria import (
     AvoidSpec,
     BackgroundOptions,
@@ -226,7 +228,11 @@ def _normalise_locus(doc: dict, where: str) -> dict:
 
 
 def read_criteria(path: str | Path) -> Criteria:
-    return read_criteria_text(Path(path).read_text(encoding="utf-8"))
+    try:
+        text = Path(path).read_text(encoding="utf-8")
+    except UnicodeDecodeError:
+        raise CriteriaError(invalid_utf8_message(path)) from None
+    return read_criteria_text(text)
 
 
 def read_criteria_text(text: str) -> Criteria:

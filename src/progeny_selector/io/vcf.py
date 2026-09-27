@@ -18,6 +18,9 @@ whose records precede its header is told that rather than called empty. The peak
 line's tokens plus the marker and allele tables, instead of about twice the
 matrix, and the cost is one extra decompression of a `.gz`. Chromosome names are
 normalised with `scheme` in pass 2 only; pass 1 tokenises nothing.
+A byte sequence that is not valid UTF-8 in either pass raises DataContractError naming the
+file and the physical line (contract 1.11.0, docs/adr/0031); pass 1 reads the whole file, so it
+can outrank a row error on an earlier line.
 Format facts: VCF 4.2 specification [web]
 https://samtools.github.io/hts-specs/VCFv4.2.pdf.
 
@@ -33,7 +36,7 @@ from pathlib import Path
 import numpy as np
 
 from progeny_selector.core.chrom import SOYBEAN, CompiledScheme, normalize_chrom
-from progeny_selector.io.delimited import is_blank, open_text
+from progeny_selector.io.delimited import invalid_utf8_error, is_blank, open_text
 from progeny_selector.io.position import parse_position
 from progeny_selector.model.dataset import DataContractError, GenotypeMatrix, Marker
 
@@ -199,6 +202,9 @@ def read_vcf(path: str | Path, scheme: CompiledScheme = SOYBEAN) -> GenotypeMatr
         # header", or the '#'-after-header message) instead of the false "no variant records".
         calls = np.empty((n_records, len(sample_ids), 2), dtype=np.int8)
         markers, alleles = _fill(path, sample_ids, calls, scheme)
+    except UnicodeDecodeError:
+        # Contract 1.11.0: strict UTF-8, located by a byte re-read (delimited.invalid_utf8_message).
+        raise invalid_utf8_error(path) from None
     except FileNotFoundError:
         # A missing file fails at open, not while reading, and the CLI catches it by name.
         raise

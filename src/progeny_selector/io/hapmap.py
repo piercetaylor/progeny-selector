@@ -13,6 +13,8 @@ heterozygote token that names no alleles resolves to the row's two alleles (the
 `alleles` column upper-cased, minus N, plus the symbols the cells show), and any other number of
 alleles is an error naming the line, and a profile with ``coding="abh"`` is an
 error naming the profile.
+A byte sequence that is not valid UTF-8 raises DataContractError naming the file
+and the physical line (contract 1.11.0, docs/adr/0031).
 Column facts [web]
 https://statgen-esalq.github.io/Hapmap-and-VCF-formats-and-its-integration-with-onemap/.
 
@@ -29,7 +31,7 @@ import numpy as np
 from progeny_selector.constants import HAPMAP_MISSING
 from progeny_selector.core.chrom import SOYBEAN, CompiledScheme, normalize_chrom
 from progeny_selector.io.calls import encode_marker, parse_nucleotide_call
-from progeny_selector.io.delimited import is_blank, open_text
+from progeny_selector.io.delimited import invalid_utf8_error, is_blank, open_text
 from progeny_selector.io.position import parse_position
 from progeny_selector.io.profiles import TokenProfile, compile_profile
 from progeny_selector.model.dataset import DataContractError, GenotypeMatrix, Marker
@@ -49,42 +51,46 @@ def read_hapmap(
     markers: list[Marker] = []
     alleles: list[list[str]] = []
     rows: list[np.ndarray] = []
-    with open_text(path) as fh:
-        header_line = fh.readline()
-        header_no = 1
-        while header_line and is_blank(header_line):
+    try:
+        with open_text(path) as fh:
             header_line = fh.readline()
-            header_no += 1
-        header = header_line.rstrip("\r\n").split("\t")
-        if len(header) <= N_FIXED or not header[0].lower().startswith("rs#"):
-            raise DataContractError("HapMap header must start with rs# and have 11 fixed columns plus samples")
-        sample_ids = header[N_FIXED:]
-        for line_no, line in enumerate(fh, start=header_no + 1):
-            if is_blank(line):
-                continue
-            fields = line.rstrip("\r\n").split("\t")
-            if len(fields) != len(header):
-                raise DataContractError(f"line {line_no}: expected {len(header)} columns, found {len(fields)}")
-            try:
-                cells = fields[N_FIXED:]
-                calls = [parse_nucleotide_call(t, HAPMAP_MISSING, compiled) for t in cells]
-                # The alleles column only seeds `*` heterozygote resolution: the
-                # marker's allele list is the sorted set of symbols its calls use
-                # (encode_marker). backcross seeds its table from the column in
-                # file order instead. The two can order a marker's alleles
-                # differently, but no output reads that order, since core works
-                # on indices within one tool and no export writes the list.
-                seed = [a.strip().upper() for a in fields[1].split("/") if a.strip() and a.strip().upper() != "N"]
-                allele_list, pairs = encode_marker(calls, seed, cells)
-            except ValueError as exc:
-                raise DataContractError(f"line {line_no}: {exc}") from exc
-            try:
-                pos_bp = parse_position(fields[3])
-            except ValueError as exc:
-                raise DataContractError(f"line {line_no}: {exc}") from exc
-            markers.append(Marker(marker_id=fields[0], chrom=normalize_chrom(fields[2], scheme), pos_bp=pos_bp))
-            alleles.append(allele_list)
-            rows.append(pairs)
+            header_no = 1
+            while header_line and is_blank(header_line):
+                header_line = fh.readline()
+                header_no += 1
+            header = header_line.rstrip("\r\n").split("\t")
+            if len(header) <= N_FIXED or not header[0].lower().startswith("rs#"):
+                raise DataContractError("HapMap header must start with rs# and have 11 fixed columns plus samples")
+            sample_ids = header[N_FIXED:]
+            for line_no, line in enumerate(fh, start=header_no + 1):
+                if is_blank(line):
+                    continue
+                fields = line.rstrip("\r\n").split("\t")
+                if len(fields) != len(header):
+                    raise DataContractError(f"line {line_no}: expected {len(header)} columns, found {len(fields)}")
+                try:
+                    cells = fields[N_FIXED:]
+                    calls = [parse_nucleotide_call(t, HAPMAP_MISSING, compiled) for t in cells]
+                    # The alleles column only seeds `*` heterozygote resolution: the
+                    # marker's allele list is the sorted set of symbols its calls use
+                    # (encode_marker). backcross seeds its table from the column in
+                    # file order instead. The two can order a marker's alleles
+                    # differently, but no output reads that order, since core works
+                    # on indices within one tool and no export writes the list.
+                    seed = [a.strip().upper() for a in fields[1].split("/") if a.strip() and a.strip().upper() != "N"]
+                    allele_list, pairs = encode_marker(calls, seed, cells)
+                except ValueError as exc:
+                    raise DataContractError(f"line {line_no}: {exc}") from exc
+                try:
+                    pos_bp = parse_position(fields[3])
+                except ValueError as exc:
+                    raise DataContractError(f"line {line_no}: {exc}") from exc
+                markers.append(Marker(marker_id=fields[0], chrom=normalize_chrom(fields[2], scheme), pos_bp=pos_bp))
+                alleles.append(allele_list)
+                rows.append(pairs)
+    except UnicodeDecodeError:
+        # Contract 1.11.0: strict UTF-8, located by a byte re-read (delimited.invalid_utf8_message).
+        raise invalid_utf8_error(path) from None
     if not markers:
         raise DataContractError("HapMap contains no marker rows")
     return GenotypeMatrix(markers=markers, sample_ids=sample_ids, alleles=alleles, calls=np.stack(rows), coded=False)

@@ -138,3 +138,11 @@ tables, which is what makes millions of records cheap in the matrix and not free
 - A format arrives whose record count cannot be counted cheaply (a stream without a seekable
   source, for instance a BrAPI page), where the growth buffer of option 2 is the right answer
   and this record does not apply.
+
+## Amendment, 2026-09-27
+
+The Latin-1 escape recorded above under "`EOFError` and `OSError` become a contract error naming
+the file" is closed by contract 1.11.0 (docs/adr/0031). A byte sequence that is not valid UTF-8 in
+either pass now raises `DataContractError` naming the file, the physical line and the byte position,
+instead of a raw `UnicodeDecodeError`. Because pass 1 reads the whole file, that error can outrank a
+row error on an earlier line, the same precedence cost this record accepts for an unreadable stream.

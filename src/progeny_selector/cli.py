@@ -32,6 +32,7 @@ from progeny_selector.core.selection import project_next_generation, select_top_
 from progeny_selector.io import brapi, load_dataset, read_criteria, read_samples
 from progeny_selector.io.brapi import BrapiSource, call_sets_csv_text, normalise_base_url
 from progeny_selector.io.crops import BUILTIN_CROPS, DEFAULT_CROP_ID
+from progeny_selector.io.delimited import invalid_utf8_error, invalid_utf8_message
 from progeny_selector.io.export import write_next_round_manifest, write_results_csv, write_selection_csv
 from progeny_selector.model.criteria import CriteriaError
 from progeny_selector.model.dataset import DataContractError
@@ -151,6 +152,9 @@ def _profile_ref(ref: str | None) -> str | dict | None:
     try:
         with open(ref, encoding="utf-8") as fh:
             obj = json.load(fh)
+    except UnicodeDecodeError:
+        # The contract 1.11.0 line and position, as backcross reports a custom profile (docs/adr/0031).
+        raise DataContractError(invalid_utf8_message(ref, label=f"token profile file {ref}")) from None
     except (OSError, ValueError) as exc:
         raise DataContractError(f"token profile file {ref}: {exc}") from exc
     if not isinstance(obj, dict):
@@ -219,14 +223,18 @@ NA_RESULT_COLUMNS = frozenset({*NUMERIC_RESULT_COLUMNS, "family_id", "generation
 
 def _read_results(path: str) -> list[dict]:
     rows: list[dict] = []
-    with open(path, encoding="utf-8", newline="") as fh:
-        for raw in csv.DictReader(fh):
-            # results.csv writes NA for a missing value (docs/adr/0016); a pre-freeze file writes an empty cell.
-            row: dict = {k: (None if (v == "NA" and k in NA_RESULT_COLUMNS) else v) for k, v in raw.items()}
-            for k in NUMERIC_RESULT_COLUMNS:
-                row[k] = float(row[k]) if row.get(k) not in (None, "") else None
-            row["passes_filters"] = row.get("passes_filters") == "TRUE"
-            rows.append(row)
+    try:
+        with open(path, encoding="utf-8", newline="") as fh:
+            for raw in csv.DictReader(fh):
+                # results.csv writes NA for a missing value (docs/adr/0016); a pre-freeze file writes an empty cell.
+                row: dict = {k: (None if (v == "NA" and k in NA_RESULT_COLUMNS) else v) for k, v in raw.items()}
+                for k in NUMERIC_RESULT_COLUMNS:
+                    row[k] = float(row[k]) if row.get(k) not in (None, "") else None
+                row["passes_filters"] = row.get("passes_filters") == "TRUE"
+                rows.append(row)
+    except UnicodeDecodeError:
+        # Strict UTF-8, as for the contract inputs (docs/adr/0031); main() reports a DataContractError.
+        raise invalid_utf8_error(path) from None
     return rows
 
 

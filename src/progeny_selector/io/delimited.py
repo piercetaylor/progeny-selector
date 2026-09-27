@@ -13,10 +13,21 @@ otherwise literal (the csv module's own reading), a line break inside a quoted
 field is read as a single LF, a quoted field still open at the end of the
 file raises DataContractError naming the physical line where it opened, and
 rows whose every cell is blank are skipped.
+Contract 1.11.0: every text input is strict UTF-8. A byte sequence that is not
+well-formed UTF-8 raises DataContractError naming the file, the physical line
+(counted by LF bytes, 1-based) and the 1-based byte position of the ill-formed
+sequence's lead byte within that line, a byte-order mark's three bytes counted:
+`{path}: line N: not valid UTF-8 (byte 0xHH at position P)` (docs/adr/0031).
+The decode stays a strict TextIOWrapper; the file is re-read as bytes to locate
+the byte only after a UnicodeDecodeError, so the happy path does no extra work.
 
 Interface:
     open_text(path, newline=None) -> TextIO
-    read_text(path) -> str            (newline="" so the csv module sees CRLF itself)
+    open_binary(path) -> BinaryIO     (gzip.open for .gz/.bgz, open otherwise)
+    read_text(path) -> str            (newline="" so the csv module sees CRLF itself; DataContractError on bad UTF-8)
+    invalid_utf8_message(path, label=None) -> str (the located contract 1.11.0 message, or "{label}: not valid UTF-8";
+                                      label defaults to the path)
+    invalid_utf8_error(path) -> DataContractError
     is_blank(text) -> bool            (only spaces and tabs, after a line end is removed)
     sniff_delimiter(text) -> str      ("\\t" or ",")
     csv_rows(text, label) -> list[(line_num, row)]   (line_num: the row's last physical line)
@@ -28,7 +39,7 @@ import csv
 import gzip
 import io
 from pathlib import Path
-from typing import TextIO
+from typing import BinaryIO, TextIO, cast
 
 from progeny_selector.model.dataset import DataContractError
 
@@ -39,9 +50,44 @@ def open_text(path: str | Path, newline: str | None = None) -> TextIO:
     return open(path, encoding="utf-8-sig", newline=newline)
 
 
+def open_binary(path: str | Path) -> BinaryIO:
+    if str(path).endswith((".gz", ".bgz")):
+        # typeshed types this as GzipFile, a BufferedIOBase that is not nominally a BinaryIO.
+        return cast(BinaryIO, gzip.open(path, "rb"))
+    return open(path, "rb")
+
+
+def invalid_utf8_message(path: str | Path, label: str | None = None) -> str:
+    """Re-read `path` as bytes and name the first physical line that is not valid UTF-8 (contract 1.11.0).
+
+    The position is the 1-based byte offset of the ill-formed sequence's lead byte within its line;
+    a byte-order mark on line 1 decodes as U+FEFF, so its three bytes are counted. When no line fails,
+    or the re-read itself fails, the message names the file alone. `label` replaces the path as the
+    message prefix, for a reader whose own messages already name the file another way.
+    """
+    prefix = str(path) if label is None else label
+    try:
+        with open_binary(path) as fh:
+            for line_no, raw in enumerate(fh, start=1):
+                try:
+                    raw.decode("utf-8")
+                except UnicodeDecodeError as exc:
+                    return f"{prefix}: line {line_no}: not valid UTF-8 (byte 0x{raw[exc.start]:02X} at position {exc.start + 1})"
+    except (EOFError, OSError):
+        pass
+    return f"{prefix}: not valid UTF-8"
+
+
+def invalid_utf8_error(path: str | Path) -> DataContractError:
+    return DataContractError(invalid_utf8_message(path))
+
+
 def read_text(path: str | Path) -> str:
     with open_text(path, newline="") as fh:
-        return fh.read()
+        try:
+            return fh.read()
+        except UnicodeDecodeError:
+            raise invalid_utf8_error(path) from None
 
 
 def is_blank(text: str) -> bool:
