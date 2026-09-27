@@ -68,6 +68,12 @@ def read_hapmap(
             try:
                 cells = fields[N_FIXED:]
                 calls = [parse_nucleotide_call(t, HAPMAP_MISSING, compiled) for t in cells]
+                # The alleles column only seeds `*` heterozygote resolution: the
+                # marker's allele list is the sorted set of symbols its calls use
+                # (encode_marker). backcross seeds its table from the column in
+                # file order instead. The two can order a marker's alleles
+                # differently, but no output reads that order, since core works
+                # on indices within one tool and no export writes the list.
                 seed = [a.strip().upper() for a in fields[1].split("/") if a.strip() and a.strip().upper() != "N"]
                 allele_list, pairs = encode_marker(calls, seed, cells)
             except ValueError as exc:
