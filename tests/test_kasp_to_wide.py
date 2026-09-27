@@ -170,3 +170,43 @@ def test_grid_markers_as_rows(tmp_path):
     # Every cell of both rows: a transposed sample assignment would move the het and the missing call.
     assert lines["snp.1"].split(",")[3:] in (["AA", "GG", "AG"], ["AA", "GG", "GA"])
     assert lines["snp.2"].split(",")[3:] == ["AA", "GG", "N"]
+
+
+# The same calls as LONG_KASP inside a sectioned service-lab report: a Statistics block and a
+# SNP block (headed SNPID,SNPNum,...) precede the Data block, whose header carries the three
+# names among other columns in another order (the layout Mgdb2's IntertekImport and
+# eastgenomics' KASP_to_VCF read).
+SECTIONED_KASP = """Statistics
+Num Samples,5
+Num SNPs,2
+SNPs
+SNPID,SNPNum,AlleleY,AlleleX,Sequence
+snp.1,1,A,G,ACGT[A/G]ACGT
+snp.2,2,A,G,ACGT[A/G]ACGT
+Scaling,,,,
+Data
+DaughterPlate,MasterPlate,MasterWell,Call,X,Y,SNPID,SubjectID
+P1,M1,A01,A:A,0.9,0.1,snp.1,RP
+P1,M1,A01,A:A,0.9,0.1,snp.2,RP
+P1,M1,A02,G:G,0.1,0.9,snp.1,DONOR
+P1,M1,A02,G:G,0.1,0.9,snp.2,DONOR
+P1,M1,A03,A:G,0.5,0.5,snp.1,PROGENY1
+P1,M1,A03,Uncallable,0.0,0.0,snp.2,PROGENY1
+P1,M1,A04,A:A,0.9,0.1,snp.1,NTC
+P1,M1,A04,A:A,0.9,0.1,snp.2,NTC
+P1,M1,A05,?,0.0,0.0,snp.1,PROGENY2
+P1,M1,A05,G:G,0.1,0.9,snp.2,PROGENY2
+"""
+
+
+def test_sectioned_long_export_reads_from_its_data_header(tmp_path, capsys):
+    markers = _write(tmp_path, "markers.csv", MARKERS_CSV)
+    plain_out = tmp_path / "plain.csv"
+    sectioned_out = tmp_path / "sectioned.csv"
+    plain = _write(tmp_path, "plain.csv.in", LONG_KASP)
+    sectioned = _write(tmp_path, "sectioned.csv.in", SECTIONED_KASP)
+
+    assert kasp_to_wide.main(["--kasp", str(plain), "--markers", str(markers), "--out", str(plain_out)]) == 0
+    assert kasp_to_wide.main(["--kasp", str(sectioned), "--markers", str(markers), "--out", str(sectioned_out)]) == 0
+    assert "shape: long" in capsys.readouterr().out
+    assert sectioned_out.read_text(encoding="utf-8") == plain_out.read_text(encoding="utf-8")

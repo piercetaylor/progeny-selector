@@ -2,8 +2,12 @@
 
 Two input shapes are accepted (docs/adr/0019, decision 9; docs/m2-phases.md Phase 10):
 
-- long: one row per (sample, marker) call, detected case-insensitively by the headers
-  ``SubjectID``, ``SNPID``, ``Call`` (this shape is unverified against a primary source).
+- long: one row per (sample, marker) call, the service-lab (Kraken / Intertek) report,
+  detected case-insensitively by the first row carrying ``SubjectID``, ``SNPID`` and ``Call``,
+  so a sectioned export (``Statistics``, ``SNPs``, then ``Data``) is read from its data header
+  to the end. The three names match open parsers of real exports (Mgdb2 IntertekImport,
+  eastgenomics KASP_to_VCF, panGenomeBreedr ``kasp_dat``); LGC's own documentation naming
+  them was not found.
 - grid: SNPviewer's export, one row per sample or one row per marker, detected by matching
   the header row or the first column against the marker ids in ``--markers`` in either
   orientation.
@@ -65,6 +69,20 @@ def detect_shape(header: list[str]) -> str:
     if all(h in lowered for h in LONG_HEADERS):
         return "long"
     return "grid"
+
+
+def long_header_index(rows: list[tuple[int, list[str]]]) -> int | None:
+    """Index of the first row carrying all of ``SubjectID``, ``SNPID`` and ``Call``, or None.
+
+    A service-lab long export is sectioned: a ``Statistics`` block and a SNP block (headed
+    ``SNPID``, ``SNPNum``, ``AlleleY`` ...) come before the ``Data`` block, whose header row is
+    the first to carry all three names and which runs to the end of the file (the layout the
+    Intertek importer in Mgdb2 and eastgenomics' KASP_to_VCF both read).
+    """
+    for i, (_, row) in enumerate(rows):
+        if detect_shape(row) == "long":
+            return i
+    return None
 
 
 def _unordered(value: tuple[str, str] | None) -> tuple[str, ...] | None:
@@ -217,9 +235,10 @@ def main(argv: list[str] | None = None) -> int:
         rows = _read_grid_or_long(args.kasp)
         if not rows:
             raise DataContractError(f"{args.kasp}: empty file")
-        shape = detect_shape(rows[0][1])
-        if shape == "long":
-            calls, samples, reasons = parse_long(rows, controls)
+        start = long_header_index(rows)
+        shape = "grid" if start is None else "long"
+        if start is not None:
+            calls, samples, reasons = parse_long(rows[start:], controls)
         else:
             calls, samples, reasons = parse_grid(rows, markers, controls)
         placed, grid, n_unplaced = build_wide(calls, samples, markers, args.drop_unplaced)

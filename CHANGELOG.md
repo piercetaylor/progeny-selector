@@ -27,6 +27,7 @@ All notable changes to this project are documented in this file. The format foll
 
 ### Fixed
 
+- `scripts/kasp_to_wide.py` reads a sectioned KASP service-lab export (`Statistics`, `SNPs`, then `Data`) from the first row carrying `SubjectID`, `SNPID` and `Call`; it took the first row as the header, so a real export failed as an undetectable grid (docs/adr/0019, amendment of 2026-09-27).
 - `validate` reports how many duplicate-pair candidates it skipped because the two lines share too few called markers ("N pairs skipped: fewer than M markers called in both lines"), where it dropped them silently before (Q14, the silent-skip half). The reload-guard end-to-end test now waits for the breadcrumb's settled state and fails on an empty mutation history, so it can no longer pass vacuously.
 - The Load screen reads a genotype upload named `.vcf.gz`, `.vcf.bgz`, `.hmp.txt` or `.hmp.gz`. Shiny stores an upload under its last suffix only, so such a file reached the reader as `0.gz` or `0.txt` and failed with "cannot infer genotype format" or a wide-CSV header error; the screen now restores the upload's own name before reading it, and errors in samples.csv, markers.csv and criteria.yaml name the user's file.
 
