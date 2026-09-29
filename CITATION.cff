@@ -1,0 +1,26 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+type: software
+title: "progeny-selector: marker-assisted backcross progeny ranking and selection"
+authors:
+  - family-names: Taylor
+    given-names: Pierce
+license: MIT
+repository-code: "https://github.com/piercetaylor/progeny-selector"
+url: "https://piercetaylor.github.io/progeny-selector/"
+version: 0.1.0
+keywords:
+  - plant breeding
+  - marker-assisted backcrossing
+  - progeny selection
+  - recurrent parent genome
+  - soybean
+references:
+  - type: software
+    title: Backcross
+    authors:
+      - family-names: Taylor
+        given-names: Pierce
+    repository-code: "https://github.com/piercetaylor/backcross"
+    url: "https://piercetaylor.github.io/backcross/"
+    notes: "Sibling tool; both read input data contract 1.12.0"

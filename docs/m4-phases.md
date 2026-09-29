@@ -17,6 +17,7 @@ Taken by the main session after the spec was written, from the joint release res
 - **Placeholders resolved.** `{{VERSION}}` = `0.1.0` (both tools; 1.0.0 waits for frozen columns and flags and a second cross or crop validated on real data). `{{SAME_DAY}}` = yes: both tools tag v0.1.0 the same day and each release note names input data contract 1.12.0 and links the sibling's release. `{{BACKCROSS_REFERENCE}}` = included, not commented out. `{{CITATION_AUTHORS}}` = `family-names: Taylor`, `given-names: Pierce`, no ORCID or affiliation unless the maintainer adds one. The CITATION.cff content is in docs/adr/0035 (title, url, keywords, the `references` entry for backcross); no `.zenodo.json`, because Zenodo ignores CITATION.cff when both exist. `{{RELEASE_DATE}}` stays the maintainer's.
 - **Q6:** `Development Status :: 3 - Alpha`, the joint decision, not `4 - Beta`.
 - **Q1, Q2, Q4, Q5, Q7 to Q15, items 16 to 26, 28:** accepted as recommended.
+- **CITATION.cff was written early (with phase 5, so the README link resolves) and carries no `date-released`.** The literal `unreleased` fails the CFF 1.2.0 schema (`date-released` must be a date) and so would fail phase 8's own `cffconvert --validate`. The maintainer adds `date-released: YYYY-MM-DD` when tagging. Phase 8's citation test must accept the field being absent, or equal to the CHANGELOG date once the date is set.
 - **Item 27:** the main session restructures CHANGELOG.md itself in phase 8; no doer edits CHANGELOG.md.
 
 ## Placeholders (defined once; every phase refers to these names)

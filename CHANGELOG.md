@@ -36,6 +36,7 @@ All notable changes to this project are documented in this file. The format foll
 
 ### Documentation
 
+- The README is rewritten for breeders: install with pip or pipx, run the shipped example, launch the interface, what each output means, what `--top` keeps, and the known limitations. docs/tutorial.md walks through one run of the example on the command line and in the interface, docs/glossary.md defines the terms (RPP, carrier chromosome, linkage drag, the six genotype states, ranking modes, possible_duplicate), and docs/README.md indexes the documentation. CITATION.cff says how to cite the software.
 - Replace the milestone-heavy landing page with a concise workflow and fixture example; preserve the previous README in `docs/legacy-readme.md`.
 
 ### Fixed
