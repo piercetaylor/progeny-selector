@@ -56,7 +56,7 @@ python3 scripts/kasp_to_wide.py --kasp export.csv --markers markers.csv --out ge
 python3 scripts/kasp_to_wide.py --kasp export.csv --markers markers.csv --out genotypes.csv --drop-unplaced --controls NTC,H2O
 ```
 
-- A call matches `^[ACGT][:\-.]?[ACGT]$` (case-insensitive; separator `:`, `-`, `.` or none) and becomes the nucleotide pair of its first and last character (`A:G` -> `AG`). `Uncallable`, `Missing`, `?`, `Bad`, `Dupe`, `NTC`, empty, and any call that does not match the pattern become `N`, counted per reason and printed to stderr.
+- A call matches `^[ACGT][:\-.]?[ACGT]$` (case-insensitive; separator `:`, `-`, `.` or none) and becomes the nucleotide pair of its first and last character (`A:G` -> `AG`). `?`, `NTC` and empty are the missing tokens seen in real exports (three open parsers of real exports; `?` is SNPviewer's default unassigned text). `Uncallable`, `Missing`, `Bad` and `Dupe` are accepted case-insensitive aliases, assumed, not seen in an export. These and any call that does not match the pattern become `N`, counted per reason and printed to stderr; the summary also names up to 5 distinct unrecognised strings with their counts, most frequent first, so a new vendor token is visible.
 - `--controls` (default `NTC`): sample ids dropped before conversion.
 - Two rows for the same sample x marker with different resulting calls are an error naming both source lines; identical repeats are not a conflict.
 - A marker id absent from `--markers` is an error listing the ids, unless `--drop-unplaced` (counted and dropped).

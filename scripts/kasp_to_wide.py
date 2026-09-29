@@ -13,9 +13,13 @@ Two input shapes are accepted (docs/adr/0019, decision 9; docs/m2-phases.md Phas
   orientation.
 
 A call matches ``^[ACGT][:\\-.]?[ACGT]$`` (case-insensitive; separator ``:``, ``-``, ``.`` or
-none) and becomes the nucleotide pair of its first and last character. ``Uncallable``,
-``Missing``, ``?``, ``Bad``, ``Dupe``, ``NTC``, empty, and any call not matching the pattern
-become ``N`` (missing), counted per reason. Rows/columns whose sample id is in ``--controls``
+none) and becomes the nucleotide pair of its first and last character. ``?``, ``NTC`` and
+empty are the missing tokens seen in real exports (the three open parsers above; ``?`` is
+SNPviewer's default unassigned text). ``Uncallable``, ``Missing``, ``Bad`` and ``Dupe`` are
+accepted case-insensitive aliases, assumed, not seen in an export. These and any call not
+matching the pattern become ``N`` (missing), counted per reason; the summary on stderr also
+names up to 5 distinct unrecognised strings with their counts, so a new vendor token is
+visible. Rows/columns whose sample id is in ``--controls``
 (default ``NTC``) are dropped. Conflicting non-identical calls for one sample x SNP are an
 error naming both source rows. A SNP absent from ``--markers`` is an error listing the ids,
 unless ``--drop-unplaced`` (counted). Sample columns keep first-seen order; marker rows are
@@ -39,8 +43,12 @@ from progeny_selector.io.manifest import read_markers
 from progeny_selector.model.dataset import DataContractError
 
 CALL_RE = re.compile(r"^[ACGT][:\-.]?[ACGT]$", re.IGNORECASE)
-# Missing tokens named by decision 9 / Phase 10 (case-insensitive), plus '?' and empty.
+# Missing tokens, case-insensitive, plus '?' and empty. 'NTC' (like '?' and empty) is seen in real
+# exports; 'Uncallable', 'Missing', 'Bad' and 'Dupe' are aliases assumed, not seen in an export
+# (decision 9 / Phase 10 named them from LGC vocabulary; none appears in an open parser of a real export).
 NAMED_MISSING_TOKENS = ("Uncallable", "Missing", "Bad", "Dupe", "NTC")
+# How many distinct unrecognised call strings the stderr summary names.
+MAX_LISTED_UNRECOGNIZED = 5
 LONG_HEADERS = ("subjectid", "snpid", "call")
 
 
@@ -58,6 +66,16 @@ def classify_call(text: str) -> tuple[tuple[str, str] | None, str | None]:
     if CALL_RE.match(upper):
         return (upper[0], upper[-1]), None
     return None, "unrecognized"
+
+
+def _tally(reasons: dict[str, int], unknown: dict[str, int], reason: str | None, text: str) -> None:
+    """Count a missing reason, and the offending text itself when the call was unrecognised."""
+    if reason is None:
+        return
+    reasons[reason] = reasons.get(reason, 0) + 1
+    if reason == "unrecognized":
+        key = str(text).strip()
+        unknown[key] = unknown.get(key, 0) + 1
 
 
 def _read_grid_or_long(path: Path) -> list[tuple[int, list[str]]]:
@@ -111,7 +129,7 @@ def _record(
 
 def parse_long(
     rows: list[tuple[int, list[str]]], controls: set[str]
-) -> tuple[dict[tuple[str, str], tuple[tuple[str, str] | None, int]], list[str], dict[str, int]]:
+) -> tuple[dict[tuple[str, str], tuple[tuple[str, str] | None, int]], list[str], dict[str, int], dict[str, int]]:
     header = [h.strip().lower() for h in rows[0][1]]
     i_subject = header.index("subjectid")
     i_snp = header.index("snpid")
@@ -120,6 +138,7 @@ def parse_long(
     samples: list[str] = []
     seen_samples: set[str] = set()
     reasons: dict[str, int] = {}
+    unknown: dict[str, int] = {}
     for line_no, row in rows[1:]:
         subject = row[i_subject].strip() if i_subject < len(row) else ""
         snp = row[i_snp].strip() if i_snp < len(row) else ""
@@ -132,10 +151,9 @@ def parse_long(
             seen_samples.add(subject)
             samples.append(subject)
         value, reason = classify_call(call_text)
-        if reason is not None:
-            reasons[reason] = reasons.get(reason, 0) + 1
+        _tally(reasons, unknown, reason, call_text)
         _record(calls, subject, snp, value, line_no)
-    return calls, samples, reasons
+    return calls, samples, reasons, unknown
 
 
 def _match_count(ids: list[str], markers: dict) -> int:
@@ -144,7 +162,7 @@ def _match_count(ids: list[str], markers: dict) -> int:
 
 def parse_grid(
     rows: list[tuple[int, list[str]]], markers: dict, controls: set[str]
-) -> tuple[dict[tuple[str, str], tuple[tuple[str, str] | None, int]], list[str], dict[str, int]]:
+) -> tuple[dict[tuple[str, str], tuple[tuple[str, str] | None, int]], list[str], dict[str, int], dict[str, int]]:
     header = [h.strip() for h in rows[0][1]]
     header_ids = header[1:]
     first_col_ids = [row[0].strip() for _line_no, row in rows[1:] if row]
@@ -156,6 +174,7 @@ def parse_grid(
     samples: list[str] = []
     seen_samples: set[str] = set()
     reasons: dict[str, int] = {}
+    unknown: dict[str, int] = {}
 
     if markers_as_columns >= markers_as_rows:
         # header (minus first cell) = markers; first column of each row = sample id
@@ -173,8 +192,7 @@ def parse_grid(
                     continue
                 cell = row[j] if j < len(row) else ""
                 value, reason = classify_call(cell)
-                if reason is not None:
-                    reasons[reason] = reasons.get(reason, 0) + 1
+                _tally(reasons, unknown, reason, cell)
                 _record(calls, sample, marker_id, value, line_no)
     else:
         # first column of each row = marker id; header (minus first cell) = sample ids
@@ -192,10 +210,9 @@ def parse_grid(
                     continue
                 cell = row[j] if j < len(row) else ""
                 value, reason = classify_call(cell)
-                if reason is not None:
-                    reasons[reason] = reasons.get(reason, 0) + 1
+                _tally(reasons, unknown, reason, cell)
                 _record(calls, sample, marker_id, value, line_no)
-    return calls, samples, reasons
+    return calls, samples, reasons, unknown
 
 
 def build_wide(
@@ -238,9 +255,9 @@ def main(argv: list[str] | None = None) -> int:
         start = long_header_index(rows)
         shape = "grid" if start is None else "long"
         if start is not None:
-            calls, samples, reasons = parse_long(rows[start:], controls)
+            calls, samples, reasons, unknown = parse_long(rows[start:], controls)
         else:
-            calls, samples, reasons = parse_grid(rows, markers, controls)
+            calls, samples, reasons, unknown = parse_grid(rows, markers, controls)
         placed, grid, n_unplaced = build_wide(calls, samples, markers, args.drop_unplaced)
     except DataContractError as exc:
         print(f"error: {exc}", file=sys.stderr)
@@ -259,6 +276,12 @@ def main(argv: list[str] | None = None) -> int:
         print(f"warning: {n_unplaced} unplaced SNP(s) dropped (--drop-unplaced)", file=sys.stderr)
     for reason, count in sorted(reasons.items()):
         print(f"missing ({reason}): {count}", file=sys.stderr)
+    if unknown:
+        ranked = sorted(unknown.items(), key=lambda kv: (-kv[1], kv[0]))
+        listed = ", ".join(f"{text!r}: {count}" for text, count in ranked[:MAX_LISTED_UNRECOGNIZED])
+        more = len(ranked) - MAX_LISTED_UNRECOGNIZED
+        tail = f" (and {more} more distinct)" if more > 0 else ""
+        print(f"unrecognized calls: {listed}{tail}", file=sys.stderr)
     return 0
 
 

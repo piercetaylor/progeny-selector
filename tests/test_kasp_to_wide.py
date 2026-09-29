@@ -210,3 +210,32 @@ def test_sectioned_long_export_reads_from_its_data_header(tmp_path, capsys):
     assert kasp_to_wide.main(["--kasp", str(sectioned), "--markers", str(markers), "--out", str(sectioned_out)]) == 0
     assert "shape: long" in capsys.readouterr().out
     assert sectioned_out.read_text(encoding="utf-8") == plain_out.read_text(encoding="utf-8")
+
+
+def test_unrecognized_summary_names_up_to_five_distinct_strings(tmp_path, capsys):
+    """A new vendor token is visible on stderr: distinct offending strings with counts, most frequent first."""
+    offending = ["Fail", "Fail", "Fail", "XX", "XX", "0", "Z1", "Z2", "Z3"]
+    rows = ["SubjectID,SNPID,Call", "RP,snp.1,A:A", "DONOR,snp.1,G:G"]
+    rows += [f"S{i},snp.1,{call}" for i, call in enumerate(offending)]
+    markers = _write(tmp_path, "markers.csv", MARKERS_CSV)
+    kasp = _write(tmp_path, "export.csv", "\n".join(rows) + "\n")
+    rc = kasp_to_wide.main(["--kasp", str(kasp), "--markers", str(markers), "--out", str(tmp_path / "g.csv")])
+    assert rc == 0
+    stderr = capsys.readouterr().err
+    assert "missing (unrecognized): 9" in stderr
+    assert "unrecognized calls: 'Fail': 3, 'XX': 2, '0': 1, 'Z1': 1, 'Z2': 1 (and 1 more distinct)" in stderr
+    assert "'Z3'" not in stderr
+
+
+def test_no_unrecognized_line_when_every_call_is_known(tmp_path, capsys):
+    markers = _write(tmp_path, "markers.csv", MARKERS_CSV)
+    kasp = _write(tmp_path, "export.csv", LONG_KASP)
+    assert kasp_to_wide.main(["--kasp", str(kasp), "--markers", str(markers), "--out", str(tmp_path / "g.csv")]) == 0
+    assert "unrecognized calls:" not in capsys.readouterr().err
+
+
+def test_assumed_aliases_are_labelled_as_such():
+    """Uncallable, Missing, Bad and Dupe stay accepted, and the docs say they were never seen in an export."""
+    for token in ("Uncallable", "missing", "BAD", "dupe"):
+        assert kasp_to_wide.classify_call(token)[0] is None
+    assert "assumed, not seen in an export" in " ".join(kasp_to_wide.__doc__.split())
