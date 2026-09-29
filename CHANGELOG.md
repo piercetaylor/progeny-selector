@@ -6,6 +6,7 @@ All notable changes to this project are documented in this file. The format foll
 
 ### Added
 
+- Continuous integration covers Python 3.11, 3.12 and 3.13, plus Windows and macOS. A `package` job validates CITATION.cff, builds the sdist and wheel, runs `twine check`, and runs the example end to end from the installed wheel in a fresh environment. A tag-triggered release workflow publishes to PyPI by trusted publishing and creates the GitHub release from this file's section.
 - `progeny-selector app [--host] [--port] [--no-browser]` starts the browser interface from an installed package, and the Load screen has a "Load example (synthetic BC2F1)" button, which also works in the Shinylive site.
 - `progeny-selector example [--out DIR] [--name synthetic_bc2f1|synthetic_bc3f1|all] [--force]` writes the synthetic BC2F1 and BC3F1 example datasets, which now ship inside the package, so the quickstart runs without a checkout. The command refuses to overwrite existing files unless given `--force`.
 - `progeny-selector --version` prints the installed version, read from one source (`src/progeny_selector/_version.py`).

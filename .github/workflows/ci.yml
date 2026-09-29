@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.11", "3.12"]
+        python-version: ["3.11", "3.12", "3.13"]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -24,12 +24,12 @@ jobs:
       - run: pip install -e ".[dev]"
       - run: ruff check .
       - run: ruff format --check .
-      # Typechecking is static, so it runs once rather than per interpreter.
-      # numpy ships PEP 695 stubs that mypy only parses when it assumes
-      # Python 3.12 or newer; ruff (target-version py311) keeps the source
-      # valid on 3.11 and pytest exercises both.
+      # Typechecking is static, so it runs once, on the newest supported
+      # Python (3.13). numpy ships PEP 695 stubs that mypy only parses when it
+      # assumes Python 3.12 or newer; ruff (target-version py311) keeps the
+      # source valid on 3.11 and pytest exercises all three.
       - run: mypy
-        if: matrix.python-version == '3.12'
+        if: matrix.python-version == '3.13'
       - run: pytest --cov=progeny_selector --cov-report=term-missing
       - name: fixture is reproducible
         run: |
@@ -37,6 +37,78 @@ jobs:
           git diff --exit-code -- tests/fixtures src/progeny_selector/examples
       - name: contract manifest matches its files
         run: python scripts/check_contract.py
+
+  unit-os:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: python -m pip install --upgrade pip
+      - run: pip install -e ".[dev]"
+      - run: pytest
+
+  package:
+    needs: check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: python -m pip install --upgrade pip build twine cffconvert
+      - run: cffconvert --validate
+      - run: python -m build
+      - run: twine check --strict dist/*
+      - name: wheel carries the examples and the sdist excludes the working documents
+        run: |
+          unzip -l dist/*.whl | grep -E 'progeny_selector/examples/synthetic_bc2f1/genotypes\.vcf$'
+          unzip -l dist/*.whl | grep -E 'progeny_selector/examples/synthetic_bc3f1/samples\.csv$'
+          ! tar tzf dist/*.tar.gz | grep -E '/(CLAUDE|PLAN)\.md$'
+          tar tzf dist/*.tar.gz | grep -E '/tests/fixtures/synthetic_bc2f1/genotypes\.vcf$'
+          tar tzf dist/*.tar.gz | grep -E '/LICENSE$'
+      - name: fresh venv from the wheel
+        run: |
+          python -m venv "$RUNNER_TEMP/fresh"
+          "$RUNNER_TEMP/fresh/bin/pip" install --upgrade pip
+          "$RUNNER_TEMP/fresh/bin/pip" install dist/*.whl
+      - name: smoke from outside the checkout
+        working-directory: ${{ runner.temp }}
+        run: |
+          set -euo pipefail
+          PS=fresh/bin/progeny-selector; PY=fresh/bin/python
+          $PS --version | tee version.txt
+          v=$(cut -d' ' -f2 version.txt)
+          ls "$GITHUB_WORKSPACE"/dist/progeny_selector-"$v"-py3-none-any.whl
+          $PY -c "import progeny_selector, importlib.metadata as m; assert m.version('progeny-selector') == progeny_selector.__version__"
+          $PS example --out ex
+          $PS validate --genotypes ex/synthetic_bc2f1/genotypes.vcf --samples ex/synthetic_bc2f1/samples.csv --markers ex/synthetic_bc2f1/markers.csv --criteria ex/synthetic_bc2f1/criteria.yaml
+          $PS rank --genotypes ex/synthetic_bc2f1/genotypes.vcf --samples ex/synthetic_bc2f1/samples.csv --markers ex/synthetic_bc2f1/markers.csv --criteria ex/synthetic_bc2f1/criteria.yaml --out results.csv | grep -F "40 individuals, 11 pass hard filters"
+          $PS select --results results.csv --top 3 --out selected.csv --next-manifest next_samples.csv --next-generation BC3F1 --samples ex/synthetic_bc2f1/samples.csv
+          test "$(tail -n +2 selected.csv | wc -l)" -eq 6
+          $PS rank --genotypes ex/synthetic_bc3f1/genotypes.vcf --samples ex/synthetic_bc3f1/samples.csv --markers ex/synthetic_bc3f1/markers.csv --criteria ex/synthetic_bc3f1/criteria.yaml --out results_bc3f1.csv | grep -F "40 individuals"
+          $PY -c "import progeny_selector.app.app as a; assert a.app is not None"
+          $PS app --help
+          $PS app --no-browser --port 8765 & pid=$!
+          for i in $(seq 1 60); do curl -fsS http://127.0.0.1:8765/ -o page.html && break; sleep 1; done
+          grep -F "<title>progeny-selector</title>" page.html
+          kill $pid
+      - name: sdist installs too
+        run: |
+          python -m venv "$RUNNER_TEMP/fromsdist"
+          "$RUNNER_TEMP/fromsdist/bin/pip" install dist/*.tar.gz
+          "$RUNNER_TEMP/fromsdist/bin/progeny-selector" --version
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
 
   r-reader:
     needs: check
