@@ -6,7 +6,7 @@ All notable changes to this project are documented in this file. The format foll
 
 Nothing yet.
 
-## [0.1.0] - unreleased
+## [0.1.0] - 2026-09-29
 
 The first public release. It implements input data contract 1.12.0, shared with backcross, and writes results.csv and selected.csv under results_schema 1.2.0. The sibling backcross v0.1.0 was released the same day (https://github.com/piercetaylor/backcross/releases/tag/v0.1.0; docs/adr/0035 Q6).
 
