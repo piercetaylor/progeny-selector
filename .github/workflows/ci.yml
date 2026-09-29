@@ -34,7 +34,7 @@ jobs:
       - name: fixture is reproducible
         run: |
           python scripts/make_fixture.py
-          git diff --exit-code -- tests/fixtures
+          git diff --exit-code -- tests/fixtures src/progeny_selector/examples
       - name: contract manifest matches its files
         run: python scripts/check_contract.py
 

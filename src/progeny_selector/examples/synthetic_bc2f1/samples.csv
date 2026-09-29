@@ -1,0 +1,43 @@
+sample_id,line_name,role,generation,family_id,notes
+RP_Williams82,Williams 82 (synthetic),recurrent_parent,,,synthetic recurrent parent
+DONOR_PI_synthetic,PI synthetic donor,donor_parent,,,synthetic donor
+BC2F1-F1-001,LF1-001,progeny,BC2F1,F1,"planted: best possible (target H, two-marker donor segment, all else A)"
+BC2F1-F1-002,LF1-002,progeny,BC2F1,F1,planted: fails foreground (A at target)
+BC2F1-F1-003,LF1-003,progeny,BC2F1,F1,planted: 30% missing calls
+BC2F1-F1-004,LF1-004,progeny,BC2F1,F1,
+BC2F1-F1-005,LF1-005,progeny,BC2F1,F1,
+BC2F1-F1-006,LF1-006,progeny,BC2F1,F1,
+BC2F1-F1-007,LF1-007,progeny,BC2F1,F1,
+BC2F1-F1-008,LF1-008,progeny,BC2F1,F1,
+BC2F1-F1-009,LF1-009,progeny,BC2F1,F1,
+BC2F1-F1-010,LF1-010,progeny,BC2F1,F1,
+BC2F1-F1-011,LF1-011,progeny,BC2F1,F1,
+BC2F1-F1-012,LF1-012,progeny,BC2F1,F1,
+BC2F1-F1-013,LF1-013,progeny,BC2F1,F1,
+BC2F1-F1-014,LF1-014,progeny,BC2F1,F1,
+BC2F1-F1-015,LF1-015,progeny,BC2F1,F1,
+BC2F1-F1-016,LF1-016,progeny,BC2F1,F1,
+BC2F1-F1-017,LF1-017,progeny,BC2F1,F1,
+BC2F1-F1-018,LF1-018,progeny,BC2F1,F1,
+BC2F1-F1-019,LF1-019,progeny,BC2F1,F1,
+BC2F1-F1-020,LF1-020,progeny,BC2F1,F1,
+BC2F1-F2-001,LF2-001,progeny,BC2F1,F2,planted: fails avoid (H at avoid marker)
+BC2F1-F2-002,LF2-002,progeny,BC2F1,F2,planted: selfed BC2F2 contaminant mislabelled as BC2F1 (B calls present)
+BC2F1-F2-003,LF2-003,progeny,BC2F1,F2,
+BC2F1-F2-004,LF2-004,progeny,BC2F1,F2,
+BC2F1-F2-005,LF2-005,progeny,BC2F1,F2,
+BC2F1-F2-006,LF2-006,progeny,BC2F1,F2,
+BC2F1-F2-007,LF2-007,progeny,BC2F1,F2,
+BC2F1-F2-008,LF2-008,progeny,BC2F1,F2,
+BC2F1-F2-009,LF2-009,progeny,BC2F1,F2,
+BC2F1-F2-010,LF2-010,progeny,BC2F1,F2,
+BC2F1-F2-011,LF2-011,progeny,BC2F1,F2,
+BC2F1-F2-012,LF2-012,progeny,BC2F1,F2,
+BC2F1-F2-013,LF2-013,progeny,BC2F1,F2,
+BC2F1-F2-014,LF2-014,progeny,BC2F1,F2,
+BC2F1-F2-015,LF2-015,progeny,BC2F1,F2,
+BC2F1-F2-016,LF2-016,progeny,BC2F1,F2,
+BC2F1-F2-017,LF2-017,progeny,BC2F1,F2,
+BC2F1-F2-018,LF2-018,progeny,BC2F1,F2,
+BC2F1-F2-019,LF2-019,progeny,BC2F1,F2,
+BC2F1-F2-020,LF2-020,progeny,BC2F1,F2,

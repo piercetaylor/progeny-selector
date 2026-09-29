@@ -19,6 +19,7 @@ Interface (subcommands):
                               [--next-manifest next_samples.csv --next-generation BC3F1 --samples S
                                --per-selected N]
     progeny-selector brapi-callsets --brapi-url URL --variant-set ID [--brapi-token-env VAR] --out brapi-callsets.csv
+    progeny-selector example  [--out DIR] [--name {synthetic_bc2f1,synthetic_bc3f1,all}] [--force]
 """
 
 from __future__ import annotations
@@ -28,10 +29,12 @@ import csv
 import json
 import os
 import sys
+from pathlib import Path
 
 from progeny_selector._version import __version__
 from progeny_selector.core.pipeline import run_analysis
 from progeny_selector.core.selection import project_next_generation, select_top_n
+from progeny_selector.examples import EXAMPLE_FILES, EXAMPLES, write_example
 from progeny_selector.io import brapi, load_dataset, read_criteria, read_samples
 from progeny_selector.io.brapi import BrapiSource, call_sets_csv_text, normalise_base_url
 from progeny_selector.io.crops import BUILTIN_CROPS, DEFAULT_CROP_ID
@@ -128,6 +131,11 @@ def build_parser() -> argparse.ArgumentParser:
     b = sub.add_parser("brapi-callsets", help="write the call-set table of a BrAPI variant set, before samples.csv exists")
     _add_brapi_args(b)
     b.add_argument("--out", required=True, help="brapi-callsets.csv")
+
+    e = sub.add_parser("example", help="write the shipped synthetic example inputs (BC2F1 and its BC3F1 next generation) to a directory")
+    e.add_argument("--out", default="progeny-selector-example", metavar="DIR", help="output directory (default: %(default)s)")
+    e.add_argument("--name", default="all", choices=(*EXAMPLES, "all"), help="which example to write (default: %(default)s)")
+    e.add_argument("--force", action="store_true", help="overwrite existing files")
     return parser
 
 
@@ -286,6 +294,33 @@ def cmd_brapi_callsets(args: argparse.Namespace, parser: argparse.ArgumentParser
     return 0
 
 
+def cmd_example(args: argparse.Namespace) -> int:
+    names = list(EXAMPLES) if args.name == "all" else [args.name]
+    out = args.out
+    if not args.force:
+        # Check every target of every example first, so a refusal never leaves a half-written set.
+        for name in names:
+            for file in EXAMPLE_FILES:
+                target = Path(out) / name / file
+                if target.exists():
+                    print(f"error: {target} exists; pass --force to overwrite", file=sys.stderr)
+                    return 1
+    for name in names:
+        try:
+            write_example(name, Path(out), force=args.force)
+        except FileExistsError as exc:
+            print(f"error: {exc.filename} exists; pass --force to overwrite", file=sys.stderr)
+            return 1
+        print(f"wrote {out}/{name}: {', '.join(EXAMPLE_FILES)}")
+    print("synthetic data: the rankings are test cases, not breeding recommendations")
+    d = f"{out}/{names[0]}"
+    print(
+        f"next: progeny-selector rank --genotypes {d}/genotypes.vcf --samples {d}/samples.csv "
+        f"--markers {d}/markers.csv --criteria {d}/criteria.yaml --out results.csv"
+    )
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
@@ -298,6 +333,8 @@ def main(argv: list[str] | None = None) -> int:
             return cmd_select(args)
         if args.command == "brapi-callsets":
             return cmd_brapi_callsets(args, parser)
+        if args.command == "example":
+            return cmd_example(args)
     except (DataContractError, CriteriaError, FileNotFoundError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1

@@ -38,3 +38,8 @@ results*.csv
 selected*.csv
 !tests/fixtures/**
 !contract/**
+# the shipped examples (package data, written by scripts/make_fixture.py): *.vcf is ignored
+# globally, and hatchling excludes VCS-ignored files from the sdist and wheel by default, so
+# without this line the package data would be missing from both git and the wheel
+!src/progeny_selector/examples/**
+src/progeny_selector/examples/**/__pycache__/

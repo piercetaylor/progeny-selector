@@ -28,6 +28,8 @@ Deterministic (seed 20260904). Design:
     layout write_next_round_manifest produces, so the round-trip test compares the writer's
     output with this independently built file. criteria.yaml and markers.csv are not duplicated;
     the BC3F1 fixture reuses the BC2F1 ones.
+  - src/progeny_selector/examples/ holds byte copies of the six example inputs (copy_examples); this
+    generator is the only author of both copies, so the package data never differs from the fixture.
 
 Usage: python scripts/make_fixture.py
 """
@@ -38,6 +40,7 @@ import csv
 import json
 import math
 import random
+import shutil
 import sys
 from pathlib import Path
 
@@ -48,6 +51,7 @@ FIXTURES = Path(__file__).resolve().parents[1] / "tests" / "fixtures"
 OUT = FIXTURES / "synthetic_bc2f1"
 OUT_BC3F1 = FIXTURES / "synthetic_bc3f1"
 OUT_BRAPI = FIXTURES / "brapi"
+EXAMPLES = Path(__file__).resolve().parents[1] / "src" / "progeny_selector" / "examples"
 SEED = 20260904
 PER_CHROM = 25
 CM_PER_BP = 2.5 / 1_000_000
@@ -952,6 +956,24 @@ filters:
     return len(chosen), len(sample_ids)
 
 
+EXAMPLE_COPIES = (
+    (OUT, "synthetic_bc2f1", ("genotypes.vcf", "samples.csv", "markers.csv", "criteria.yaml")),
+    (OUT_BC3F1, "synthetic_bc3f1", ("genotypes.vcf", "samples.csv")),
+)
+
+
+def copy_examples() -> int:
+    """Byte-copy the example inputs into the package data (src/progeny_selector/examples/<name>/)."""
+    n = 0
+    for src_dir, name, files in EXAMPLE_COPIES:
+        dest = EXAMPLES / name
+        dest.mkdir(parents=True, exist_ok=True)
+        for file in files:
+            shutil.copyfile(src_dir / file, dest / file)
+            n += 1
+    return n
+
+
 def main() -> None:
     markers = build_markers()
     ids, states, true_states, family, generation = simulate(markers)
@@ -968,6 +990,8 @@ def main() -> None:
     write_bc3f1_outputs(markers, parents, ids3, states3, family3, rows3)
     n_pass3 = sum(1 for r in rows3 if r["passes_filters"])
     print(f"wrote fixture to {OUT_BC3F1}: {len(parents)} selected parents, {len(ids3)} BC3F1 progeny, {n_pass3} pass")
+    n_examples = copy_examples()
+    print(f"wrote package examples to {EXAMPLES}: {n_examples} files")
 
 
 if __name__ == "__main__":
