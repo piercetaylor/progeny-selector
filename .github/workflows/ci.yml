@@ -106,7 +106,7 @@ jobs:
         run: |
           v=$(python -c "import importlib.metadata as m; print(m.version('shinylive'))")
           echo "v=$v" >> "$GITHUB_OUTPUT"
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: ${{ steps.assets.outputs.dir }}
           key: shinylive-${{ steps.shinylive_version.outputs.v }}-${{ hashFiles('pyproject.toml') }}
