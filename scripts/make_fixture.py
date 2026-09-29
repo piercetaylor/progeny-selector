@@ -217,8 +217,9 @@ def marker_weights_cm(markers: list[dict]) -> list[float]:
     """Map-interval weight in cM per informative marker; 0 for uninformative markers.
 
     Half the gap to each neighbouring informative marker on the same chromosome, each side capped
-    at half of MAX_COVERAGE_CM; the outer side of the first and last informative marker is the cap's
-    half, because no genetic length is known for a chromosome (the pipeline passes no cM lengths).
+    at half of MAX_COVERAGE_CM. The outer side of the first and of the last informative marker is the
+    cap's half whatever its position: a linkage map's 0 cM is its first marker, not the telomere, so
+    the distance to either chromosome end is unknown (docs/adr/0033).
     """
     half = MAX_COVERAGE_CM / 2
     by_chrom: dict[str, list[int]] = {}

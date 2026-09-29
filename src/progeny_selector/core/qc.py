@@ -14,10 +14,11 @@ Interface:
     sample_qc(gm, dataset, classification, filters) -> list[SampleQC]
     parent_qc(gm, dataset, classification, filters) -> list[str] warnings
     duplicate_pairs(gm, sample_ids, threshold=0.995, max_samples=2000, marker_idx=None, min_overlap_frac=0.5)
-        -> list[tuple[str, str, float]]
+        -> list[tuple[str, str, float, int]]   (a, b, ibs, n_overlap)
     duplicate_scan(gm, sample_ids, threshold=0.995, max_samples=2000, marker_idx=None, min_overlap_frac=0.5)
         -> DuplicateScan(pairs, n_skipped, floor); duplicate_pairs is a thin wrapper returning
         just ``.pairs``, kept for existing callers
+    duplicate_sibling_warning(generations) -> str | None   the BC >= 6 caveat (docs/adr/0017, amendment 2026-09-27)
     uninformative_summary(classification) -> list[tuple[str, int]]   (reason, count), count desc then reason
     qc_table_rows(qc, dataset, filters) -> list[dict]   one flat row per SampleQC for the Validate screen
 """
@@ -48,6 +49,10 @@ FAMILY_OUTLIER_Z = 2.5
 # possible_duplicate (docs/adr/0017, amendment 2026-09-21): a pair must be called in common at this
 # fraction of the markers used for the comparison. Not a criteria key: it is a floor nobody tunes.
 MIN_DUPLICATE_OVERLAP_FRAC = 0.5
+# The duplicate threshold, and the backcross generation from which BCnF1 siblings' expected
+# informative-marker IBS, 1 - 2^-(n+1), is within 0.005 of it (docs/adr/0017, amendment 2026-09-27).
+DUPLICATE_IBS_THRESHOLD = 0.995
+SIBLING_WARNING_MIN_BACKCROSS = 6
 
 
 @dataclass
@@ -92,13 +97,17 @@ def sample_qc(
         nonparental_rate = n_x / n_inf_nonmissing if n_inf_nonmissing else float("nan")
         gen = parse_generation(s.generation)
         exp = expected_fractions(gen) if gen else None
+        # A Purdy label carries no filial generation (docs/adr/0034): expected RPP only, and the two
+        # checks that need the filial generation, het_rate_deviates and possible_self_or_outcross, are skipped.
+        filial_known = gen is not None and gen.filial_known
+        exp_het = exp.het if exp is not None and filial_known else None
         qc = SampleQC(
             sample_id=s.sample_id,
             missing_rate=missing_rate,
             het_rate=het_rate,
             hom_donor_rate=hom_donor_rate,
             nonparental_rate=nonparental_rate,
-            expected_het=exp.het if exp else None,
+            expected_het=exp_het,
             expected_rpp=exp.rpp if exp else None,
             ibs_rp=float(ibs_rp[j]),
             ibs_donor=float(ibs_dp[j]),
@@ -108,9 +117,15 @@ def sample_qc(
         if gen is None and s.generation:
             qc.flags.append("generation_unparsed")
         if n_called_inf:
-            if gen is not None and gen.n_filial == 1 and gen.n_backcross >= 1 and hom_donor_rate > filters.max_hom_donor_rate_bcf1:
+            if (
+                gen is not None
+                and filial_known
+                and gen.n_filial == 1
+                and gen.n_backcross >= 1
+                and hom_donor_rate > filters.max_hom_donor_rate_bcf1
+            ):
                 qc.flags.append("possible_self_or_outcross")
-            if exp is not None and abs(het_rate - exp.het) > filters.het_rate_tolerance:
+            if exp_het is not None and abs(het_rate - exp_het) > filters.het_rate_tolerance:
                 qc.flags.append("het_rate_deviates")
             if nonparental_rate > filters.max_nonparental_rate:
                 qc.flags.append("possible_outcross")
@@ -182,9 +197,13 @@ def parent_qc(gm: GenotypeMatrix, dataset: Dataset, classification: Classificati
 
 
 class DuplicateScan(NamedTuple):
-    """Result of ``duplicate_scan``: the reported pairs, plus how many were skipped and why."""
+    """Result of ``duplicate_scan``: the reported pairs, plus how many were skipped and why.
 
-    pairs: list[tuple[str, str, float]]
+    Each pair is ``(a, b, ibs, n_overlap)``: ``n_overlap`` is the number of markers called in both
+    lines that the IBS was measured over (docs/adr/0017, amendment 2026-09-27).
+    """
+
+    pairs: list[tuple[str, str, float, int]]
     n_skipped: int
     floor: int
 
@@ -192,7 +211,7 @@ class DuplicateScan(NamedTuple):
 def duplicate_scan(
     gm: GenotypeMatrix,
     sample_ids: list[str],
-    threshold: float = 0.995,
+    threshold: float = DUPLICATE_IBS_THRESHOLD,
     max_samples: int = 2000,
     marker_idx: np.ndarray | None = None,
     min_overlap_frac: float = MIN_DUPLICATE_OVERLAP_FRAC,
@@ -217,25 +236,25 @@ def duplicate_scan(
     ibs, overlap = pairwise_ibs(gm, idx, marker_idx=marker_idx, return_counts=True)
     n_pool = gm.n_markers if marker_idx is None else len(np.unique(np.asarray(marker_idx)))
     floor = max(1, math.ceil(min_overlap_frac * min(n_pool, MAX_IBS_MARKERS)))
-    pairs: list[tuple[str, str, float]] = []
+    pairs: list[tuple[str, str, float, int]] = []
     n_skipped = 0
     for a in range(len(idx)):
         for b in range(a + 1, len(idx)):
             if overlap[a, b] < floor:
                 n_skipped += 1
             elif ibs[a, b] >= threshold:
-                pairs.append((sample_ids[a], sample_ids[b], float(ibs[a, b])))
+                pairs.append((sample_ids[a], sample_ids[b], float(ibs[a, b]), int(overlap[a, b])))
     return DuplicateScan(pairs, n_skipped, floor)
 
 
 def duplicate_pairs(
     gm: GenotypeMatrix,
     sample_ids: list[str],
-    threshold: float = 0.995,
+    threshold: float = DUPLICATE_IBS_THRESHOLD,
     max_samples: int = 2000,
     marker_idx: np.ndarray | None = None,
     min_overlap_frac: float = MIN_DUPLICATE_OVERLAP_FRAC,
-) -> list[tuple[str, str, float]]:
+) -> list[tuple[str, str, float, int]]:
     """Thin wrapper around ``duplicate_scan`` for callers that only need the reported pairs."""
     return duplicate_scan(
         gm,
@@ -245,6 +264,25 @@ def duplicate_pairs(
         marker_idx=marker_idx,
         min_overlap_frac=min_overlap_frac,
     ).pairs
+
+
+def duplicate_sibling_warning(generations: list[str | None]) -> str | None:
+    """The caveat for a population too advanced for ``possible_duplicate`` to tell siblings from duplicates.
+
+    ``n`` is the largest ``n_backcross`` among the labels that parse (BCnFm or Purdy); at n >= 6 the
+    expected informative-marker IBS of two BCnF1 siblings, 1 - 2^-(n+1), is within 0.005 of the
+    threshold (docs/adr/0017, amendment 2026-09-27). None when no label parses or n < 6.
+    """
+    parsed = [g for g in (parse_generation(label) for label in generations) if g is not None]
+    if not parsed:
+        return None
+    n = max(g.n_backcross for g in parsed)
+    if n < SIBLING_WARNING_MIN_BACKCROSS:
+        return None
+    return (
+        f"possible_duplicate cannot separate duplicates from BC{n} siblings: expected sibling IBS "
+        f"{1 - 2 ** -(n + 1):.3f} is within 0.005 of the 0.995 threshold"
+    )
 
 
 def uninformative_summary(classification: Classification) -> list[tuple[str, int]]:

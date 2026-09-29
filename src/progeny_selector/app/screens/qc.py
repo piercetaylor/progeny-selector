@@ -9,10 +9,11 @@ DataGrid whose QC-excluded and flagged rows are tinted by
 ``app.present.qc_row_styles``.
 
 Duplicate pairs (``AnalysisResult.duplicates``, docs/adr/0017 and its
-2026-09-21 amendment) are listed as ``sample_a, sample_b: IBS 0.xxx``: the IBS
+2026-09-21 and 2026-09-27 amendments) are listed as
+``sample_a, sample_b: IBS 0.xxx, n_overlap N``: the IBS
 is measured over informative markers called in both individuals, and a pair
 is reported only when the two overlap on half or more of the markers used for
-that comparison, not over the whole panel.
+that comparison, not over the whole panel; ``n_overlap`` is that count of markers.
 
 Interface:
     view(id) -> Tag
@@ -67,7 +68,9 @@ def server_(input, output, session, state) -> None:
         reasons = uninformative_summary(result.classification)
         drag_unit = result.rows[0]["drag_unit"] if result.rows else "-"
         dup_items = (
-            [ui.tags.li(f"{a}, {b}: IBS {ibs:.3f}") for a, b, ibs in result.duplicates] if result.duplicates else [ui.tags.li("none")]
+            [ui.tags.li(f"{a}, {b}: IBS {ibs:.3f}, n_overlap {n_overlap}") for a, b, ibs, n_overlap in result.duplicates]
+            if result.duplicates
+            else [ui.tags.li("none")]
         )
         items: list[ui.TagChild] = [
             ui.tags.dt("markers"),

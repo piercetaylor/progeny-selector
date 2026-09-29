@@ -1,10 +1,10 @@
 #!/usr/bin/env Rscript
-# Reads results.csv (docs/adr/0016, contract 1.5.0) with explicit column types.
+# Reads results.csv schema 1.2.0 (docs/adr/0016, docs/adr/0033, docs/adr/0035, contract 1.5.0) with explicit column types.
 #
-# FIXED_COLUMNS mirrors progeny_selector.io.export.FIXED_COLUMNS exactly: the 35
-# documented columns plus the trailing `token_profile` (36 names), which is the
+# FIXED_COLUMNS mirrors progeny_selector.io.export.FIXED_COLUMNS exactly: the 41
+# documented columns plus the trailing `token_profile` (42 names), which is the
 # header written when there are no rows. Dynamic per-target, per-avoid-locus and
-# per-chromosome columns, when present, fall between `crop` and `token_profile`
+# per-chromosome columns, when present, fall between `tool_commit` and `token_profile`
 # and are read by readr's guess (`.default = col_guess()`).
 suppressPackageStartupMessages(library(readr))
 
@@ -44,6 +44,12 @@ FIXED_COLUMNS <- c(
   "assembly",
   "results_schema",
   "crop",
+  "call_set_db_id",
+  "sample_db_id",
+  "background_max_marker_coverage",
+  "tool",
+  "tool_version",
+  "tool_commit",
   "token_profile"
 )
 
@@ -89,6 +95,14 @@ read_results <- function(path) {
       assembly = col_character(),
       results_schema = col_character(),
       crop = col_character(),
+      # An all-empty id column (every file-loaded dataset) would be guessed logical.
+      call_set_db_id = col_character(),
+      sample_db_id = col_character(),
+      background_max_marker_coverage = col_double(),
+      # Provenance (docs/adr/0035): tool_version is a version string and tool_commit g<7 hex>[-dirty] or NA.
+      tool = col_character(),
+      tool_version = col_character(),
+      tool_commit = col_character(),
       token_profile = col_character(),
       .default = col_guess()
     ),
@@ -110,9 +124,9 @@ main <- function(args) {
   path <- args[[1]]
   df <- read_results(path)
 
-  # The fixed names are not contiguous: the first 35 lead the file, the dynamic
+  # The fixed names are not contiguous: the first 41 lead the file, the dynamic
   # per-target, per-avoid and per-chromosome columns follow, and `token_profile`
-  # is last (docs/adr/0016). A header-only file holds the 35 and `token_profile`.
+  # is last (docs/adr/0016). A header-only file holds the 41 and `token_profile`.
   leading <- FIXED_COLUMNS[seq_len(length(FIXED_COLUMNS) - 1L)]
   trailing <- FIXED_COLUMNS[[length(FIXED_COLUMNS)]]
   last_name <- if (ncol(df) > 0) names(df)[[ncol(df)]] else NA_character_

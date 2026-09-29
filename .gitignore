@@ -14,6 +14,8 @@ htmlcov/
 
 # shinylive export
 site/
+# written only into the staged copy by scripts/build_shinylive.py (docs/adr/0035)
+src/progeny_selector/_build_commit.txt
 
 # local environment
 .env

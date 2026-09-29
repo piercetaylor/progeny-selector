@@ -7,6 +7,12 @@ This script copies `src/progeny_selector` into a staging directory, writes a stu
 `app.py` that imports the real app object, and an explicit `requirements.txt` so
 the scanner's handling of inline imports does not matter.
 
+The browser has no git, so the commit the site was built from is written into the
+staged copy as `progeny_selector/_build_commit.txt` (docs/adr/0035), by the same
+guarded rule the package applies at run time: `g` plus seven hex digits of HEAD,
+`-dirty` when a tracked file differs from HEAD. When the rule gives no commit, no
+file is written and the site writes `NA`.
+
 Usage: python scripts/build_shinylive.py [--staging build/shinylive-app] [--out site]
 """
 
@@ -21,6 +27,11 @@ import time
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+PACKAGE_SRC = REPO_ROOT / "src" / "progeny_selector"
+# The repository's own copy of the rule, not whichever progeny_selector happens to be installed.
+sys.path.insert(0, str(REPO_ROOT / "src"))
+
+from progeny_selector.provenance import BUILD_COMMIT_FILE, git_commit  # noqa: E402
 
 STUB_APP_PY = "from progeny_selector.app.app import app  # noqa: F401\n"
 STUB_REQUIREMENTS = "pyyaml\npandas\nnumpy\n"
@@ -64,10 +75,13 @@ def stage_app(staging: Path) -> None:
     (staging / "app.py").write_text(STUB_APP_PY, newline="\n")
     (staging / "requirements.txt").write_text(STUB_REQUIREMENTS, newline="\n")
     shutil.copytree(
-        REPO_ROOT / "src" / "progeny_selector",
+        PACKAGE_SRC,
         staging / "progeny_selector",
-        ignore=shutil.ignore_patterns("__pycache__", "*.pyc"),
+        ignore=shutil.ignore_patterns("__pycache__", "*.pyc", BUILD_COMMIT_FILE),
     )
+    commit = git_commit(PACKAGE_SRC)
+    if commit is not None:
+        (staging / "progeny_selector" / BUILD_COMMIT_FILE).write_text(commit + "\n", encoding="utf-8", newline="\n")
 
 
 def main() -> None:

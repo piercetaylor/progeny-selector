@@ -20,9 +20,16 @@ byte-identical to the CLI's output. Both results.csv and selected.csv end with t
 ``_columns`` puts it last; selected.csv appends it after ``results_schema``. ``crop``
 (contract 1.5.0) is a fixed column between ``results_schema`` and ``token_profile`` in both
 files: docs/adr/0016 line 29 puts a new fixed column there, never after ``token_profile``.
+Schema 1.2.0 (docs/adr/0033) adds ``call_set_db_id`` and ``sample_db_id`` after ``crop`` in both
+files, and ``background_max_marker_coverage`` after them in results.csv only. The provenance columns
+``tool``, ``tool_version`` and ``tool_commit`` (docs/adr/0035) follow ``background_max_marker_coverage``
+in results.csv and ``sample_db_id`` in selected.csv. They name the build that writes the file, so
+they are filled here at write time rather than carried on the rows, and ``select`` reading a
+results.csv without them (schema 1.1.0) writes them all the same. An unknown commit is ``NA``.
 
-results.csv is schema 1.1.0 (docs/adr/0016): a missing value is written ``NA`` and empty
-text (``exclusion_reason``, ``qc_flags``, ``notes``) stays an empty cell; with no rows the
+results.csv is schema 1.2.0 (docs/adr/0016, 0033): a missing value is written ``NA`` and empty
+text (``exclusion_reason``, ``qc_flags``, ``notes``) and an identifier with no source (the BrAPI
+ids of a file-loaded dataset) stay an empty cell; with no rows the
 header is exactly ``FIXED_COLUMNS``. selected.csv carries ``results_schema`` too;
 next_samples.csv does not, and keeps empty cells, because it is the input contract's
 samples.csv. A placeholder-row count below 1 is refused with ``DataContractError``: a manifest
@@ -38,6 +45,7 @@ from io import StringIO
 from pathlib import Path
 from typing import TextIO
 
+from progeny_selector import provenance
 from progeny_selector.constants import RESULTS_SCHEMA
 from progeny_selector.model.dataset import DataContractError, Sample
 
@@ -46,6 +54,7 @@ __all__ = [
     "LEADING_COLUMNS",
     "MANIFEST_COLUMNS",
     "NA",
+    "PROVENANCE_COLUMNS",
     "RESULTS_SCHEMA",
     "SELECTION_COLUMNS",
     "check_next_generation",
@@ -60,6 +69,9 @@ __all__ = [
 
 # The text written for a missing value (docs/adr/0016). Empty text stays an empty cell.
 NA = "NA"
+
+# Written by the tool that writes the file, never copied from a row (docs/adr/0035).
+PROVENANCE_COLUMNS = ("tool", "tool_version", "tool_commit")
 
 LEADING_COLUMNS = (
     "rank_overall",
@@ -89,9 +101,9 @@ LEADING_COLUMNS = (
 )
 
 # The fixed prefix of results.csv: the leading columns, the composition columns, then the metadata
-# columns of schema 1.1.0 (docs/adr/0016), including ``crop`` after ``results_schema`` (contract
-# 1.5.0), and last ``token_profile`` (contract 1.4.0), which the dynamic per-locus and
-# per-chromosome columns are written before.
+# columns of schema 1.2.0 (docs/adr/0016, 0033), including ``crop`` after ``results_schema`` (contract
+# 1.5.0) and the provenance columns (docs/adr/0035), and last ``token_profile`` (contract 1.4.0),
+# which the dynamic per-locus and per-chromosome columns are written before.
 FIXED_COLUMNS = (
     *LEADING_COLUMNS,
     "role",
@@ -105,6 +117,10 @@ FIXED_COLUMNS = (
     "assembly",
     "results_schema",
     "crop",
+    "call_set_db_id",
+    "sample_db_id",
+    "background_max_marker_coverage",
+    *PROVENANCE_COLUMNS,
     "token_profile",
 )
 
@@ -120,6 +136,9 @@ SELECTION_COLUMNS = (
     "notes",
     "results_schema",
     "crop",
+    "call_set_db_id",
+    "sample_db_id",
+    *PROVENANCE_COLUMNS,
     "token_profile",
 )
 
@@ -128,11 +147,16 @@ SELECTION_COLUMNS = (
 MANIFEST_COLUMNS = ("sample_id", "line_name", "role", "generation", "family_id", "notes")
 
 
+def _provenance() -> dict[str, str | None]:
+    return {"tool": provenance.TOOL, "tool_version": provenance.tool_version(), "tool_commit": provenance.tool_commit()}
+
+
 def _columns(rows: list[dict]) -> list[str]:
     if not rows:
         return list(FIXED_COLUMNS)
-    # ``token_profile`` is left to dict order so it stays last, after the dynamic columns.
-    seen: list[str] = [c for c in FIXED_COLUMNS[:-1] if c in rows[0]]
+    # ``token_profile`` is left to dict order so it stays last, after the dynamic columns. The
+    # provenance columns are always written, whatever the rows carry.
+    seen: list[str] = [c for c in FIXED_COLUMNS[:-1] if c in rows[0] or c in PROVENANCE_COLUMNS]
     for row in rows:
         for c in row:
             if c not in seen:
@@ -154,10 +178,11 @@ def _fmt(v):
 
 def _write_results_csv(fh: TextIO, rows: list[dict]) -> None:
     cols = _columns(rows)
+    prov = _provenance()
     writer = csv.writer(fh)
     writer.writerow(cols)
     for row in rows:
-        writer.writerow([_fmt(row.get(c)) for c in cols])
+        writer.writerow([_fmt(prov[c] if c in prov else row.get(c)) for c in cols])
 
 
 def write_results_csv(rows: list[dict], path: str | Path) -> None:
@@ -173,6 +198,7 @@ def results_csv_text(rows: list[dict]) -> str:
 
 def _write_selection_csv(fh: TextIO, rows: list[dict], notes: dict[str, str] | None = None) -> None:
     notes = notes or {}
+    prov = _provenance()
     writer = csv.writer(fh)
     writer.writerow(SELECTION_COLUMNS)
     for r in rows:
@@ -189,6 +215,9 @@ def _write_selection_csv(fh: TextIO, rows: list[dict], notes: dict[str, str] | N
                 notes.get(r["sample_id"], ""),
                 RESULTS_SCHEMA,
                 r.get("crop", ""),
+                r.get("call_set_db_id", ""),
+                r.get("sample_db_id", ""),
+                *(_fmt(prov[c]) for c in PROVENANCE_COLUMNS),
                 r.get("token_profile", ""),
             ]
         )

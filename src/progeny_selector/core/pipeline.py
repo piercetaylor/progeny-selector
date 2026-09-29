@@ -33,7 +33,7 @@ from progeny_selector.core.chrom import SOYBEAN, CompiledScheme, chrom_length_bp
 from progeny_selector.core.classify import Classification, classify
 from progeny_selector.core.drag import DragResult, donor_segment
 from progeny_selector.core.foreground import ResolvedLocus, foreground_status, resolve_locus
-from progeny_selector.core.qc import SampleQC, duplicate_scan, parent_qc, sample_qc
+from progeny_selector.core.qc import SampleQC, duplicate_scan, duplicate_sibling_warning, parent_qc, sample_qc
 from progeny_selector.core.score import composite_score, hard_filters, rank_rows, rank_rows_staged
 from progeny_selector.core.similarity import ibs_to_sample
 from progeny_selector.model.criteria import Criteria, CriteriaError
@@ -52,7 +52,7 @@ class AnalysisResult:
     unit: str
     assembly: str  # the resolved chromosome-length table (``resolve_assembly``), as written to results.csv
     warnings: list[str] = field(default_factory=list)
-    duplicates: list[tuple[str, str, float]] = field(default_factory=list)
+    duplicates: list[tuple[str, str, float, int]] = field(default_factory=list)  # (a, b, ibs, n_overlap)
 
     def row(self, sample_id: str) -> dict:
         return next(r for r in self.rows if r["sample_id"] == sample_id)
@@ -150,6 +150,7 @@ def run_analysis(dataset: Dataset, criteria: Criteria) -> AnalysisResult:
         synthetic_sample_ids=dataset.synthetic_sample_ids,
         token_profile=dataset.token_profile,
         scheme=scheme,
+        call_sets=dataset.call_sets,
     )
     warnings = list(dataset.warnings)
     rp_id, donor_id = dataset.recurrent_parent.sample_id, dataset.donor_parent.sample_id
@@ -189,11 +190,14 @@ def run_analysis(dataset: Dataset, criteria: Criteria) -> AnalysisResult:
 
     # Background
     weights = None
+    # The resolved coverage cap in background_unit, written to results.csv so a default change is not
+    # silent (docs/adr/0033); None (NA) under the count model, which applies no cap.
+    max_coverage: float | None = None
     if criteria.background.model == "weighted":
+        cap_set = criteria.background.max_marker_coverage
+        max_coverage = float(DEFAULT_MAX_COVERAGE[unit] if cap_set is None else cap_set)
         if unit == "bp" and criteria.background.map_unit != "bp":  # a cM map was wanted and the dataset has none
-            cap = criteria.background.max_marker_coverage
-            cap = DEFAULT_MAX_COVERAGE["bp"] if cap is None else cap
-            warnings.append(f"weighted RPP in bp: no cM map, weights capped at {cap:.0f} bp per marker")
+            warnings.append(f"weighted RPP in bp: no cM map, weights capped at {max_coverage:.0f} bp per marker")
         # A chromosome with no usable recorded length is left out — no length at all, or markers past
         # the recorded one — so its terminal markers weigh the cap's half rather than nothing
         # (docs/adr/0015, amendment 2026-09-21); drag bounds still end at the last marker.
@@ -234,7 +238,12 @@ def run_analysis(dataset: Dataset, criteria: Criteria) -> AnalysisResult:
     if scan.n_skipped:
         warnings.append(f"{scan.n_skipped} pairs skipped: fewer than {scan.floor} markers called in both lines")
     dups = scan.pairs
-    duplicated = {s for a, b, _ in dups for s in (a, b)}
+    # The sibling caveat is about the flag, so it is raised only when the scan actually ran.
+    scan_ran = 2 <= len(sample_ids) <= _MAX_DUPLICATE_SAMPLES
+    sibling_warning = duplicate_sibling_warning([s.generation for s in progeny]) if scan_ran else None
+    if sibling_warning is not None:
+        warnings.append(sibling_warning)
+    duplicated = {s for a, b, _ibs, _n in dups for s in (a, b)}
     for q in qc:
         if q.sample_id in duplicated:
             q.flags.append("possible_duplicate")
@@ -279,6 +288,8 @@ def run_analysis(dataset: Dataset, criteria: Criteria) -> AnalysisResult:
     frac_a = (states == STATE_A).sum(axis=0) / denom
     frac_h = (states == STATE_H).sum(axis=0) / denom
     frac_b = (states == STATE_B).sum(axis=0) / denom
+    # BrAPI source ids (docs/adr/0033): an empty cell for a file-loaded dataset, as in backcross.
+    refs = {ref.sample_id: ref for ref in dataset.call_sets}
     rows: list[dict] = []
     for i, s in enumerate(progeny):
         row: dict = {
@@ -339,6 +350,10 @@ def run_analysis(dataset: Dataset, criteria: Criteria) -> AnalysisResult:
         # ``crop`` is a fixed column after ``results_schema`` (contract 1.5.0, docs/adr/0016 line 29) and
         # ``token_profile`` the last key, so results.csv carries it as its last column (contract 1.4.0).
         row["crop"] = dataset.crop
+        ref = refs.get(s.sample_id)
+        row["call_set_db_id"] = ref.call_set_db_id if ref is not None else ""
+        row["sample_db_id"] = ref.sample_db_id if ref is not None else ""
+        row["background_max_marker_coverage"] = max_coverage
         row["token_profile"] = dataset.token_profile
         rows.append(row)
     rows.sort(key=lambda r: (r["rank_overall"] if r["rank_overall"] is not None else float("inf"), r["sample_id"]))

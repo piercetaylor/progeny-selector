@@ -32,7 +32,9 @@ def build(states: dict[str, str]) -> Dataset:
 
 
 # P1 recovers the carrier chromosome, P2 the rest of the genome; both flanks of the target recombine in both.
-DATASET = build({"P1": "AHAA" + "BBBA", "P2": "BHBB" + "AAAA"})
+# P1 carries no recurrent-parent call on the non-carrier chromosome, so the composite gap is wide (0.20)
+# rather than resting on a single end-marker weight.
+DATASET = build({"P1": "AHAA" + "BBBB", "P2": "BHBB" + "AAAA"})
 CRITERIA = Criteria(
     targets=[TargetSpec("T1", marker_id="c2", required_state="either")],
     filters=Filters(max_hom_donor_rate_bcf1=1.0, het_rate_tolerance=1.0, max_nonparental_rate=1.0),
@@ -47,6 +49,10 @@ def ranks(mode: str) -> dict[str, float]:
 
 def test_weighted_ranks_by_the_composite_score():
     # P2 wins on the composite: rpp_noncarrier carries weight 0.5 against rpp_carrier's 0.2.
+    # cM weights per chromosome (2.5 cM spacing, cap 10; both terminal outer sides c/2, docs/adr/0033):
+    # 6.25, 2.5, 2.5, 6.25 (sum 17.5). P1: carrier (6.25 + 1.25 + 2.5 + 6.25) / 17.5 = 0.9286, non-carrier 0;
+    # P2: carrier 1.25 / 17.5 = 0.0714, non-carrier 1. Drag favours P1 by 0.125; recombinant is equal.
+    # P1 - P2 = 0.5 * (0 - 1) + 0.2 * (0.9286 - 0.0714) + 0.125 = -0.2036 (0.4357 against 0.6393).
     assert ranks("weighted") == {"P2": 1.0, "P1": 2.0}
 
 

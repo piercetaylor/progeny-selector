@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import dataclasses
+
 import numpy as np
 import pytest
 
+from progeny_selector.core import pipeline
 from progeny_selector.core.pipeline import run_analysis
 from progeny_selector.core.similarity import MAX_IBS_MARKERS, pairwise_ibs
 from progeny_selector.model.criteria import Criteria, TargetSpec
@@ -20,7 +23,7 @@ P3_STATES = [*P1_STATES[:10], *(["H"] * 10), *P1_STATES[20:]]
 CALLS = {"A": (0, 0), "H": (0, 2), "B": (2, 2), "N": (-1, -1)}
 
 
-def build(progeny: dict[str, list[str]], n_informative: int | None = None, n_monomorphic: int = 0) -> Dataset:
+def build(progeny: dict[str, list[str]], n_informative: int | None = None, n_monomorphic: int = 0, generation: str = "BC2F1") -> Dataset:
     """Dataset from per-progeny state columns, optionally preceded by monomorphic (uninformative) markers.
 
     A monomorphic marker gives RP, donor and every progeny the same homozygous call, so
@@ -39,7 +42,7 @@ def build(progeny: dict[str, list[str]], n_informative: int | None = None, n_mon
             calls[n_monomorphic + i, j] = CALLS[state]
     gm = GenotypeMatrix(markers=markers, sample_ids=sample_ids, alleles=[["A", "G", "T"] for _ in markers], calls=calls)
     samples = [Sample("RP", "RP", "recurrent_parent"), Sample("DONOR", "DONOR", "donor_parent")]
-    samples += [Sample(s, s, "progeny", "BC2F1", "F1") for s in progeny]
+    samples += [Sample(s, s, "progeny", generation, "F1") for s in progeny]
     return Dataset(genotypes=gm, samples=samples)
 
 
@@ -51,9 +54,10 @@ def test_duplicate_pair_flagged_advisory():
     dataset = build({"P1": P1_STATES, "P2": P2_STATES, "P3": P3_STATES})
     result = run_analysis(dataset, _criteria())
     assert len(result.duplicates) == 1
-    a, b, ibs = result.duplicates[0]
+    a, b, ibs, n_overlap = result.duplicates[0]
     assert (a, b) == ("P1", "P2")
     assert ibs >= 0.995
+    assert n_overlap == 29  # P2 has one call missing, so the pair is called in common at 29 of 30
     rows = {r["sample_id"]: r for r in result.rows}
     assert "possible_duplicate" in rows["P1"]["qc_flags"]
     assert "possible_duplicate" in rows["P2"]["qc_flags"]
@@ -88,7 +92,7 @@ def test_high_missing_member_is_still_flagged():
     """IBS uses the markers called in both, so an excluded high-missing sample is still flagged."""
     p2 = [*P1_STATES[:8], *(["N"] * 10), *P1_STATES[18:]]  # 10 of 30 calls missing -> high_missing
     result = run_analysis(build({"P1": P1_STATES, "P2": p2}), _criteria())
-    assert [(a, b) for a, b, _ in result.duplicates] == [("P1", "P2")]
+    assert [(a, b) for a, b, *_ in result.duplicates] == [("P1", "P2")]
     rows = {r["sample_id"]: r for r in result.rows}
     assert "possible_duplicate" in rows["P1"]["qc_flags"] and rows["P1"]["passes_filters"] is True
     assert "high_missing" in rows["P2"]["qc_flags"] and "possible_duplicate" in rows["P2"]["qc_flags"]
@@ -153,8 +157,9 @@ def test_overlap_just_above_the_floor_is_still_reported():
     _, counts = pairwise_ibs(dataset.genotypes, np.array([2, 3]), return_counts=True)
     assert counts[0, 1] == 15
     result = run_analysis(dataset, _criteria())
-    assert [(a, b) for a, b, _ in result.duplicates] == [("P1", "P2")]
+    assert [(a, b) for a, b, *_ in result.duplicates] == [("P1", "P2")]
     assert result.duplicates[0][2] == pytest.approx(1.0)
+    assert result.duplicates[0][3] == 15
     # One call fewer and the same pair drops out.
     thinner = build({"P1": P1_STATES, "P2": [*P1_STATES[:14], *(["N"] * 16)], "P3": P3_STATES})
     assert run_analysis(thinner, _criteria()).duplicates == []
@@ -196,3 +201,40 @@ def test_marker_index_order_does_not_change_the_subsample():
     assert n > MAX_IBS_MARKERS  # subsampling is in play, so the draw itself is being compared
     assert 0.0 < forward[0, 1] < 1.0  # a degenerate all-identical pair would make this test null
     assert reversed_ == pytest.approx(forward, nan_ok=True)
+
+
+SIBLING_WARNING = (
+    "possible_duplicate cannot separate duplicates from BC{n} siblings: expected sibling IBS {ibs} is within 0.005 of the 0.995 threshold"
+)
+
+
+@pytest.mark.parametrize(
+    ("generation", "expected"),
+    [
+        ("BC5F1", None),
+        ("BC6F1", SIBLING_WARNING.format(n=6, ibs="0.992")),
+        ("BC7F1", SIBLING_WARNING.format(n=7, ibs="0.996")),
+        ("RP*7/DON", SIBLING_WARNING.format(n=6, ibs="0.992")),  # a Purdy dose of 7 is BC6
+        ("unparsed label", None),
+    ],
+)
+def test_sibling_warning_from_bc6(generation, expected):
+    """At BC6 and later, BCnF1 siblings' expected IBS 1 - 2^-(n+1) is within 0.005 of the threshold."""
+    result = run_analysis(build({"P1": P1_STATES, "P3": P3_STATES}, generation=generation), _criteria())
+    found = [w for w in result.warnings if w.startswith("possible_duplicate cannot separate")]
+    assert found == ([] if expected is None else [expected])
+
+
+def test_no_sibling_warning_when_the_scan_is_skipped(monkeypatch):
+    monkeypatch.setattr(pipeline, "_MAX_DUPLICATE_SAMPLES", 1)
+    result = run_analysis(build({"P1": P1_STATES, "P3": P3_STATES}, generation="BC7F1"), _criteria())
+    assert "duplicate detection skipped above 1 individuals" in result.warnings
+    assert not any(w.startswith("possible_duplicate cannot separate") for w in result.warnings)
+
+
+def test_sibling_warning_uses_the_most_advanced_parsed_generation():
+    dataset = build({"P1": P1_STATES, "P3": P3_STATES})
+    p1, p3 = dataset.samples[2:]
+    samples = [*dataset.samples[:2], dataclasses.replace(p1, generation="BC2F1"), dataclasses.replace(p3, generation="BC8F1")]
+    result = run_analysis(Dataset(genotypes=dataset.genotypes, samples=samples), _criteria())
+    assert SIBLING_WARNING.format(n=8, ibs="0.998") in result.warnings

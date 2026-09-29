@@ -198,8 +198,8 @@ def cmd_validate(args: argparse.Namespace, parser: argparse.ArgumentParser) -> i
         for q in flagged[:20]:
             print(f"  {q.sample_id}: {'|'.join(q.flags)}")
         print(f"duplicate pairs: {len(res.duplicates)}")
-        for a, b, ibs in res.duplicates[:20]:
-            print(f"  {a}, {b}: ibs {ibs:.3f}")
+        for a, b, ibs, n_overlap in res.duplicates[:20]:
+            print(f"  {a}, {b}: ibs {ibs:.3f}, n_overlap {n_overlap}")
     return 0
 
 

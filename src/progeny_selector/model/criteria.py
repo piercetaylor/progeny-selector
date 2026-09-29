@@ -159,7 +159,7 @@ class Filters:
 class BackgroundOptions:
     model: str = "weighted"
     map_unit: str = "auto"
-    max_marker_coverage: float | None = None  # in map_unit; default 10 cM or 4,000,000 bp
+    max_marker_coverage: float | None = None  # in map_unit; default 10 cM or 2,000,000 bp (docs/adr/0033)
 
     def validate(self) -> None:
         if self.model not in BACKGROUND_MODELS:

@@ -39,3 +39,7 @@ The synthetic fixture does not pin the metadata columns, on purpose: they are co
 ### Consequences
 
 Good: the file says how it was produced; a reader can branch on the schema version; missing values are unambiguous in R, pandas and a spreadsheet; an empty run is still a valid CSV. Bad: existing scripts that test a cell for `""` to mean missing must test for `"NA"`; the columns are wider; the format change is breaking and is recorded as such in CHANGELOG.md. `cli.py`'s `_read_results` reads both forms, so a pre-freeze results.csv still feeds `select`.
+
+## Amendment, 2026-09-27
+
+Decided by research the maintainer delegated to Fable (Q-E4 of 2026-09-27); the full record is docs/adr/0033, which bumps the schema to 1.2.0. "A missing number, rank or identifier is `NA`" is narrowed: an identifier with no source is an empty cell, not `NA`. The case is the BrAPI ids `call_set_db_id` and `sample_db_id` on a file-loaded dataset, written empty to match backcross, whose five exports already write them that way. A missing number or rank is still `NA`, and so is a `family_id` or `generation` the manifest left blank in selected.csv.

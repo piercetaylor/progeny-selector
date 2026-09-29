@@ -39,7 +39,7 @@ def test_cm_requested_without_a_map_warns_for_both_settings():
 
 
 def test_weighted_model_in_bp_reports_the_cap_only_when_cm_was_wanted():
-    cap = "weighted RPP in bp: no cM map, weights capped at 4000000 bp per marker"
+    cap = "weighted RPP in bp: no cM map, weights capped at 2000000 bp per marker"
     for map_unit in ("cm", "auto"):
         criteria = dataclasses.replace(criteria_cm(), background=BackgroundOptions(model="weighted", map_unit=map_unit))
         result = run_analysis(make_dataset(without_cm(make_matrix(STATES))), criteria)
@@ -131,7 +131,11 @@ def test_terminal_marker_keeps_the_cap_weight_on_a_chromosome_beyond_its_assembl
 
 
 def test_terminal_marker_keeps_the_cap_weight_on_a_chromosome_without_a_length():
-    """Two markers on an unplaced chromosome: outer weights are the cap's half, not the distance to the last marker."""
+    """Two markers on an unplaced chromosome: the last marker's outer weight is the cap's half, not zero.
+
+    When positions are in bp the first marker's outer side is min(p, cap/2) whatever the length, since
+    the assembly origin is a chromosome end (docs/adr/0033).
+    """
     gm = without_cm(make_matrix(["A", "B"], chrom="scaffold_1"))
     criteria = dataclasses.replace(
         criteria_cm(),
@@ -141,7 +145,9 @@ def test_terminal_marker_keeps_the_cap_weight_on_a_chromosome_without_a_length()
         filters=Filters(max_hom_donor_rate_bcf1=1.0, het_rate_tolerance=1.0, max_nonparental_rate=1.0),
     )
     result = run_analysis(make_dataset(gm), criteria)
-    # cap/2 = 2,000,000 on each outer side and 500,000 inside, so both markers weigh 2,500,000 and RPP is 0.5.
-    # Ending the chromosome at the last marker would give weights 1,500,000 and 500,000, and RPP 0.75.
-    assert result.row("P1")["rpp_total"] == 0.5
+    # Default cap 2,000,000 bp (docs/adr/0033), so cap/2 = 1,000,000.
+    # m1 (A) at 1 Mb: min(1,000,000, cap/2) outside + 500,000 inside = 1,500,000.
+    # m2 (B) at 2 Mb: 500,000 inside + cap/2 outside = 1,500,000. RPP = 1.5 / 3.0 = 0.5.
+    # Ending the chromosome at the last marker would give m2 500,000 and RPP 0.75.
+    assert result.row("P1")["rpp_total"] == pytest.approx(0.5)
     assert rpp(result.classification.states[:, 2:]) == 0.5  # the count model, for comparison

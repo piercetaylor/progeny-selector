@@ -22,7 +22,9 @@ from progeny_selector.core.chrom import SOYBEAN, CompiledScheme, chrom_sort_key
 from progeny_selector.core.classify import is_called_informative
 from progeny_selector.model.dataset import GenotypeMatrix
 
-DEFAULT_MAX_COVERAGE = {"cm": 10.0, "bp": 4_000_000.0}
+# 10 cM is Flapjack's default; 2 Mb is a soybean euchromatic translation of it (~197 kb/cM x 10 cM),
+# not a Flapjack value; other crops should set the cap (docs/adr/0033).
+DEFAULT_MAX_COVERAGE = {"cm": 10.0, "bp": 2_000_000.0}
 
 
 def marker_weights(
@@ -37,8 +39,10 @@ def marker_weights(
 
     For each informative marker on a chromosome, weight = min(d_left/2, c/2) + min(d_right/2, c/2)
     where d_left/d_right are distances to the neighbouring informative markers and c is
-    ``max_coverage``. At chromosome ends the outer side uses min(distance to the chromosome
-    end, c/2) when the chromosome length is known, else c/2. Positions must be sorted.
+    ``max_coverage``. At chromosome ends the first marker's outer side is min(p, c/2) in bp, since
+    the assembly origin is a chromosome end, and c/2 in cM, since a linkage map's 0 cM is its first
+    marker rather than the telomere; the last marker's is min(max(L - p, 0), c/2) when positions are
+    in bp and the chromosome length L is known, else c/2 (docs/adr/0033). Positions must be sorted.
     """
     cap = (max_coverage if max_coverage is not None else DEFAULT_MAX_COVERAGE[unit]) / 2.0
     pos = gm.positions(unit)
@@ -52,14 +56,15 @@ def marker_weights(
         length = None if chrom_lengths is None else chrom_lengths.get(chrom)
         left = np.empty(idx.size)
         right = np.empty(idx.size)
+        first_outer = cap if unit == "cm" else min(p[0], cap)
         if idx.size == 1:
-            left[0] = cap if length is None else min(p[0], cap)
+            left[0] = first_outer
             right[0] = cap if length is None else min(length - p[0], cap)
         else:
             gaps = np.diff(p) / 2.0
             left[1:] = np.minimum(gaps, cap)
             right[:-1] = np.minimum(gaps, cap)
-            left[0] = cap if length is None else min(p[0], cap)
+            left[0] = first_outer
             right[-1] = cap if length is None else min(length - p[-1], cap)
         weights[idx] = np.maximum(left, 0) + np.maximum(right, 0)
     return weights

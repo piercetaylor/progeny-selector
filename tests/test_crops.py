@@ -21,6 +21,7 @@ from pathlib import Path
 
 import pytest
 
+from progeny_selector import __version__, provenance
 from progeny_selector.app.screens.load import CROP_CHOICES
 from progeny_selector.constants import DEFAULT_ASSEMBLY, RESULTS_SCHEMA, STATE_A, STATE_B, STATE_H
 from progeny_selector.core.chrom import SOYBEAN, CropScheme, chrom_length_bp, chrom_sort_key, compile_scheme, normalize_chrom
@@ -324,10 +325,10 @@ def maize_result(tmp_path_factory):
     return run_analysis(dataset, read_criteria(criteria_path))
 
 
-def test_results_schema_is_1_1_0(maize_result) -> None:
-    assert RESULTS_SCHEMA == "1.1.0"
+def test_results_schema_is_1_2_0(maize_result) -> None:
+    assert RESULTS_SCHEMA == "1.2.0"
     assert maize_result.rows
-    assert all(row["results_schema"] == "1.1.0" for row in maize_result.rows)
+    assert all(row["results_schema"] == "1.2.0" for row in maize_result.rows)
 
 
 def test_crop_column_sits_between_results_schema_and_token_profile(maize_result) -> None:
@@ -339,15 +340,26 @@ def test_crop_column_sits_between_results_schema_and_token_profile(maize_result)
     assert all(row["crop"] == "maize" for row in rows)
 
 
-def test_crop_column_in_selected_csv(maize_result) -> None:
+def test_crop_column_in_selected_csv(maize_result, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(provenance, "tool_commit", lambda: None)
     lines = selection_csv_text(maize_result.rows[:1]).split("\r\n")
-    assert lines[0].endswith(",notes,results_schema,crop,token_profile")
-    assert lines[1].endswith(",1.1.0,maize,default")
+    assert lines[0].endswith(",notes,results_schema,crop,call_set_db_id,sample_db_id,tool,tool_version,tool_commit,token_profile")
+    # A file-loaded dataset has no BrAPI ids; an unknown commit is NA.
+    assert lines[1].endswith(f",1.2.0,maize,,,progeny-selector,{__version__},NA,default")
 
 
 def test_empty_results_header_carries_crop_before_token_profile() -> None:
     header = results_csv_text([]).split("\r\n")[0].split(",")
-    assert header[-2:] == ["crop", "token_profile"]
+    assert header[-8:] == [
+        "crop",
+        "call_set_db_id",
+        "sample_db_id",
+        "background_max_marker_coverage",
+        "tool",
+        "tool_version",
+        "tool_commit",
+        "token_profile",
+    ]
 
 
 def test_load_screen_offers_the_thirteen_crops() -> None:

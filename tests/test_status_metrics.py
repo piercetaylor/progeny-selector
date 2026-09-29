@@ -17,6 +17,7 @@ from progeny_selector.core.pipeline import run_analysis
 from progeny_selector.core.score import composite_score, rank_rows
 from progeny_selector.core.similarity import ibs_to_sample
 from progeny_selector.model.criteria import AvoidSpec, Criteria, CriteriaError, TargetSpec, Weights
+from progeny_selector.model.dataset import GenotypeMatrix, Marker
 from tests.conftest import make_dataset, make_matrix
 
 # Ten markers on Gm01 at 1..10 Mb; progeny P1 states below.
@@ -72,6 +73,60 @@ def test_rpp_count_and_weighted(case):
     assert w2[0] == pytest.approx(1_000_000 + 500_000)  # 1 Mb to the chromosome start, half a gap to the right
     assert w2[9] == pytest.approx(500_000 + 5_000_000)  # half a gap left, capped 5 Mb to the right
     assert math.isnan(rpp(states[:0], w2[:0])[0]) if states[:0].size else True
+
+
+@pytest.mark.parametrize(
+    ("n_markers", "unit", "cap", "expected"),
+    [
+        # m1 at 1 Mb / 2.5 cM, m2 at 2 Mb / 5 cM (make_matrix); no chromosome length is passed.
+        # First marker: min(p, c/2) in bp (the assembly origin is a chromosome end), c/2 in cM (0 cM is
+        # the map's first marker, not the telomere); last marker: c/2 (docs/adr/0033).
+        (1, "bp", 4_000_000, [1_000_000 + 2_000_000]),
+        (2, "bp", 4_000_000, [1_000_000 + 500_000, 500_000 + 2_000_000]),
+        (1, "cm", 10.0, [5.0 + 5.0]),
+        (2, "cm", 10.0, [5.0 + 1.25, 1.25 + 5.0]),
+    ],
+)
+def test_first_marker_outer_side_without_a_length(n_markers, unit, cap, expected):
+    gm = make_matrix(["A"] * n_markers)
+    informative = classify(gm, "RP", "DONOR").informative
+    w = marker_weights(gm, informative, unit=unit, max_coverage=cap, chrom_lengths=None)
+    assert w.tolist() == pytest.approx(expected)
+
+
+def placed_matrix(positions: list[tuple[int, float | None]]) -> GenotypeMatrix:
+    """One chromosome, markers at the given (bp, cM) positions; every marker counts as informative."""
+    markers = [Marker(f"m{i + 1}", "Gm01", bp, cm) for i, (bp, cm) in enumerate(positions)]
+    calls = np.zeros((len(markers), 3, 2), dtype=np.int8)
+    return GenotypeMatrix(markers=markers, sample_ids=["RP", "DONOR", "P1"], alleles=[["A", "T"]] * len(markers), calls=calls)
+
+
+def test_cm_first_marker_at_zero_gets_the_cap_half():
+    # 0.0 and 5.0 cM, cap 10: each outer side c/2 = 5, the gap 2.5 per side. min(p, c/2) would give 2.5 and 7.5.
+    gm = placed_matrix([(1_000_000, 0.0), (2_000_000, 5.0)])
+    w = marker_weights(gm, np.ones(2, dtype=bool), unit="cm", max_coverage=10.0)
+    assert w.tolist() == pytest.approx([7.5, 7.5])
+
+
+def test_bp_first_marker_at_zero_has_no_outer_side():
+    # VCF 4.3 places a telomere at POS 0, so a marker there has nothing outside it; c/2 would give 1,500,000.
+    gm = placed_matrix([(0, None), (1_000_000, None)])
+    w = marker_weights(gm, np.ones(2, dtype=bool), unit="bp", max_coverage=2_000_000)
+    assert w.tolist() == pytest.approx([0 + 500_000, 500_000 + 1_000_000])
+
+
+def test_bp_single_marker_with_a_known_length():
+    # min(p, c/2) + min(max(L - p, 0), c/2) = min(9 Mb, 1 Mb) + min(0.5 Mb, 1 Mb); c/2 + c/2 would give 2,000,000.
+    gm = placed_matrix([(9_000_000, None)])
+    w = marker_weights(gm, np.ones(1, dtype=bool), unit="bp", max_coverage=2_000_000, chrom_lengths={"Gm01": 9_500_000})
+    assert w.tolist() == pytest.approx([1_000_000 + 500_000])
+
+
+def test_cm_single_marker_gets_the_cap_half_on_both_sides():
+    # c/2 + c/2 = 10 whatever the position; min(p, c/2) + c/2 would give 2.0 + 5.0 = 7.0.
+    gm = placed_matrix([(1_000_000, 2.0)])
+    w = marker_weights(gm, np.ones(1, dtype=bool), unit="cm", max_coverage=10.0)
+    assert w.tolist() == pytest.approx([5.0 + 5.0])
 
 
 def test_drag_bounds_and_recombinants(case):
