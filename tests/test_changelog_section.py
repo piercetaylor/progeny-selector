@@ -136,3 +136,9 @@ def test_citation_version_matches_the_package() -> None:
     released = data.get("date-released")
     if released is not None:
         assert re.fullmatch(r"\d{4}-\d{2}-\d{2}", str(released))
+
+
+def test_bracketed_body_line_stays_inside_section() -> None:
+    text = TEXT.replace("- one-zero line", "- one-zero line\n[note] x")
+    _, body = cs.section(text, "1.0.0")
+    assert "[note] x" in body

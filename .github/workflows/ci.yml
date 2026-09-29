@@ -71,7 +71,7 @@ jobs:
         run: |
           unzip -l dist/*.whl | grep -E 'progeny_selector/examples/synthetic_bc2f1/genotypes\.vcf$'
           unzip -l dist/*.whl | grep -E 'progeny_selector/examples/synthetic_bc3f1/samples\.csv$'
-          ! tar tzf dist/*.tar.gz | grep -E '/(CLAUDE|PLAN)\.md$'
+          if tar tzf dist/*.tar.gz | grep -E '/(CLAUDE|PLAN)\.md$|/docs/[^/]*-phases\.md$'; then echo "sdist carries a working document" >&2; exit 1; fi
           tar tzf dist/*.tar.gz | grep -E '/tests/fixtures/synthetic_bc2f1/genotypes\.vcf$'
           tar tzf dist/*.tar.gz | grep -E '/LICENSE$'
       - name: fresh venv from the wheel

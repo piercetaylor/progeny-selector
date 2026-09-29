@@ -317,6 +317,9 @@ def cmd_example(args: argparse.Namespace) -> int:
         except FileExistsError as exc:
             print(f"error: {exc.filename} exists; pass --force to overwrite", file=sys.stderr)
             return 1
+        except OSError as exc:
+            print(f"error: cannot write {out}/{name}: {exc}", file=sys.stderr)
+            return 1
         print(f"wrote {out}/{name}: {', '.join(EXAMPLE_FILES)}")
     print("synthetic data: the rankings are test cases, not breeding recommendations")
     d = f"{out}/{names[0]}"

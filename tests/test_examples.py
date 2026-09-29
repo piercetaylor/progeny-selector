@@ -87,3 +87,11 @@ def test_example_output_is_ignored_by_gitignore_but_package_data_is_not() -> Non
     assert "*.vcf" in lines
     assert "!src/progeny_selector/examples/**" in lines
     assert lines.index("!src/progeny_selector/examples/**") > lines.index("*.vcf")
+
+
+def test_example_out_naming_a_file_is_an_error_not_a_traceback(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    afile = tmp_path / "afile"
+    afile.write_text("x", encoding="utf-8")
+    assert main(["example", "--out", str(afile)]) != 0
+    err = capsys.readouterr().err
+    assert "error:" in err and "Traceback" not in err

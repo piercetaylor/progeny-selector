@@ -79,7 +79,7 @@ An advisory QC flag: the observed heterozygous rate differs from the rate expect
 
 ## `high_missing`
 
-A QC flag on an individual with too many missing calls. It is separate from the missing-rate hard filter (`max_missing_rate`, default 0.2), which excludes (PLAN.md, section 8).
+A QC flag on an individual with too many missing calls. It uses the same rule as the missing-rate hard filter (`filters.max_missing_rate`, default 0.2): one rule gives a QC flag, which does not exclude, and a hard-filter reason, which does (PLAN.md, section 8).
 
 ## IBS (identity by state)
 

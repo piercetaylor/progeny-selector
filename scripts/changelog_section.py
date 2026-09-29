@@ -18,7 +18,7 @@ import sys
 from pathlib import Path
 
 DATE_RE = re.compile(r"\d{4}-\d{2}-\d{2}")
-BOUNDARY_RE = re.compile(r"^(## \[|\[)")
+BOUNDARY_RE = re.compile(r"^(## \[|\[[^\]]+\]:\s)")
 
 
 def section(text: str, version: str) -> tuple[str, str]:

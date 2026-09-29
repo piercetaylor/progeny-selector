@@ -8,7 +8,7 @@ Nothing yet.
 
 ## [0.1.0] - unreleased
 
-The first public release. It implements input data contract 1.12.0, shared with backcross, and writes results.csv and selected.csv under results_schema 1.2.0.
+The first public release. It implements input data contract 1.12.0, shared with backcross, and writes results.csv and selected.csv under results_schema 1.2.0. The sibling backcross v0.1.0 was released the same day (https://github.com/piercetaylor/backcross/releases/tag/v0.1.0; docs/adr/0035 Q6).
 
 ### Added
 
@@ -114,7 +114,7 @@ The first public release. It implements input data contract 1.12.0, shared with 
 2. The two-generation round trip is verified on synthetic data only. No real linked BC(n) to BC(n+1) dataset has been run.
 3. The browser site has no BrAPI source. BrAPI is command-line only until a server sends CORS headers for the site's origin ([ADR 0024](https://github.com/piercetaylor/progeny-selector/blob/main/docs/adr/0024-brapi-allele-matrix-loader.md)).
 4. One donor per analysis. An intercross or pyramiding population is not ranked ([contract](https://github.com/piercetaylor/progeny-selector/blob/main/contract/data-contract.md), [ADR 0002](https://github.com/piercetaylor/progeny-selector/blob/main/docs/adr/0002-input-data-contract.md)).
-5. Chromosome-length tables exist for soybean only (Wm82.a2 and a4). Under any other crop a chromosome ends at its last marker ([ADR 0020](https://github.com/piercetaylor/progeny-selector/blob/main/docs/adr/0020-contract-1.5-crop-schemes.md)).
+5. Chromosome-length tables exist for soybean only (Wm82.a1, Wm82.a2 and Wm82.a4). Under any other crop a chromosome ends at its last marker ([ADR 0020](https://github.com/piercetaylor/progeny-selector/blob/main/docs/adr/0020-contract-1.5-crop-schemes.md)).
 6. The default cap of 2 Mb on base-pair coverage is a soybean translation of 10 cM. Set `background.max_marker_coverage` for other crops ([ADR 0033](https://github.com/piercetaylor/progeny-selector/blob/main/docs/adr/0033-results-schema-1.2-cap-and-end-rule.md)).
 7. A VCF 4.4 leading phase indicator in GT is rejected as `genotypes.invalid_gt` (contract 1.10.0).
 8. Accessibility: selecting several rows in the Rank grid needs a mouse; three axe rules are recorded exceptions; there is no screen-reader, Firefox, Safari or 320 px reflow testing ([accessibility review](https://github.com/piercetaylor/progeny-selector/blob/main/docs/accessibility.md)).

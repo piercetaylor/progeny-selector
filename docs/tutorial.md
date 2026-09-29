@@ -38,7 +38,7 @@ Run `select` again with ten placeholder rows per selected plant. This replaces `
 progeny-selector select --results results.csv --top 3 --out selected.csv --next-manifest next_samples.csv --next-generation BC3F1 --samples example/synthetic_bc2f1/samples.csv --per-selected 10
 ```
 
-Finally, rank the next generation. The `synthetic_bc3f1` folder is what the files would look like after you planted those seeds and genotyped the offspring:
+Finally, rank the next generation. The shipped `synthetic_bc3f1` folder shows the shape of the files for a BC3F1 generation. It is a separate synthetic dataset (4 parents x 10 = 40 progeny), not generated from the manifest you just wrote, so its sample IDs and row count differ from your `next_samples.csv`:
 
 ```sh
 progeny-selector rank --genotypes example/synthetic_bc3f1/genotypes.vcf --samples example/synthetic_bc3f1/samples.csv --markers example/synthetic_bc3f1/markers.csv --criteria example/synthetic_bc3f1/criteria.yaml --out results_bc3f1.csv
@@ -188,4 +188,4 @@ The last column is `token_profile`, the genotype vocabulary the file was read wi
 
 Once you have planted and tagged your plants, edit the `sample_id` values to your real plant tags and genotype the plants. The file already satisfies the `samples.csv` contract, so it loads unchanged as the next generation's `samples.csv`. `generation` is `BC3F1` because the run passed `--next-generation BC3F1`. If you are selecting a self-generation instead, the Selection list screen's "Next step" projects that case, and `select --project self` does the same on the command line.
 
-`example/synthetic_bc3f1/samples.csv` is what that file looks like after editing: two parents, then rows such as `BC2F1-F1-001-BC3F1-001` with role `progeny`, generation `BC3F1` and `family_id` `BC2F1-F1-001`. Use it with the `criteria.yaml` from the previous round to rank the new generation, as in the last command above.
+`example/synthetic_bc3f1/samples.csv` is a separate, ready-made BC3F1 example (40 progeny; its sample IDs do not match your manifest, which has 60 rows), with rows such as `BC2F1-F1-001-BC3F1-001` with role `progeny`, generation `BC3F1` and `family_id` `BC2F1-F1-001`. Use it with the `criteria.yaml` from the previous round to rank the new generation, as in the last command above.
