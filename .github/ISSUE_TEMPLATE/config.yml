@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Documentation and tutorial
+    url: https://github.com/piercetaylor/progeny-selector/blob/main/docs/README.md
+    about: Start here for the tutorial and the file format reference.

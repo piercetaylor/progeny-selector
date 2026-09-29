@@ -1,0 +1,74 @@
+name: Dataset or format question
+description: My file does not load or my chromosome names are not recognised
+labels: [question, data-format]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Never attach real genotype data. Paste a header line only.
+  - type: dropdown
+    id: crop
+    attributes:
+      label: Crop
+      options:
+        - soybean
+        - maize
+        - rice
+        - sorghum
+        - wheat
+        - barley
+        - oat
+        - common bean
+        - cotton
+        - cowpea
+        - pea
+        - peanut
+        - sunflower
+        - other
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      options:
+        - KASP
+        - array
+        - GBS or sequencing VCF
+        - other
+    validations:
+      required: true
+  - type: dropdown
+    id: format
+    attributes:
+      label: File format
+      options:
+        - VCF
+        - VCF.gz
+        - HapMap
+        - wide CSV
+        - BrAPI
+    validations:
+      required: true
+  - type: textarea
+    id: header
+    attributes:
+      label: File header
+      description: The first five lines of the file with sample names replaced; never real calls beyond a header line
+      render: text
+    validations:
+      required: true
+  - type: input
+    id: chromosomes
+    attributes:
+      label: Chromosome names
+      description: How chromosomes are named in the file, for example `Gm01`, `chr1`, `1`
+    validations:
+      required: true
+  - type: textarea
+    id: error
+    attributes:
+      label: Error message
+      description: The exact message
+    validations:
+      required: false

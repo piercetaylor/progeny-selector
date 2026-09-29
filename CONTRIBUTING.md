@@ -2,14 +2,31 @@
 
 ## Setup
 
-Python 3.11 or later. The package has four extras:
+Python 3.11 or later. The package installs shiny and pandas; the extras are `dev` (pytest, pytest-cov, ruff, mypy), `e2e` (pytest-playwright and axe-playwright-python) and `export` (shinylive).
 
-- `app`: shiny and pandas, to run the UI.
-- `dev`: the `app` dependencies plus pytest, pytest-cov, ruff and mypy. `pip install -e ".[dev]"` is enough for the per-commit gates: `ruff check .`, `ruff format --check .`, `mypy` and `pytest` must pass before a pull request.
-- `e2e`: pytest-playwright, for the browser tests under `tests/e2e/`. Install with `pip install -e ".[dev,e2e]"`, run `playwright install chromium` once, then `pytest -m e2e`. Plain `pytest` excludes these tests.
-- `export`: shinylive and build, for the static Shinylive export. No test gate needs it.
+- `dev`: `pip install -e ".[dev]"` is enough for the per-commit gates below. A pull request must pass them.
+- `e2e`: the browser tests under `tests/e2e/`. Install with `pip install -e ".[dev,e2e]"`, run `playwright install chromium` once, then `pytest -m e2e`. Plain `pytest` excludes these tests.
+- `export`: shinylive, for the static Shinylive export. No per-commit gate needs it.
 
-Regenerate the fixture with `python scripts/make_fixture.py`; CI fails if the committed fixture differs from the generator's output.
+Local venv recipe (Windows): `py -3.12 -m venv .venv`, then `.venv\Scripts\python -m pip install -e ".[dev,export,e2e]"` and `.venv\Scripts\python -m playwright install chromium`.
+
+After changing `src/progeny_selector/_version.py`, re-run `pip install -e .` so `tests/test_version.py` sees the new metadata.
+
+## Gates
+
+All must pass before a pull request:
+
+```
+ruff check .
+ruff format --check .
+mypy
+pytest
+python scripts/check_contract.py
+python scripts/make_fixture.py
+git diff --exit-code -- tests/fixtures src/progeny_selector/examples
+```
+
+The generator is deterministic, so regenerating the fixture must leave `tests/fixtures` and `src/progeny_selector/examples` unchanged. Edit the generator, never the generated files.
 
 ## Conventions
 
@@ -22,3 +39,7 @@ Everything in src/progeny_selector/core is pure: numpy arrays and dataclasses in
 ## Data
 
 Never commit genotype data other than the synthetic fixture; .gitignore excludes *.vcf, *.vcf.gz and *.hmp.txt outside tests/fixtures/.
+
+## Releasing
+
+Releases are made by the maintainer only: set the version in `src/progeny_selector/_version.py`, CHANGELOG.md and CITATION.cff, push a `v<version>` tag, and `.github/workflows/release.yml` builds, publishes to PyPI by trusted publishing and creates the GitHub release with the CHANGELOG section as notes.

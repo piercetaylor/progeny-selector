@@ -1,0 +1,64 @@
+name: Bug report
+description: Something is wrong or fails
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Never attach real genotype data. Reproduce with the shipped example (`progeny-selector example --out example`) or a synthetic file, and paste headers only.
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Output of `progeny-selector --version`, or the browser site's date
+    validations:
+      required: true
+  - type: dropdown
+    id: how_installed
+    attributes:
+      label: How it was installed
+      options:
+        - pip
+        - pipx
+        - browser site
+        - checkout
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - Windows
+        - macOS
+        - Linux
+        - other
+    validations:
+      required: true
+  - type: input
+    id: python
+    attributes:
+      label: Python version
+      description: Output of `python --version` (not required for the browser site)
+    validations:
+      required: false
+  - type: textarea
+    id: command
+    attributes:
+      label: Command or screen
+      description: The exact command or the screen and control
+    validations:
+      required: true
+  - type: textarea
+    id: error
+    attributes:
+      label: Error or wrong value
+      description: The exact error text or the wrong value
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behaviour
+    validations:
+      required: true
