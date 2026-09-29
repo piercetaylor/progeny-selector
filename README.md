@@ -95,11 +95,13 @@ From a source checkout, `ruff check .`, `ruff format --check .`, `mypy` and `pyt
 
 ## Related tool
 
-[backcross](https://github.com/piercetaylor/backcross) is the sibling browser-based tool; it shares this project's input contract.
+[backcross](https://github.com/piercetaylor/backcross) is the sibling browser-based tool. backcross characterises finished near-isogenic lines; progeny-selector ranks progeny during the programme. Both read input data contract 1.12.0, so genotype, samples.csv and markers.csv files move between them unchanged. The two tools release v0.1.0 on the same day, and each release note links the other's.
 
 ## Citing
 
-See [CITATION.cff](https://github.com/piercetaylor/progeny-selector/blob/main/CITATION.cff) (GitHub shows a Cite this repository button).
+Cite the software with [CITATION.cff](https://github.com/piercetaylor/progeny-selector/blob/main/CITATION.cff). GitHub shows a Cite this repository button for it. A Zenodo DOI is added after the first release. In plain text:
+
+Taylor, P. (2026). progeny-selector (version 0.1.0) [Computer software]. https://github.com/piercetaylor/progeny-selector
 
 ## Licence
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib.util
+import re
 from pathlib import Path
 
 import pytest
@@ -112,3 +113,26 @@ def test_main_writes_notes_and_checks_citation(tmp_path: Path) -> None:
     cff.write_text(CFF_BASE + "date-released: 2026-01-01\n", encoding="utf-8")
     with pytest.raises(SystemExit):
         cs.main(args)
+
+
+def test_changelog_has_a_section_for_the_current_version() -> None:
+    from progeny_selector import __version__
+
+    text = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
+    # The date is not asserted: it is "unreleased" until the maintainer tags.
+    assert re.search(rf"^## \[{re.escape(__version__)}\] - .+$", text, re.MULTILINE)
+
+
+def test_citation_version_matches_the_package() -> None:
+    import yaml
+
+    from progeny_selector import __version__
+
+    data = yaml.safe_load((ROOT / "CITATION.cff").read_text(encoding="utf-8"))
+    assert data["version"] == __version__
+    assert data["cff-version"] == "1.2.0"
+    assert data["authors"]
+    # date-released may be absent before the tag; once present it must be a real date.
+    released = data.get("date-released")
+    if released is not None:
+        assert re.fullmatch(r"\d{4}-\d{2}-\d{2}", str(released))

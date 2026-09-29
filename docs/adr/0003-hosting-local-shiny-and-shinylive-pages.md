@@ -24,3 +24,7 @@ Good: zero cost; a URL the breeder can open anywhere; data stays in the tab; no 
 ## Amendment 2026-09-14
 
 The sentence above, "the app's requirements.txt names the package wheel so Pyodide installs it in the browser", did not happen: `shinylive export src/progeny_selector/app site` scans only `app/app.py`'s imports and `app/requirements.txt`, so it never saw `progeny_selector` or numpy, and the CI step that ran it checked only the command's exit code. `scripts/build_shinylive.py` (docs/adr/0009) stages a copy of the package next to a stub `app.py` before exporting, which is what `shinylive export` now bundles; the wheel-URL line is the recorded fallback (resolution 5, `docs/m1-phases.md`) if the staged copy is ever found not to import under Pyodide. On this machine it imports without the fallback: see the M1 verification block in PLAN.md.
+
+## Amendment 2026-09-29
+
+"The CI workflow builds the wheel" was false from M0 until this date, when the `package` job of `.github/workflows/ci.yml` began building the wheel and the sdist, installing each into a fresh virtual environment and running the installed command. `.github/workflows/release.yml` publishes that build to PyPI on a version tag (docs/adr/0036). The accepted text above is left as written.

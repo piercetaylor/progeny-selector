@@ -4,6 +4,12 @@ All notable changes to this project are documented in this file. The format foll
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [0.1.0] - unreleased
+
+The first public release. It implements input data contract 1.12.0, shared with backcross, and writes results.csv and selected.csv under results_schema 1.2.0.
+
 ### Added
 
 - Continuous integration covers Python 3.11, 3.12 and 3.13, plus Windows and macOS. A `package` job validates CITATION.cff, builds the sdist and wheel, runs `twine check`, and runs the example end to end from the installed wheel in a fresh environment. A tag-triggered release workflow publishes to PyPI by trusted publishing and creates the GitHub release from this file's section.
@@ -28,57 +34,10 @@ All notable changes to this project are documented in this file. The format foll
 
 - The shared input contract mirror is version 1.9.0: `--crop` and the Load screen add a sunflower chromosome scheme (canonical record: backcross docs/adr/0024; mirror record docs/adr/0029). Its canonical names are bare `1`-`17`, and `Ha412HOChr01` (HA412-HOv2.0), `HanXRQChr01` (HanXRQr2.0-SUNRISE), `chr1`, `chromosome-1`, `01` and `1` are all read as `1`, because the two assemblies share the LG1-LG17 numbering (XRQ and HA412-HO v1 by their map anchoring, HA412-HOv2 by a whole-genome alignment against XRQ; backcross docs/adr/0024 gives the evidence and its weakest link); unplaced scaffolds (`HanXRQChr00c001`), organelles, accessions (`NC_035433.2`, `CM007890.2`), the `LG` prefix and HA412-HO v1.1 names (`Ha1`) are kept as written.
 
-### Changed
-
-- shiny and pandas are core dependencies, and the `app` extra is gone: `pip install progeny-selector` installs everything the browser interface needs. The `select --top N` help now says it keeps up to N per family, and that `--overall` keeps the N best overall.
-- results.csv and selected.csv are schema 1.2.0 (docs/adr/0033, docs/adr/0035). results.csv gains six columns directly after `crop`, before the per-target, per-avoid and per-chromosome columns: `call_set_db_id`, `sample_db_id`, `background_max_marker_coverage`, `tool`, `tool_version`, `tool_commit`, so its fixed prefix is 41 names (42 in the header of an empty file). selected.csv gains five after `crop`: `call_set_db_id`, `sample_db_id`, `tool`, `tool_version`, `tool_commit`. `call_set_db_id` and `sample_db_id` are the BrAPI ids a line was loaded from and an empty cell for data loaded from files. `background_max_marker_coverage` is the coverage cap the weighted model applied, in `background_unit`, and `NA` under `model: count`. `tool` is `progeny-selector`, `tool_version` the version that wrote the file, and `tool_commit` the commit it was built from (`g` and seven hex digits, `-dirty` when tracked files differ from that commit; untracked files do not count), `NA` when the commit is unknown, as for an installed wheel. A script that reads the per-chromosome columns by position after `crop` must move to the new position or select them by name; `scripts/read_results.R` reads the new columns, and `select` still reads a results.csv written before 1.2.0.
-- Weighted RPP changes for runs in bp: the first marker's outer side on a chromosome is min(position, cap/2) whether or not an assembly length is known (it was cap/2 when no length was known), and the default bp cap is 2,000,000 (was 4,000,000). `rpp_total`, `rpp_carrier`, `rpp_noncarrier` and every `rpp_<chrom>` move on existing bp datasets under `model: weighted`; re-rank before comparing with earlier results, or set `background.max_marker_coverage: 4000000` to keep the old cap. Values in cM are unchanged (docs/adr/0033).
-- Duplicate pairs carry `n_overlap`, the number of markers called in both lines that the IBS was measured over; `validate` and the Validate screen print it beside the IBS. When the most advanced parsed generation is BC6 or later, the run warns that `possible_duplicate` cannot separate duplicates from siblings, whose expected IBS is then within 0.005 of the 0.995 threshold (docs/adr/0017, amendment 2026-09-27).
-
-### Documentation
-
-- The README is rewritten for breeders: install with pip or pipx, run the shipped example, launch the interface, what each output means, what `--top` keeps, and the known limitations. docs/tutorial.md walks through one run of the example on the command line and in the interface, docs/glossary.md defines the terms (RPP, carrier chromosome, linkage drag, the six genotype states, ranking modes, possible_duplicate), and docs/README.md indexes the documentation. CITATION.cff says how to cite the software.
-- Replace the milestone-heavy landing page with a concise workflow and fixture example; preserve the previous README in `docs/legacy-readme.md`.
-
-### Fixed
-
-- `scripts/kasp_to_wide.py` reads a sectioned KASP service-lab export (`Statistics`, `SNPs`, then `Data`) from the first row carrying `SubjectID`, `SNPID` and `Call`; it took the first row as the header, so a real export failed as an undetectable grid (docs/adr/0019, amendment of 2026-09-27).
-- `validate` reports how many duplicate-pair candidates it skipped because the two lines share too few called markers ("N pairs skipped: fewer than M markers called in both lines"), where it dropped them silently before (Q14, the silent-skip half). The reload-guard end-to-end test now waits for the breadcrumb's settled state and fails on an empty mutation history, so it can no longer pass vacuously.
-- The Load screen reads a genotype upload named `.vcf.gz`, `.vcf.bgz`, `.hmp.txt` or `.hmp.gz`. Shiny stores an upload under its last suffix only, so such a file reached the reader as `0.gz` or `0.txt` and failed with "cannot infer genotype format" or a wide-CSV header error; the screen now restores the upload's own name before reading it, and errors in samples.csv, markers.csv and criteria.yaml name the user's file.
-
-- The next-round manifest refuses an empty next-generation label in `io.export`, so `select --next-generation ""` is a usage error and the Export screen shows the refusal and writes no file, where both previously wrote ids like `BC2F1-F1-001--001` and a blank `generation` column; a padded label is trimmed, and a refused write no longer leaves an empty file behind.
-- results.csv and the Validate screen record the chromosome-length table the run used, and not the criteria.yaml text. A maize run with an unset `assembly` recorded `Wm82.a4` while using no length table at all, and now records `none` (docs/adr/0015, amendment 2026-09-22).
-- An unset criteria.yaml `assembly` means whatever the crop implies: `Wm82.a4` under soybean, `none` under every other crop. An explicit `Wm82.*` under a non-soybean crop is refused naming the key, and an explicit `none` is accepted under any crop. A downloaded criteria.yaml writes an unset key as `assembly: null` and stays reusable across crops.
-
-### Added
-
 - Navigate offers a "(no generation)" choice for individuals without a generation; the Rank caption names an unassigned family or generation; the Navigate reload guard has a browser test.
 - `scripts/bench_pipeline.py` and `scripts/bench_shinylive.py` measure wall-clock and peak memory on generated datasets; `docs/limits.md` records the measured limits for CPython and Shinylive (docs/adr/0021).
 
 - Crop selector (contract 1.5.0, docs/adr/0020): soybean (default), maize, rice, sorghum, wheat, barley, oat, common bean and cotton chromosome schemes; a chosen crop normalizes and orders chromosome names, resolves target regions and selects chromosome lengths by that crop's convention, so a maize `chr1` is no longer read as `Gm01` and a maize target `chr7` resolves. `--crop ID` on the CLI and a Crop select on the Load screen.
-
-### Changed
-
-- Classification, RPP and IBS to a parent compute in blocks of 64 sample columns, so analysis temporaries are set by the marker count alone: 83 MB for `rpp` at 50,000 markers, measured the same at 100 individuals and at 2,000, where before the cost scaled with the call count and reaches about 3.2 GB at 50,000 x 2,000 by arithmetic from the measured per-call figure (docs/adr/0025). Results are bit-identical.
-
-- `read_vcf` reads the file in two passes and fills a preallocated matrix instead of stacking a list of rows, so the parse peak falls from 3.6x to 2.0x the genotype matrix on a file of 50,000 markers by 200 individuals (68.4 MiB to 38.4 MiB, measured on the reference machine); what remains beyond the matrix is the marker and allele tables, about 450 bytes a record, so the saving is largest on the sample-heavy files where the matrix dominates (docs/adr/0022). A truncated `.gz` is now a contract error naming the file, reported ahead of any row error in the same file. Results are unchanged.
-
-- results.csv schema 1.1.0: a fixed `crop` column after `results_schema` and before `token_profile`, which stays last (docs/adr/0016); selected.csv gains it in the same position and `scripts/read_results.R` reads it. Under any crop but soybean a chromosome ends at its last marker, because the chromosome length tables are Williams 82's; the per-chromosome "assembly gives no length" warning says so.
-
-### Changed
-
-- **BREAKING CHANGE:** results.csv schema 1.0.0: missing cells are `NA`, the header is written with no results, new columns `background_model`, `background_unit`, `rank_mode`, `assembly`, `results_schema`; `het_rate`, `expected_het` and `expected_rpp` never print `nan`. selected.csv gains `results_schema` and writes `NA` for missing family or generation (docs/adr/0016). next_samples.csv is unchanged: empty cells, no schema column. A chromosome whose name would collide with `rpp_total`, `rpp_carrier` or `rpp_noncarrier` is now an error naming the chromosome.
-- Contract 1.3.0 mirrored (docs/adr/0013): a blank line before the header is skipped in HapMap, wide CSV, samples.csv and markers.csv; the delimiter is sniffed from the first non-blank line; a blank line holds only spaces and tabs; a quoted field left open at the end of a delimited file, a `#` line after a VCF `#CHROM` line and an unparseable markers.csv `cm` are errors naming the line; line breaks inside quoted fields are read as LF; error kinds `genotypes.column_count` and `delimited.unterminated_quote`.
-- Data contract 1.2.1 (wording only): the sibling browser tool is now called Backcross.
-
-### Fixed
-
-- Weighted RPP: a chromosome whose markers run past the assembly length now weighs its terminal markers like a chromosome with no recorded length at all, instead of giving the terminal marker zero outer weight (docs/adr/0015, amendment 2026-09-21).
-- `scripts/kasp_to_wide.py` accepts `A:G` and `G:A` for the same sample and SNP as one call instead of a conflict.
-- Clearing a numeric field no longer breaks the screen: Export still downloads next_samples.csv and the Selection list's "Add top N per family" adds nothing instead of failing.
-- The next-round manifest refuses a placeholder-row count below 1 in `io.export` rather than only in the CLI, so the Export screen shows the refusal and writes no file where it previously downloaded a manifest holding the two parents and no progeny.
-
-### Added
 
 - `scripts/soysnp_positions.py` builds a SoySNP50K/6K position table across Wm82 assemblies from SoyBase GFF3s; `scripts/kasp_to_wide.py` converts an LGC long-format KASP export to the wide CSV contract.
 - Selection list: editable notes written to selected.csv. Validate: background model, units, assembly, rank mode and duplicate pairs. Export: placeholder rows per selected individual. docs/keyboard-walkthrough.md.
@@ -105,10 +64,38 @@ All notable changes to this project are documented in this file. The format foll
 
 ### Changed
 
+- shiny and pandas are core dependencies, and the `app` extra is gone: `pip install progeny-selector` installs everything the browser interface needs. The `select --top N` help now says it keeps up to N per family, and that `--overall` keeps the N best overall.
+- results.csv and selected.csv are schema 1.2.0 (docs/adr/0033, docs/adr/0035). results.csv gains six columns directly after `crop`, before the per-target, per-avoid and per-chromosome columns: `call_set_db_id`, `sample_db_id`, `background_max_marker_coverage`, `tool`, `tool_version`, `tool_commit`, so its fixed prefix is 41 names (42 in the header of an empty file). selected.csv gains five after `crop`: `call_set_db_id`, `sample_db_id`, `tool`, `tool_version`, `tool_commit`. `call_set_db_id` and `sample_db_id` are the BrAPI ids a line was loaded from and an empty cell for data loaded from files. `background_max_marker_coverage` is the coverage cap the weighted model applied, in `background_unit`, and `NA` under `model: count`. `tool` is `progeny-selector`, `tool_version` the version that wrote the file, and `tool_commit` the commit it was built from (`g` and seven hex digits, `-dirty` when tracked files differ from that commit; untracked files do not count), `NA` when the commit is unknown, as for an installed wheel. A script that reads the per-chromosome columns by position after `crop` must move to the new position or select them by name; `scripts/read_results.R` reads the new columns, and `select` still reads a results.csv written before 1.2.0.
+- Weighted RPP changes for runs in bp: the first marker's outer side on a chromosome is min(position, cap/2) whether or not an assembly length is known (it was cap/2 when no length was known), and the default bp cap is 2,000,000 (was 4,000,000). `rpp_total`, `rpp_carrier`, `rpp_noncarrier` and every `rpp_<chrom>` move on existing bp datasets under `model: weighted`; re-rank before comparing with earlier results, or set `background.max_marker_coverage: 4000000` to keep the old cap. Values in cM are unchanged (docs/adr/0033).
+- Duplicate pairs carry `n_overlap`, the number of markers called in both lines that the IBS was measured over; `validate` and the Validate screen print it beside the IBS. When the most advanced parsed generation is BC6 or later, the run warns that `possible_duplicate` cannot separate duplicates from siblings, whose expected IBS is then within 0.005 of the 0.995 threshold (docs/adr/0017, amendment 2026-09-27).
+
+- Classification, RPP and IBS to a parent compute in blocks of 64 sample columns, so analysis temporaries are set by the marker count alone: 83 MB for `rpp` at 50,000 markers, measured the same at 100 individuals and at 2,000, where before the cost scaled with the call count and reaches about 3.2 GB at 50,000 x 2,000 by arithmetic from the measured per-call figure (docs/adr/0025). Results are bit-identical.
+
+- `read_vcf` reads the file in two passes and fills a preallocated matrix instead of stacking a list of rows, so the parse peak falls from 3.6x to 2.0x the genotype matrix on a file of 50,000 markers by 200 individuals (68.4 MiB to 38.4 MiB, measured on the reference machine); what remains beyond the matrix is the marker and allele tables, about 450 bytes a record, so the saving is largest on the sample-heavy files where the matrix dominates (docs/adr/0022). A truncated `.gz` is now a contract error naming the file, reported ahead of any row error in the same file. Results are unchanged.
+
+- results.csv schema 1.1.0: a fixed `crop` column after `results_schema` and before `token_profile`, which stays last (docs/adr/0016); selected.csv gains it in the same position and `scripts/read_results.R` reads it. Under any crop but soybean a chromosome ends at its last marker, because the chromosome length tables are Williams 82's; the per-chromosome "assembly gives no length" warning says so.
+
+- **BREAKING CHANGE:** results.csv schema 1.0.0: missing cells are `NA`, the header is written with no results, new columns `background_model`, `background_unit`, `rank_mode`, `assembly`, `results_schema`; `het_rate`, `expected_het` and `expected_rpp` never print `nan`. selected.csv gains `results_schema` and writes `NA` for missing family or generation (docs/adr/0016). next_samples.csv is unchanged: empty cells, no schema column. A chromosome whose name would collide with `rpp_total`, `rpp_carrier` or `rpp_noncarrier` is now an error naming the chromosome.
+- Contract 1.3.0 mirrored (docs/adr/0013): a blank line before the header is skipped in HapMap, wide CSV, samples.csv and markers.csv; the delimiter is sniffed from the first non-blank line; a blank line holds only spaces and tabs; a quoted field left open at the end of a delimited file, a `#` line after a VCF `#CHROM` line and an unparseable markers.csv `cm` are errors naming the line; line breaks inside quoted fields are read as LF; error kinds `genotypes.column_count` and `delimited.unterminated_quote`.
+- Data contract 1.2.1 (wording only): the sibling browser tool is now called Backcross.
+
 - Contract 1.2.0, a minor version (docs/adr/0010, amended 2026-09-14): VCF POS must be decimal digits; a VCF record with ID `.` is named from the parsed POS. A position written as a whole-valued float or in exponent notation (`1000.0`, `1e3`, `1.9E+07`) is read as that integer in HapMap, wide CSV and markers.csv; a fractional `pos_bp` in wide CSV or markers.csv is now an error naming the line and value instead of being truncated, a non-integer VCF `POS` is a `DataContractError` instead of an uncaught `ValueError`, an empty `marker_id` in a wide CSV is an error, and wide-CSV and markers.csv errors name the physical line even after skipped rows.
 - Loaders aligned with contract 1.1.0 (docs/adr/0010): samples.csv, markers.csv and wide CSV may be tab-delimited and quoted; `line_name` is optional; genotype columns not in samples.csv are dropped and samples load in manifest order; a VCF record with ID `.` is named from CHROM as written (`chr13_19000000`, not `Gm13_19000000`); chromosome names accept the `LG` prefix and space or `-` separators, no longer accept `ch6`, and non-soybean names order naturally (`scaffold_2` before `scaffold_10`); `?` is no longer a missing token anywhere, and in HapMap and nucleotide wide CSV a single character outside A, C, G, T and the IUPAC codes (`?`, `B`, `H`, `0`, `+`) is an error naming the line and cell rather than a missing call; the HapMap missing tokens are exactly the contract's eleven (`X`, `XX` added, `?` removed); A/B/H auto-detection reads the whole file instead of its first 200 rows; a leading byte-order mark is accepted on every input.
 
 ### Fixed
+
+- `scripts/kasp_to_wide.py` reads a sectioned KASP service-lab export (`Statistics`, `SNPs`, then `Data`) from the first row carrying `SubjectID`, `SNPID` and `Call`; it took the first row as the header, so a real export failed as an undetectable grid (docs/adr/0019, amendment of 2026-09-27).
+- `validate` reports how many duplicate-pair candidates it skipped because the two lines share too few called markers ("N pairs skipped: fewer than M markers called in both lines"), where it dropped them silently before (Q14, the silent-skip half). The reload-guard end-to-end test now waits for the breadcrumb's settled state and fails on an empty mutation history, so it can no longer pass vacuously.
+- The Load screen reads a genotype upload named `.vcf.gz`, `.vcf.bgz`, `.hmp.txt` or `.hmp.gz`. Shiny stores an upload under its last suffix only, so such a file reached the reader as `0.gz` or `0.txt` and failed with "cannot infer genotype format" or a wide-CSV header error; the screen now restores the upload's own name before reading it, and errors in samples.csv, markers.csv and criteria.yaml name the user's file.
+
+- The next-round manifest refuses an empty next-generation label in `io.export`, so `select --next-generation ""` is a usage error and the Export screen shows the refusal and writes no file, where both previously wrote ids like `BC2F1-F1-001--001` and a blank `generation` column; a padded label is trimmed, and a refused write no longer leaves an empty file behind.
+- results.csv and the Validate screen record the chromosome-length table the run used, and not the criteria.yaml text. A maize run with an unset `assembly` recorded `Wm82.a4` while using no length table at all, and now records `none` (docs/adr/0015, amendment 2026-09-22).
+- An unset criteria.yaml `assembly` means whatever the crop implies: `Wm82.a4` under soybean, `none` under every other crop. An explicit `Wm82.*` under a non-soybean crop is refused naming the key, and an explicit `none` is accepted under any crop. A downloaded criteria.yaml writes an unset key as `assembly: null` and stays reusable across crops.
+
+- Weighted RPP: a chromosome whose markers run past the assembly length now weighs its terminal markers like a chromosome with no recorded length at all, instead of giving the terminal marker zero outer weight (docs/adr/0015, amendment 2026-09-21).
+- `scripts/kasp_to_wide.py` accepts `A:G` and `G:A` for the same sample and SNP as one call instead of a conflict.
+- Clearing a numeric field no longer breaks the screen: Export still downloads next_samples.csv and the Selection list's "Add top N per family" adds nothing instead of failing.
+- The next-round manifest refuses a placeholder-row count below 1 in `io.export` rather than only in the CLI, so the Export screen shows the refusal and writes no file where it previously downloaded a manifest holding the two parents and no progeny.
 
 - Genotype files named `.vcf.bgz` now load, as documented; `.bcf`, which was never documented and was read as text, is rejected.
 
@@ -116,7 +103,24 @@ All notable changes to this project are documented in this file. The format foll
 
 - The unused `core.classify.rpp_contribution`, a second copy of the table `constants.RPP_LOOKUP` carries (the follow-up docs/adr/0025 recorded).
 
+### Documentation
 
-## [0.1.0] - unreleased
+- The README is rewritten for breeders: install with pip or pipx, run the shipped example, launch the interface, what each output means, what `--top` keeps, and the known limitations. docs/tutorial.md walks through one run of the example on the command line and in the interface, docs/glossary.md defines the terms (RPP, carrier chromosome, linkage drag, the six genotype states, ranking modes, possible_duplicate), and docs/README.md indexes the documentation. CITATION.cff says how to cite the software.
+- Replace the milestone-heavy landing page with a concise workflow and fixture example; preserve the previous README in `docs/legacy-readme.md`.
 
-Initial scaffold; no release has been tagged.
+### Known limitations
+
+1. `possible_duplicate` is raw pairwise identity by state of at least 0.995 over informative markers, and it does not consider family. It is advisory only ([ADR 0017](https://github.com/piercetaylor/progeny-selector/blob/main/docs/adr/0017-duplicate-flag.md)).
+2. The two-generation round trip is verified on synthetic data only. No real linked BC(n) to BC(n+1) dataset has been run.
+3. The browser site has no BrAPI source. BrAPI is command-line only until a server sends CORS headers for the site's origin ([ADR 0024](https://github.com/piercetaylor/progeny-selector/blob/main/docs/adr/0024-brapi-allele-matrix-loader.md)).
+4. One donor per analysis. An intercross or pyramiding population is not ranked ([contract](https://github.com/piercetaylor/progeny-selector/blob/main/contract/data-contract.md), [ADR 0002](https://github.com/piercetaylor/progeny-selector/blob/main/docs/adr/0002-input-data-contract.md)).
+5. Chromosome-length tables exist for soybean only (Wm82.a2 and a4). Under any other crop a chromosome ends at its last marker ([ADR 0020](https://github.com/piercetaylor/progeny-selector/blob/main/docs/adr/0020-contract-1.5-crop-schemes.md)).
+6. The default cap of 2 Mb on base-pair coverage is a soybean translation of 10 cM. Set `background.max_marker_coverage` for other crops ([ADR 0033](https://github.com/piercetaylor/progeny-selector/blob/main/docs/adr/0033-results-schema-1.2-cap-and-end-rule.md)).
+7. A VCF 4.4 leading phase indicator in GT is rejected as `genotypes.invalid_gt` (contract 1.10.0).
+8. Accessibility: selecting several rows in the Rank grid needs a mouse; three axe rules are recorded exceptions; there is no screen-reader, Firefox, Safari or 320 px reflow testing ([accessibility review](https://github.com/piercetaylor/progeny-selector/blob/main/docs/accessibility.md)).
+9. Purdy labels: single crosses only, and no heterozygosity checks, because the label carries no filial generation ([ADR 0034](https://github.com/piercetaylor/progeny-selector/blob/main/docs/adr/0034-purdy-generation-labels.md)).
+10. The long-format KASP header names are unconfirmed against a real LGC export ([ADR 0019](https://github.com/piercetaylor/progeny-selector/blob/main/docs/adr/0019-soybean-input-tooling.md)).
+11. CI runs the browser tests on Linux only; Windows and macOS run the unit tests.
+
+[Unreleased]: https://github.com/piercetaylor/progeny-selector/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/piercetaylor/progeny-selector/releases/tag/v0.1.0
