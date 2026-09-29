@@ -9,11 +9,13 @@ Genotypes come either from a file (--genotypes) or from a BrAPI v2.1 variant set
 (--brapi-url with --variant-set; docs/adr/0024); exactly one of the two is required.
 
 Interface (subcommands):
+    progeny-selector --version
     progeny-selector validate (--genotypes G | --brapi-url URL --variant-set ID) --samples S [--markers M]
-                              [--criteria C] [--profile ID_OR_FILE] [--crop ID] [--brapi-token-env VAR]
+                              [--criteria C] [--coding auto|nucleotide|abh] [--profile ID_OR_FILE] [--crop ID] [--brapi-token-env VAR]
     progeny-selector rank     (--genotypes G | --brapi-url URL --variant-set ID) --samples S --criteria C
-                              [--markers M] [--profile ID_OR_FILE] [--crop ID] [--brapi-token-env VAR] --out results.csv
-    progeny-selector select   --results results.csv --top N [--overall] --out selected.csv
+                              [--markers M] [--coding auto|nucleotide|abh] [--profile ID_OR_FILE] [--crop ID]
+                              [--brapi-token-env VAR] --out results.csv
+    progeny-selector select   --results results.csv --top N [--overall] [--project backcross|self] --out selected.csv
                               [--next-manifest next_samples.csv --next-generation BC3F1 --samples S
                                --per-selected N]
     progeny-selector brapi-callsets --brapi-url URL --variant-set ID [--brapi-token-env VAR] --out brapi-callsets.csv
@@ -27,6 +29,7 @@ import json
 import os
 import sys
 
+from progeny_selector._version import __version__
 from progeny_selector.core.pipeline import run_analysis
 from progeny_selector.core.selection import project_next_generation, select_top_n
 from progeny_selector.io import brapi, load_dataset, read_criteria, read_samples
@@ -87,6 +90,7 @@ def _brapi_source(args: argparse.Namespace, parser: argparse.ArgumentParser) -> 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="progeny-selector", description="MABC progeny ranking and selection")
+    parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     sub = parser.add_subparsers(dest="command", required=True)
 
     v = sub.add_parser("validate", help="check files against the data contract and print QC warnings")
@@ -98,7 +102,15 @@ def build_parser() -> argparse.ArgumentParser:
 
     s = sub.add_parser("select", help="pick top N per family (or overall) from results.csv")
     s.add_argument("--results", required=True)
-    s.add_argument("--top", type=int, required=True)
+    s.add_argument(
+        "--top",
+        type=int,
+        required=True,
+        help=(
+            "select every passing individual ranked N or better within its family, so up to N per family "
+            "(ranks are dense, so ties can return more); with --overall, the N best overall"
+        ),
+    )
     s.add_argument("--overall", action="store_true", help="top N overall instead of per family")
     s.add_argument("--out", required=True, help="selected.csv")
     s.add_argument("--next-manifest", help="write a samples.csv skeleton for the next round")
