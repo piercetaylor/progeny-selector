@@ -6,6 +6,7 @@ All notable changes to this project are documented in this file. The format foll
 
 ### Added
 
+- `progeny-selector app [--host] [--port] [--no-browser]` starts the browser interface from an installed package, and the Load screen has a "Load example (synthetic BC2F1)" button, which also works in the Shinylive site.
 - `progeny-selector example [--out DIR] [--name synthetic_bc2f1|synthetic_bc3f1|all] [--force]` writes the synthetic BC2F1 and BC3F1 example datasets, which now ship inside the package, so the quickstart runs without a checkout. The command refuses to overwrite existing files unless given `--force`.
 - `progeny-selector --version` prints the installed version, read from one source (`src/progeny_selector/_version.py`).
 - Single-cross Purdy generation labels are read for the backcross count: `RP*3/DONOR`, `3*RP/DONOR`, `DONOR/RP*3` and `DONOR/3*RP` (a recurrent-parent dose n of 2 or more is BC(n-1), n = 1 the F1). Such a line gets an expected RPP and no longer carries `generation_unparsed`; its `expected_het` is `NA` and `het_rate_deviates` and `possible_self_or_outcross` are not evaluated, since the label states no filial generation. Write the BCnFm label (`BC2F1`) to keep those checks (docs/adr/0034).

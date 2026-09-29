@@ -20,6 +20,7 @@ Interface (subcommands):
                                --per-selected N]
     progeny-selector brapi-callsets --brapi-url URL --variant-set ID [--brapi-token-env VAR] --out brapi-callsets.csv
     progeny-selector example  [--out DIR] [--name {synthetic_bc2f1,synthetic_bc3f1,all}] [--force]
+    progeny-selector app      [--host HOST] [--port PORT] [--no-browser]
 """
 
 from __future__ import annotations
@@ -136,6 +137,11 @@ def build_parser() -> argparse.ArgumentParser:
     e.add_argument("--out", default="progeny-selector-example", metavar="DIR", help="output directory (default: %(default)s)")
     e.add_argument("--name", default="all", choices=(*EXAMPLES, "all"), help="which example to write (default: %(default)s)")
     e.add_argument("--force", action="store_true", help="overwrite existing files")
+
+    a = sub.add_parser("app", help="open the Shiny interface in your browser (Ctrl+C stops the server)")
+    a.add_argument("--host", default="127.0.0.1", help="address to listen on (default: %(default)s)")
+    a.add_argument("--port", type=int, default=8000, help="port to listen on (default: %(default)s)")
+    a.add_argument("--no-browser", action="store_true", help="do not open a browser tab")
     return parser
 
 
@@ -321,6 +327,23 @@ def cmd_example(args: argparse.Namespace) -> int:
     return 0
 
 
+APP_MISSING_MESSAGE = """error: the Shiny interface needs the package "{missing}", which is not installed.
+Reinstall the tool with:  python -m pip install --upgrade --force-reinstall progeny-selector
+With pipx:                pipx install --force progeny-selector"""
+
+
+def cmd_app(args: argparse.Namespace) -> int:
+    try:
+        import pandas  # noqa: F401  (the screens import it; fail here, not inside uvicorn)
+        from shiny import run_app
+    except ModuleNotFoundError as exc:
+        print(APP_MISSING_MESSAGE.format(missing=exc.name), file=sys.stderr)
+        return 2
+    print(f"progeny-selector {__version__}: serving the interface on http://{args.host}:{args.port}/ (Ctrl+C stops it)")
+    run_app("progeny_selector.app.app:app", host=args.host, port=args.port, launch_browser=not args.no_browser)  # type: ignore[misc]
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
@@ -335,6 +358,8 @@ def main(argv: list[str] | None = None) -> int:
             return cmd_brapi_callsets(args, parser)
         if args.command == "example":
             return cmd_example(args)
+        if args.command == "app":
+            return cmd_app(args)
     except (DataContractError, CriteriaError, FileNotFoundError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1

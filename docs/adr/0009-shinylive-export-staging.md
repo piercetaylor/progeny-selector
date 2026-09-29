@@ -21,3 +21,5 @@ The smoke test also settles a mechanical detail the resolution did not anticipat
 ### Consequences
 
 Good: no release, no PyPI dependency, and the export works from any checkout without a deploy having happened first; the smoke test is a real end-to-end check rather than an exit-code check, and it fails loudly (a non-origin request) if a future dependency change breaks the staged import. Bad: the staging directory duplicates `src/progeny_selector` under `build/` for every export (gitignored, but real disk and copy time); the wheel-URL fallback, if ever needed, ties the exported site to a GitHub Pages deploy that has already happened, which is why it stays a fallback and not the default. Neutral: `app/requirements.txt` is no longer what `shinylive export` reads when built through this script; it stays for `shiny run`, where it is unused, and for anyone exporting the unstaged app directory directly.
+
+2026-09-29: `src/progeny_selector/app/requirements.txt` was deleted (docs/m4-phases.md, Q12); neither `shiny run` nor `scripts/build_shinylive.py` read it, so the Neutral clause's sentence about it no longer applies.

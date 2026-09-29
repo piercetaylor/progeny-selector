@@ -144,3 +144,19 @@ def test_shinylive_export_runs_pipeline_in_browser(site_server: None, page: Page
 
     for url in requests:
         assert url.startswith(ORIGIN), f"request left the page's origin: {url}"
+
+
+def test_shinylive_load_example_stays_on_origin(site_server: None, page: Page) -> None:
+    requests: list[str] = []
+    page.context.on("request", lambda req: requests.append(req.url))
+
+    page.goto(ORIGIN)
+    frame = page.frame_locator("iframe").first
+    frame.locator("#load-run").wait_for(state="attached", timeout=LOAD_RUN_TIMEOUT_MS)
+
+    frame.locator("#load-example").click()
+    expect(frame.locator("#load-status")).to_contain_text(LOAD_STATUS, timeout=STATUS_TIMEOUT_MS)
+
+    assert requests, "no requests were recorded"
+    for url in requests:
+        assert url.startswith(ORIGIN), f"request left the page's origin: {url}"

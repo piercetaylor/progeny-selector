@@ -7,7 +7,11 @@ from pathlib import Path
 from playwright.sync_api import Page, expect
 from shiny.playwright import controller
 
+from progeny_selector.app.screens.load import EXAMPLE_FIRST_LINE
+
 FIXTURE = Path(__file__).parents[1] / "fixtures" / "synthetic_bc2f1"
+
+__all__ = ["EXAMPLE_FIRST_LINE", "FIXTURE", "LOAD_STATUS", "load_fixture"]
 
 LOAD_STATUS = "500 markers, 40 progeny; 11 pass hard filters"
 

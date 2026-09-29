@@ -20,7 +20,8 @@ does today, not the four-file list an earlier draft named):
 6. "Clear custom token profile" button
 7. criteria.yaml file input
 8. "Load and analyse" button
-9. The criteria text area, "Apply criteria and re-analyse", "Download criteria.yaml"
+9. "Load example (synthetic BC2F1)" button
+10. The criteria text area, "Apply criteria and re-analyse", "Download criteria.yaml"
 
 File inputs are opened and populated with `Enter`/`Space` on the button they
 render as, but choosing a file from the native file-picker dialog itself needs

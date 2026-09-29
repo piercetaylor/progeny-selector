@@ -6,7 +6,11 @@ into AppState. The criteria card is a YAML view over the applied ``Criteria``
 in AppState: it is rewritten in canonical form after every successful Load or
 Apply, Apply parses the text with the strict reader and re-analyses the loaded
 dataset, and the download always serialises the applied criteria, never the
-raw editor text. Errors from the data contract and the criteria reader are
+raw editor text. A "Load example (synthetic BC2F1)" button under "Load and analyse" loads and
+analyses the shipped synthetic example without any upload; the example is read from
+``progeny_selector.examples``, which under Shinylive is the staged copy of the package
+(docs/adr/0009), and the token-profile and crop selects are not read for it (contract default,
+soybean). Errors from the data contract and the criteria reader are
 shown verbatim; a failed Apply leaves AppState untouched. A "Token profile" select
 (contract 1.4.0: the contract default or a built-in profile) and a "Custom token profile
 (JSON, optional)" file input choose how HapMap and wide-CSV cells are read; a custom file,
@@ -37,6 +41,7 @@ from shiny import module, reactive, render, ui
 
 from progeny_selector.core.navigation import build_tree
 from progeny_selector.core.pipeline import run_analysis
+from progeny_selector.examples import example_paths
 from progeny_selector.io import load_dataset, read_criteria
 from progeny_selector.io.criteria import dump_criteria_yaml, read_criteria_text
 from progeny_selector.io.crops import BUILTIN_CROPS, DEFAULT_CROP_ID
@@ -44,6 +49,8 @@ from progeny_selector.io.delimited import invalid_utf8_message
 from progeny_selector.io.profiles import BUILTIN_PROFILES, DEFAULT_PROFILE_ID
 from progeny_selector.model.criteria import CriteriaError
 from progeny_selector.model.dataset import DataContractError
+
+EXAMPLE_FIRST_LINE = "loaded the shipped example: synthetic BC2F1 (test data; its rankings are not breeding recommendations)"
 
 
 @module.ui
@@ -65,6 +72,11 @@ def ui_(id: str = "") -> ui.Tag:
                 ui.input_select("crop", "Crop", CROP_CHOICES, selected=DEFAULT_CROP_ID),
                 ui.input_file("criteria", "criteria.yaml", accept=[".yaml", ".yml"]),
                 ui.input_action_button("run", "Load and analyse", class_="btn-primary"),
+                ui.input_action_button("example", "Load example (synthetic BC2F1)", class_="btn-outline-secondary"),
+                ui.p(
+                    "Synthetic data shipped with the package; its rankings are test cases, not breeding recommendations.",
+                    class_="form-text",
+                ),
             ),
             ui.card(ui.card_header("Status"), ui.output_text_verbatim("status")),
             col_widths=(5, 7),
@@ -174,6 +186,23 @@ def server_(input, output, session, state) -> None:
         input.profile_clear()  # a Clear re-renders the input, so the chosen file name disappears too
         return ui.input_file("profile_file", "Custom token profile (JSON, optional)", accept=[".json"])
 
+    def _publish(dataset, criteria, *, first_line: str | None) -> None:
+        """Analyse ``dataset`` under ``criteria`` and write the result into AppState and the status."""
+        result = run_analysis(dataset, criteria)
+        state.dataset.set(dataset)
+        state.criteria.set(criteria)
+        state.result.set(result)
+        # A new dataset starts at the cross node with nothing selected.
+        state.breadcrumb.set({"cross": build_tree(dataset).cross, "family": None, "generation": None})
+        state.selected_ids.set([])
+        state.notes.set({})
+        ui.update_text_area("criteria_text", value=dump_criteria_yaml(criteria))
+        criteria_message.set("criteria loaded; edit and Apply to re-analyse (YAML comments are not kept)")
+        n_pass = sum(1 for r in result.rows if r["passes_filters"])
+        lines = [f"{dataset.genotypes.n_markers} markers, {len(dataset.progeny)} progeny; {n_pass} pass hard filters"]
+        lines += [f"warning: {w}" for w in result.warnings]
+        message.set("\n".join(([first_line] if first_line else []) + lines))
+
     @reactive.effect
     @reactive.event(input.run)
     def _run() -> None:
@@ -194,20 +223,21 @@ def server_(input, output, session, state) -> None:
             criteria_path = _with_original_name(c[0])
             dataset = load_dataset(genotype_path, samples_path, markers_path, profile=profile, crop=crop)
             criteria = read_criteria(criteria_path)
-            result = run_analysis(dataset, criteria)
-            state.dataset.set(dataset)
-            state.criteria.set(criteria)
-            state.result.set(result)
-            # A new dataset starts at the cross node with nothing selected.
-            state.breadcrumb.set({"cross": build_tree(dataset).cross, "family": None, "generation": None})
-            state.selected_ids.set([])
-            state.notes.set({})
-            ui.update_text_area("criteria_text", value=dump_criteria_yaml(criteria))
-            criteria_message.set("criteria loaded; edit and Apply to re-analyse (YAML comments are not kept)")
-            n_pass = sum(1 for r in result.rows if r["passes_filters"])
-            lines = [f"{dataset.genotypes.n_markers} markers, {len(dataset.progeny)} progeny; {n_pass} pass hard filters"]
-            lines += [f"warning: {w}" for w in result.warnings]
-            message.set("\n".join(lines))
+            _publish(dataset, criteria, first_line=None)
+        except (DataContractError, CriteriaError) as exc:
+            message.set(f"error: {exc}")
+        except Exception as exc:
+            message.set(f"unexpected error: {type(exc).__name__}: {exc}")
+            logging.getLogger(__name__).exception("load failed")
+
+    @reactive.effect
+    @reactive.event(input.example)
+    def _example() -> None:
+        try:
+            with example_paths("synthetic_bc2f1") as p:
+                dataset = load_dataset(p["genotypes.vcf"], p["samples.csv"], p["markers.csv"], crop=DEFAULT_CROP_ID)
+                criteria = read_criteria(p["criteria.yaml"])
+            _publish(dataset, criteria, first_line=EXAMPLE_FIRST_LINE)
         except (DataContractError, CriteriaError) as exc:
             message.set(f"error: {exc}")
         except Exception as exc:
