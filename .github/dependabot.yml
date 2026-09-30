@@ -1,5 +1,15 @@
 version: 2
 updates:
+  # Python dependencies declared in pyproject.toml. Minor and patch updates
+  # arrive as one grouped pull request; a major bump arrives on its own and
+  # is reviewed against the gates, never merged unread.
+  - package-ecosystem: pip
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      minor-and-patch:
+        update-types: [minor, patch]
   - package-ecosystem: github-actions
     directory: /
     schedule:
