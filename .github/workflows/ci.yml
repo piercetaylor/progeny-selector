@@ -105,7 +105,7 @@ jobs:
           python -m venv "$RUNNER_TEMP/fromsdist"
           "$RUNNER_TEMP/fromsdist/bin/pip" install dist/*.tar.gz
           "$RUNNER_TEMP/fromsdist/bin/progeny-selector" --version
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: dist
           path: dist/
