@@ -99,7 +99,7 @@ From a source checkout, `ruff check .`, `ruff format --check .`, `mypy` and `pyt
 
 ## Citing
 
-Cite the software with [CITATION.cff](https://github.com/piercetaylor/progeny-selector/blob/main/CITATION.cff). GitHub shows a Cite this repository button for it. A Zenodo DOI is added after the first release. In plain text:
+Cite the software with [CITATION.cff](https://github.com/piercetaylor/progeny-selector/blob/main/CITATION.cff). GitHub shows a Cite this repository button for it. The DOI for all versions is [10.5281/zenodo.23051347](https://doi.org/10.5281/zenodo.23051347) (version 0.1.0: [10.5281/zenodo.23051348](https://doi.org/10.5281/zenodo.23051348)). In plain text:
 
 Taylor, P. (2026). progeny-selector (version 0.1.0) [Computer software]. https://github.com/piercetaylor/progeny-selector
 
