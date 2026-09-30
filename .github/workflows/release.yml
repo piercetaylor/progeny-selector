@@ -30,7 +30,7 @@ jobs:
           echo "v=$v" >> "$GITHUB_OUTPUT"
       - name: release notes from CHANGELOG.md
         run: python scripts/changelog_section.py "${{ steps.version.outputs.v }}" --out notes.md --check-citation CITATION.cff
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: release
           path: |
