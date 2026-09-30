@@ -336,6 +336,22 @@ M3 acceptance checklist (docs/m3-phases.md, "M3 acceptance checklist"):
   verification block and the Handoff are updated; CLAUDE.md State is updated; the end-of-milestone
   reviewer pass is done.
 
+### M4 verification, 2026-09-30: v0.1.0 from PyPI
+
+v0.1.0 was tagged by the maintainer on `b8925c3` (2026-09-29, 17:18 -0500). Release run 36638813692 succeeded (build, publish-pypi, github-release). PyPI serves `progeny_selector-0.1.0-py3-none-any.whl` and `progeny_selector-0.1.0.tar.gz`, and the GitHub release "progeny-selector 0.1.0" is marked Latest. Between the tag and `a16b804` only the Dependabot action bumps in `ci.yml` and `release.yml` differ; CI run 36635280328 on `a16b804` is green on all ten jobs.
+
+Fresh install on the maintainer's Windows 11 laptop, Python 3.12, in a new venv outside the checkout, `pip install --no-cache-dir progeny-selector` (imported from the venv's site-packages):
+
+- `progeny-selector --version`: `progeny-selector 0.1.0`.
+- `example --out example`: wrote `synthetic_bc2f1` and `synthetic_bc3f1`, four files each.
+- `validate` on BC2F1: five QC-flagged lines, `duplicate pairs: 0`.
+- `rank` on BC2F1: `40 individuals, 11 pass hard filters`; results.csv carries `tool, tool_version, tool_commit` as columns 39-41, with values `progeny-selector`, `0.1.0`, `NA` (no git behind a wheel, as docs/adr/0035 intends), and `results_schema` 1.2.0.
+- `select --top 3 ... --next-generation BC3F1`: 6 selected rows (3 per family), next_samples.csv with 8 rows, projected mean RPP 0.869 to 0.934.
+- `rank` on BC3F1: `40 individuals, 21 pass hard filters`.
+- `app --no-browser --port 8765`: HTTP 200 with title `progeny-selector`; stopped cleanly. The Load-example button was not pressed by hand in this check; CI's `e2e` and `export` jobs drive it under `shiny run` and Shinylive on every push.
+
+These numbers match docs/tutorial.md.
+
 ## Handoff (updated after every phase)
 
 - Milestone / phase: **M4 is complete**, 2026-09-29, release-ready and not released. Commits: phase 1 `a676179` (one version source, `--version`, shiny core), phase 7 `089d582` (community files), phase 2 `c03f1ef` (examples as package data, `example`), phase 3 `22beeba` (`app`, Load example), phases 5 and 6 `12422f1` (README, tutorial, glossary, CITATION.cff), phase 4 `f99a934` (3.13, Windows, macOS, `package` fresh-install job, `release.yml`), phase 8 `07a4512` (0.1.0 CHANGELOG section, ADR 0036), then the end-of-milestone review fixes. CI run 36616057499 green on all nine jobs at `f99a934`. The end-of-M4 reviewer found no blocker; its eight findings (sdist guard under pipefail, sibling link in the notes, Wm82.a1 in the limitation, tutorial BC3F1 wording, changelog boundary regex, `example --out <file>`, docs index links, the high_missing wording) were fixed before this entry.
